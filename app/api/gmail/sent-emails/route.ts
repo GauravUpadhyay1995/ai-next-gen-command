@@ -178,16 +178,26 @@ export async function GET(req: NextRequest) {
             const rawFrom = getHeader(headers, "From");
             const rawDate = getHeader(headers, "Date");
 
+            const fromEmail = extractEmails(rawFrom);
+            const toEmail = extractEmails(rawTo);
+            const snippetText = msg.data.snippet || "";
+            const subjectText = getHeader(headers, "Subject") || "No Subject";
+
+            const replaceOwnerEmail = (text: string) => {
+              if (!text) return "";
+              return text.replace(/rupamsi007@gmail.com/gi, "Store Room");
+            };
+
             return {
               serialNo: globalIndex + 1,
               id: msg.data.id || "",
               threadId: msg.data.threadId || "",
-              to: extractEmails(rawTo),
-              from: extractEmails(rawFrom),
-              subject: getHeader(headers, "Subject") || "No Subject",
+              to: replaceOwnerEmail(toEmail),
+              from: replaceOwnerEmail(fromEmail),
+              subject: replaceOwnerEmail(subjectText),
               date: formatDate(rawDate),
               rawDate,
-              snippet: msg.data.snippet || "",
+              snippet: replaceOwnerEmail(snippetText),
             };
           } catch (err) {
             console.error(`Error getting metadata for message ${message.id}:`, err);

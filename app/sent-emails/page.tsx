@@ -407,7 +407,7 @@ function SentEmailsContent() {
               {ownerConnected === true && (
                 <div className="text-xs text-purple-300 ml-7 flex items-center gap-1.5">
                   <span className="w-1.5 h-1.5 bg-purple-400 rounded-full"></span>
-                  <span>Fetching sent emails from owner's mailbox: <strong>{ownerEmail}</strong></span>
+                  <span>Fetch Mails From  <strong>{ownerEmail}</strong></span>
                 </div>
               )}
               {ownerConnected === false && (

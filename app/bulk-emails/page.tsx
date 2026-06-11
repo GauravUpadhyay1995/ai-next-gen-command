@@ -371,7 +371,7 @@ Gaurav`
                 <div className="flex items-center gap-3 p-3 bg-purple-500/20 border border-purple-500/30 rounded-xl text-purple-300 text-xs animate-slide-in">
                   <CheckCircle className="w-4 h-4 text-purple-400 shrink-0" />
                   <span>
-                    Campaigns will send and check duplicates via owner: <strong>{ownerEmail}</strong>
+                    Campaigns will send and check duplicates via: <strong> {connectedEmail}</strong>
                   </span>
                 </div>
               )}
@@ -397,8 +397,8 @@ Gaurav`
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
               className={`flex items-center gap-2 px-6 py-2.5 rounded-xl font-medium transition-all ${activeTab === tab.id
-                  ? "bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg"
-                  : "glass-card text-purple-200 hover:bg-white/10"
+                ? "bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg"
+                : "glass-card text-purple-200 hover:bg-white/10"
                 }`}
             >
               <tab.icon className="w-4 h-4" />

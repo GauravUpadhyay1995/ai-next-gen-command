@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       connected: false,
       ownerConnected: !!ownerTokenData,
-      ownerEmail: ownerTokenData ? ownerTokenData.email : null,
+      ownerEmail: ownerTokenData ? "Store Room" : null,
     });
   }
 
@@ -37,19 +37,20 @@ export async function GET(req: NextRequest) {
     });
 
     const email = profileResponse.data.emailAddress || "";
+    const displayEmail = email.toLowerCase() === "rupamsi007@gmail.com" ? "Store Room" : email;
 
     return NextResponse.json({
       connected: true,
-      email,
+      email: displayEmail,
       ownerConnected: !!ownerTokenData,
-      ownerEmail: ownerTokenData ? ownerTokenData.email : null,
+      ownerEmail: ownerTokenData ? "Store Room" : null,
     });
   } catch (err: any) {
     console.error("Status route error:", err);
     return NextResponse.json({
       connected: false,
       ownerConnected: !!ownerTokenData,
-      ownerEmail: ownerTokenData ? ownerTokenData.email : null,
+      ownerEmail: ownerTokenData ? "Store Room" : null,
     });
   }
 }
