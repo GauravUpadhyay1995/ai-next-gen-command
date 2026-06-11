@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createOAuthClient } from "@/lib/google";
+import { google } from "googleapis";
+import { storeOwnerRefreshToken } from "@/lib/token-storage";
 
 export async function GET(req: NextRequest) {
   try {
@@ -16,6 +18,26 @@ export async function GET(req: NextRequest) {
     const oauth2Client = createOAuthClient();
 
     const { tokens } = await oauth2Client.getToken(code);
+
+    // Fetch user profile to check if they are the owner
+    oauth2Client.setCredentials(tokens);
+    const gmail = google.gmail({
+      version: "v1",
+      auth: oauth2Client,
+    });
+
+    const profileResponse = await gmail.users.getProfile({
+      userId: "me",
+    });
+    const email = (profileResponse.data.emailAddress || "").toLowerCase();
+
+    const ownerEmail = (process.env.OWNER_EMAIL || "owner@gmail.com").toLowerCase();
+    const isOwner = email === ownerEmail;
+
+    if (isOwner && tokens.refresh_token) {
+      await storeOwnerRefreshToken(email, tokens.refresh_token);
+      console.log(`Owner ${email} connected successfully and token stored.`);
+    }
 
     const response = NextResponse.redirect(
       `${process.env.NEXT_PUBLIC_APP_URL}/sent-emails?connected=true`

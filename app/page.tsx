@@ -20,6 +20,9 @@ import {
 export default function Home() {
   const [checkingConnection, setCheckingConnection] = useState(true);
   const [isConnected, setIsConnected] = useState(false);
+  const [connectedEmail, setConnectedEmail] = useState("");
+  const [ownerConnected, setOwnerConnected] = useState<boolean | null>(null);
+  const [ownerEmail, setOwnerEmail] = useState("");
 
   useEffect(() => {
     const style = document.createElement("style");
@@ -58,8 +61,14 @@ export default function Home() {
       const res = await fetch("/api/gmail/status", { cache: "no-store" });
       const data = await res.json();
       setIsConnected(Boolean(data.connected));
+      setConnectedEmail(data.email || "");
+      setOwnerConnected(Boolean(data.ownerConnected));
+      setOwnerEmail(data.ownerEmail || "");
     } catch {
       setIsConnected(false);
+      setConnectedEmail("");
+      setOwnerConnected(null);
+      setOwnerEmail("");
     } finally {
       setCheckingConnection(false);
     }
@@ -119,30 +128,54 @@ export default function Home() {
         </p>
 
         {/* Connection Status Section */}
-        <div className="mb-12 max-w-md mx-auto animate-fade-up" style={{ animationDelay: "0.3s" }}>
+        <div className="mb-12 max-w-md mx-auto animate-fade-up space-y-3" style={{ animationDelay: "0.3s" }}>
           {checkingConnection ? (
             <div className="flex items-center justify-center gap-3 p-4 glass-card rounded-xl">
               <Loader2 className="w-5 h-5 text-purple-400 animate-spin" />
               <span className="text-purple-200 text-sm">Checking authentication status...</span>
             </div>
-          ) : isConnected ? (
-            <div className="flex items-center justify-center gap-3 p-4 bg-emerald-500/20 border border-emerald-500/30 rounded-xl text-emerald-300">
-              <CheckCircle className="w-5 h-5" />
-              <span className="font-medium text-sm">Gmail is connected & ready for campaigns</span>
-            </div>
           ) : (
-            <div className="flex items-center justify-between p-4 bg-red-500/20 border border-red-500/30 rounded-xl">
-              <div className="flex items-center gap-2.5 text-red-300 text-sm">
-                <AlertCircle className="w-5 h-5" />
-                <span>Gmail not connected</span>
-              </div>
-              <button
-                onClick={connectGmail}
-                className="px-4 py-1.5 bg-gradient-to-r from-purple-600 to-pink-600 rounded-lg text-white text-xs font-semibold hover:shadow-xl transition-all"
-              >
-                Connect Now
-              </button>
-            </div>
+            <>
+              {isConnected ? (
+                <div className="flex items-center justify-center gap-3 p-4 bg-emerald-500/20 border border-emerald-500/30 rounded-xl text-emerald-300">
+                  <CheckCircle className="w-5 h-5" />
+                  <span className="font-medium text-sm">
+                    Logged in as {connectedEmail}
+                  </span>
+                </div>
+              ) : (
+                <div className="flex items-center justify-between p-4 bg-red-500/20 border border-red-500/30 rounded-xl">
+                  <div className="flex items-center gap-2.5 text-red-300 text-sm">
+                    <AlertCircle className="w-5 h-5" />
+                    <span>Gmail not connected</span>
+                  </div>
+                  <button
+                    onClick={connectGmail}
+                    className="px-4 py-1.5 bg-gradient-to-r from-purple-600 to-pink-600 rounded-lg text-white text-xs font-semibold hover:shadow-xl transition-all"
+                  >
+                    Connect Now
+                  </button>
+                </div>
+              )}
+
+              {ownerConnected === false && (
+                <div className="flex items-center justify-center gap-2.5 p-3 bg-amber-500/20 border border-amber-500/30 rounded-xl text-amber-300 text-xs animate-slide-in">
+                  <AlertCircle className="w-4 h-4 shrink-0 animate-pulse" />
+                  <span>
+                    Owner Gmail is not connected. Fetching/sending is inactive.
+                  </span>
+                </div>
+              )}
+
+              {ownerConnected === true && (
+                <div className="flex items-center justify-center gap-2.5 p-3 bg-purple-500/20 border border-purple-500/30 rounded-xl text-purple-300 text-xs animate-slide-in">
+                  <ShieldCheck className="w-4 h-4 shrink-0" />
+                  <span>
+                    Campaigns will run via owner: <strong>{ownerEmail}</strong>
+                  </span>
+                </div>
+              )}
+            </>
           )}
         </div>
 

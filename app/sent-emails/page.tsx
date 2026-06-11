@@ -1,8 +1,7 @@
 "use client";
 
-import { Suspense } from "react";
+import { Suspense, useState, useEffect, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
-import { useState, useEffect } from "react";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 import {
@@ -60,9 +59,11 @@ function SentEmailsContent() {
   const [endDate, setEndDate] = useState("");
   const [downloading, setDownloading] = useState(false);
   const [error, setError] = useState("");
-  const [hoveredEmail, setHoveredEmail] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedEmail, setSelectedEmail] = useState<SentEmail | null>(null);
+  const [connectedEmail, setConnectedEmail] = useState("");
+  const [ownerConnected, setOwnerConnected] = useState<boolean | null>(null);
+  const [ownerEmail, setOwnerEmail] = useState("");
   const [fetchProgress, setFetchProgress] = useState<{
     currentPage: number;
     fetchedCount: number;
@@ -171,12 +172,30 @@ function SentEmailsContent() {
 
     document.head.appendChild(style);
 
+    checkGmailConnection();
+
     return (): void => {
       if (document.head.contains(style)) {
         document.head.removeChild(style);
       }
     };
   }, []);
+
+  const checkGmailConnection = async () => {
+    try {
+      const res = await fetch("/api/gmail/status", { cache: "no-store" });
+      const data = await res.json();
+      if (data.connected && data.email) {
+        setConnectedEmail(data.email);
+      }
+      setOwnerConnected(Boolean(data.ownerConnected));
+      setOwnerEmail(data.ownerEmail || "");
+    } catch {
+      setConnectedEmail("");
+      setOwnerConnected(null);
+      setOwnerEmail("");
+    }
+  };
 
   const connectGmail = () => {
     window.location.href = "/api/auth/google";
@@ -197,9 +216,10 @@ function SentEmailsContent() {
       let pageToken = "";
       let allFetched: SentEmail[] = [];
       let page = 1;
+      const MAX_PAGES = 5; // Safety cap to prevent rate limits and memory issues
 
       do {
-        let url = `/api/gmail/sent-emails?limit=250`;
+        let url = `/api/gmail/sent-emails?limit=100`;
         if (pageToken) url += `&pageToken=${pageToken}`;
         if (startDate) url += `&startDate=${startDate}`;
         if (endDate) url += `&endDate=${endDate}`;
@@ -219,11 +239,16 @@ function SentEmailsContent() {
           currentPage: page,
           fetchedCount: allFetched.length,
           estimatedTotal: estTotal || null,
-          isFinished: !nextToken,
+          isFinished: !nextToken || page >= MAX_PAGES,
         });
 
         pageToken = nextToken;
         page++;
+
+        if (page > MAX_PAGES) {
+          console.warn(`Reached maximum page fetch limit of ${MAX_PAGES}. Stopping to prevent rate limits.`);
+          break;
+        }
 
         if (pageToken) {
           await new Promise((r) => setTimeout(r, 150));
@@ -267,18 +292,40 @@ function SentEmailsContent() {
     }
   };
 
-  const filteredEmails = emails.filter(email =>
-    email.subject?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    email.to?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    email.snippet?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredEmails = useMemo(() => {
+    return emails.filter(email =>
+      email.subject?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      email.to?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      email.snippet?.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [emails, searchTerm]);
 
-  const stats = {
-    total: emails.length,
-    uniqueRecipients: [...new Set(emails.map(e => e.to))].length,
-    avgSubjectLength: emails.length ? Math.round(emails.reduce((sum, e) => sum + (e.subject?.length || 0), 0) / emails.length) : 0,
-    mostActiveMonth: emails.length ? new Date(emails[0]?.date).toLocaleString('default', { month: 'long' }) : 'N/A'
-  };
+  const stats = useMemo(() => {
+    const total = emails.length;
+    if (total === 0) {
+      return {
+        total: 0,
+        uniqueRecipients: 0,
+        avgSubjectLength: 0,
+        mostActiveMonth: "N/A"
+      };
+    }
+    const uniqueRecipients = new Set(emails.map(e => e.to)).size;
+    const avgSubjectLength = Math.round(emails.reduce((sum, e) => sum + (e.subject?.length || 0), 0) / total);
+    let mostActiveMonth = "N/A";
+    if (emails[0]?.rawDate) {
+      const d = new Date(emails[0].rawDate);
+      if (!isNaN(d.getTime())) {
+        mostActiveMonth = d.toLocaleString('default', { month: 'long' });
+      }
+    }
+    return {
+      total,
+      uniqueRecipients,
+      avgSubjectLength,
+      mostActiveMonth
+    };
+  }, [emails]);
 
   return (
     <div className="min-h-screen relative overflow-hidden bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
@@ -349,10 +396,26 @@ function SentEmailsContent() {
         <div className="relative mb-8 overflow-hidden rounded-2xl glass-card p-1">
           <div className="absolute inset-0 bg-gradient-to-r from-purple-500/10 via-pink-500/10 to-orange-500/10"></div>
 
-          {connected === "true" && (
-            <div className="flex items-center gap-2 mb-4 p-3 bg-emerald-500/20 border border-emerald-500/30 rounded-xl text-emerald-300 animate-slide-in">
-              <CheckCircle2 className="w-5 h-5" />
-              <span className="text-sm font-medium">🎉 Connected successfully! Ready to rock</span>
+          {(connected === "true" || connectedEmail) && (
+            <div className="flex flex-col gap-2 mb-4 p-4 bg-emerald-500/20 border border-emerald-500/30 rounded-xl text-emerald-300 animate-slide-in">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+                <span className="text-sm font-medium">
+                  {connectedEmail ? `Logged in as ${connectedEmail}` : "Logged in successfully!"}
+                </span>
+              </div>
+              {ownerConnected === true && (
+                <div className="text-xs text-purple-300 ml-7 flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 bg-purple-400 rounded-full"></span>
+                  <span>Fetching sent emails from owner's mailbox: <strong>{ownerEmail}</strong></span>
+                </div>
+              )}
+              {ownerConnected === false && (
+                <div className="text-xs text-amber-300 ml-7 flex items-center gap-1.5">
+                  <AlertCircle className="w-3.5 h-3.5 animate-pulse shrink-0" />
+                  <span>Owner is not connected! Fetching will fail. Please connect the owner Gmail account first.</span>
+                </div>
+              )}
             </div>
           )}
 
@@ -582,13 +645,11 @@ function SentEmailsContent() {
             {filteredEmails.map((email, index) => (
               <div
                 key={email.id}
-                onMouseEnter={() => setHoveredEmail(email.id)}
-                onMouseLeave={() => setHoveredEmail(null)}
                 onClick={() => setSelectedEmail(selectedEmail?.id === email.id ? null : email)}
                 className="group relative overflow-hidden rounded-xl glass-card hover:border-purple-500/50 transition-all duration-300 transform hover:-translate-y-1 cursor-pointer animate-slide-in"
                 style={{ animationDelay: `${index * 0.05}s` }}
               >
-                <div className={`absolute inset-0 bg-gradient-to-r from-purple-500/10 to-pink-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300`}></div>
+                <div className="absolute inset-0 bg-gradient-to-r from-purple-500/10 to-pink-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
 
                 <div className="relative p-6">
                   <div className="flex items-start justify-between gap-4">
@@ -608,7 +669,7 @@ function SentEmailsContent() {
                         </span>
                       </div>
 
-                      <h3 className={`text-xl font-bold mb-2 transition-all duration-300 ${hoveredEmail === email.id ? 'text-transparent bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text scale-105' : 'text-white'}`}>
+                      <h3 className="text-xl font-bold mb-2 transition-all duration-300 text-white group-hover:text-transparent group-hover:bg-gradient-to-r group-hover:from-purple-400 group-hover:to-pink-400 group-hover:bg-clip-text group-hover:scale-105">
                         {email.subject || "No Subject"}
                       </h3>
 
@@ -619,7 +680,11 @@ function SentEmailsContent() {
                       <div className="flex items-center gap-4 text-xs text-white/40">
                         <div className="flex items-center gap-1">
                           <Clock className="w-3 h-3" />
-                          <span>{new Date(email.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                          <span>
+                            {email.rawDate && !isNaN(new Date(email.rawDate).getTime())
+                              ? new Date(email.rawDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                              : email.date || "-"}
+                          </span>
                         </div>
                         {email.threadId && (
                           <div className="flex items-center gap-1">
@@ -641,7 +706,7 @@ function SentEmailsContent() {
                       )}
                     </div>
 
-                    <div className={`flex gap-2 transition-all duration-300 ${hoveredEmail === email.id ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-4'}`}>
+                    <div className="flex gap-2 transition-all duration-300 opacity-0 translate-x-4 group-hover:opacity-100 group-hover:translate-x-0">
                       <button className="p-2 bg-white/10 rounded-lg hover:bg-white/20 transition-colors">
                         <Eye className="w-4 h-4 text-white/80" />
                       </button>
@@ -655,7 +720,7 @@ function SentEmailsContent() {
                   </div>
 
                   {/* Animated Progress Bar */}
-                  <div className={`absolute bottom-0 left-0 h-0.5 bg-gradient-to-r from-purple-500 via-pink-500 to-orange-500 transition-all duration-500 ${hoveredEmail === email.id ? 'w-full' : 'w-0'}`}></div>
+                  <div className="absolute bottom-0 left-0 h-0.5 bg-gradient-to-r from-purple-500 via-pink-500 to-orange-500 transition-all duration-500 w-0 group-hover:w-full"></div>
                 </div>
               </div>
             ))}

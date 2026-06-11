@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { google } from "googleapis";
 import { createOAuthClient } from "@/lib/google";
+import { loadOwnerToken } from "@/lib/token-storage";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -77,11 +78,21 @@ export async function GET(req: NextRequest) {
       );
     }
 
+    const ownerTokenData = await loadOwnerToken();
+    if (!ownerTokenData) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "App owner has not connected their Gmail account yet. Please contact the administrator.",
+        },
+        { status: 500 }
+      );
+    }
+
     const oauth2Client = createOAuthClient();
 
     oauth2Client.setCredentials({
-      refresh_token: refreshToken,
-      access_token: accessToken,
+      refresh_token: ownerTokenData.refreshToken,
     });
 
     const gmail = google.gmail({

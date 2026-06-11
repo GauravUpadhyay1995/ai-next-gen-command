@@ -12,6 +12,7 @@
     "file-saver": "^2.0.5",
     "googleapis": "^172.0.0",
     "lucide-react": "^1.16.0",
+    "mongodb": "^6.3.0",
     "next": "16.2.6",
     "react": "19.2.4",
     "react-dom": "19.2.4",

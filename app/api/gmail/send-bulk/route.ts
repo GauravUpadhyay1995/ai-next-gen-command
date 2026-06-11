@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { google } from "googleapis";
 import { createOAuthClient } from "@/lib/google";
+import { loadOwnerToken } from "@/lib/token-storage";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -145,25 +146,30 @@ async function getAlreadySentEmails(gmail: any, emails: string[]): Promise<Set<s
 
       const messages = listResponse.data.messages || [];
       if (messages.length > 0) {
-        const detailsPromises = messages.map(async (message: any) => {
-          try {
-            const msg = await gmail.users.messages.get({
-              userId: "me",
-              id: message.id!,
-              format: "metadata",
-              metadataHeaders: ["To"],
-            });
-            const headers = msg.data.payload?.headers || [];
-            const toHeader = headers.find((h: any) => h.name?.toLowerCase() === "to")?.value || "";
-            const matches = toHeader.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g) || [];
-            matches.forEach((email: string) => {
-              alreadySent.add(email.trim().toLowerCase());
-            });
-          } catch (err) {
-            console.error(`Error fetching message metadata for ${message.id}:`, err);
-          }
-        });
-        await Promise.all(detailsPromises);
+        const concurrency = 15;
+        for (let j = 0; j < messages.length; j += concurrency) {
+          const chunk = messages.slice(j, j + concurrency);
+          await Promise.all(
+            chunk.map(async (message: any) => {
+              try {
+                const msg = await gmail.users.messages.get({
+                  userId: "me",
+                  id: message.id!,
+                  format: "metadata",
+                  metadataHeaders: ["To"],
+                });
+                const headers = msg.data.payload?.headers || [];
+                const toHeader = headers.find((h: any) => h.name?.toLowerCase() === "to")?.value || "";
+                const matches = toHeader.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g) || [];
+                matches.forEach((email: string) => {
+                  alreadySent.add(email.trim().toLowerCase());
+                });
+              } catch (err) {
+                console.error(`Error fetching message metadata for ${message.id}:`, err);
+              }
+            })
+          );
+        }
       }
     } catch (err) {
       console.error(`Error querying batch of sent emails:`, err);
@@ -252,17 +258,32 @@ export async function POST(req: NextRequest) {
     const attachmentName = resume.name || "resume.pdf";
     const attachmentMimeType = getMimeType(attachmentName);
 
-    const oauth2Client = createOAuthClient();
+    // 1. Build Gmail client for duplicate check (pre-checking sent emails in owner's mailbox)
+    let checkGmail = null;
+    const ownerTokenData = await loadOwnerToken();
+    if (ownerTokenData) {
+      const ownerOAuth = createOAuthClient();
+      ownerOAuth.setCredentials({
+        refresh_token: ownerTokenData.refreshToken,
+      });
+      checkGmail = google.gmail({
+        version: "v1",
+        auth: ownerOAuth,
+      });
+    }
 
-    oauth2Client.setCredentials({
+    // 2. Build Gmail client for sending emails (using logged-in user's session)
+    const userOAuth = createOAuthClient();
+    userOAuth.setCredentials({
       refresh_token: refreshToken,
       access_token: accessToken,
     });
-
-    const gmail = google.gmail({
+    const sendGmail = google.gmail({
       version: "v1",
-      auth: oauth2Client,
+      auth: userOAuth,
     });
+
+    const duplicateCheckGmail = checkGmail || sendGmail;
 
     const results: SendResult[] = [];
     const seenEmails = new Set<string>();
@@ -276,7 +297,7 @@ export async function POST(req: NextRequest) {
       }
     }
     const uniqueEmailsToCheck = Array.from(new Set(emailsToCheck));
-    const alreadySentSet = await getAlreadySentEmails(gmail, uniqueEmailsToCheck);
+    const alreadySentSet = await getAlreadySentEmails(duplicateCheckGmail, uniqueEmailsToCheck);
 
     for (const row of rows) {
       const to = normalizeEmail(row.email);
@@ -336,7 +357,7 @@ export async function POST(req: NextRequest) {
           attachmentBase64,
         });
 
-        await gmail.users.messages.send({
+        await sendGmail.users.messages.send({
           userId: "me",
           requestBody: {
             raw,
