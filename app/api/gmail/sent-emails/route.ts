@@ -175,10 +175,8 @@ export async function GET(req: NextRequest) {
 
             const headers = msg.data.payload?.headers || [];
             const rawTo = getHeader(headers, "To");
-            const rawFrom = getHeader(headers, "From");
             const rawDate = getHeader(headers, "Date");
 
-            const fromEmail = extractEmails(rawFrom);
             const toEmail = extractEmails(rawTo);
             const snippetText = msg.data.snippet || "";
             const subjectText = getHeader(headers, "Subject") || "No Subject";
@@ -193,7 +191,6 @@ export async function GET(req: NextRequest) {
               id: msg.data.id || "",
               threadId: msg.data.threadId || "",
               to: replaceOwnerEmail(toEmail),
-              from: replaceOwnerEmail(fromEmail),
               subject: replaceOwnerEmail(subjectText),
               date: formatDate(rawDate),
               rawDate,
