@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { google } from "googleapis";
 import { createOAuthClient } from "@/lib/google";
-import { loadOwnerToken } from "@/lib/token-storage";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -127,15 +126,22 @@ function createRawEmail({
   return base64UrlEncode(messageParts.join("\r\n"));
 }
 
-async function getAlreadySentEmails(gmail: any, emails: string[]): Promise<Set<string>> {
+async function getAlreadySentEmails(gmail: any, emails: string[], subjectTemplate: string): Promise<Set<string>> {
   const alreadySent = new Set<string>();
   if (emails.length === 0) return alreadySent;
+
+  // Extract a static prefix from the subject template (before any {{variable}})
+  // to narrow the search to only app-sent emails.
+  const subjectPrefix = subjectTemplate.split("{{")[0].trim();
 
   const BATCH_SIZE = 25;
   for (let i = 0; i < emails.length; i += BATCH_SIZE) {
     const batch = emails.slice(i, i + BATCH_SIZE);
     const toQuery = batch.map(email => `to:${email}`).join(" OR ");
-    const q = `in:sent (${toQuery})`;
+    // If we have a static subject prefix, restrict to matching subjects so we
+    // only skip emails actually sent by this app — not unrelated personal emails.
+    const subjectFilter = subjectPrefix ? ` subject:"${subjectPrefix}"` : "";
+    const q = `in:sent${subjectFilter} (${toQuery})`;
 
     try {
       const listResponse = await gmail.users.messages.list({
@@ -258,21 +264,7 @@ export async function POST(req: NextRequest) {
     const attachmentName = resume.name || "resume.pdf";
     const attachmentMimeType = getMimeType(attachmentName);
 
-    // 1. Build Gmail client for duplicate check (pre-checking sent emails in owner's mailbox)
-    let checkGmail = null;
-    const ownerTokenData = await loadOwnerToken();
-    if (ownerTokenData) {
-      const ownerOAuth = createOAuthClient();
-      ownerOAuth.setCredentials({
-        refresh_token: ownerTokenData.refreshToken,
-      });
-      checkGmail = google.gmail({
-        version: "v1",
-        auth: ownerOAuth,
-      });
-    }
-
-    // 2. Build Gmail client for sending emails (using logged-in user's session)
+    // Build Gmail client for sending emails (using logged-in user's session)
     const userOAuth = createOAuthClient();
     userOAuth.setCredentials({
       refresh_token: refreshToken,
@@ -282,8 +274,6 @@ export async function POST(req: NextRequest) {
       version: "v1",
       auth: userOAuth,
     });
-
-    const duplicateCheckGmail = checkGmail || sendGmail;
 
     const results: SendResult[] = [];
     const seenEmails = new Set<string>();
@@ -297,7 +287,9 @@ export async function POST(req: NextRequest) {
       }
     }
     const uniqueEmailsToCheck = Array.from(new Set(emailsToCheck));
-    const alreadySentSet = await getAlreadySentEmails(duplicateCheckGmail, uniqueEmailsToCheck);
+    // Use the logged-in user's own Gmail to check for previously sent emails.
+    // Scoped to the subject prefix so only app-sent emails count as duplicates.
+    const alreadySentSet = await getAlreadySentEmails(sendGmail, uniqueEmailsToCheck, subjectTemplate);
 
     for (const row of rows) {
       const to = normalizeEmail(row.email);
