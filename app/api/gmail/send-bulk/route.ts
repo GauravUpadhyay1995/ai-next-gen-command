@@ -4,6 +4,10 @@ import { createOAuthClient } from "@/lib/google";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+// Vercel free plan: 10s timeout per function call.
+// Strategy: client sends small batches (8 rows each), server sends ALL 8 in PARALLEL.
+// 8 parallel Gmail sends ≈ 2-3s per call → well under 10s limit.
+// 200 emails ÷ 8 = 25 batches × ~3s ≈ ~1 min 15s total.
 
 type ExcelRow = {
   email: string;
@@ -15,11 +19,7 @@ type SendResult = {
   success: boolean;
   message: string;
   skipped?: boolean;
-  reason?:
-    | "invalid_email"
-    | "duplicate_in_excel"
-    | "already_sent"
-    | "send_failed";
+  reason?: "invalid_email" | "duplicate_in_excel" | "send_failed";
 };
 
 function replaceVariables(template: string, row: ExcelRow) {
@@ -56,19 +56,10 @@ function base64UrlEncode(input: Buffer | string) {
 
 function getMimeType(fileName: string) {
   const lower = fileName.toLowerCase();
-
-  if (lower.endsWith(".pdf")) {
-    return "application/pdf";
-  }
-
-  if (lower.endsWith(".docx")) {
+  if (lower.endsWith(".pdf")) return "application/pdf";
+  if (lower.endsWith(".docx"))
     return "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
-  }
-
-  if (lower.endsWith(".doc")) {
-    return "application/msword";
-  }
-
+  if (lower.endsWith(".doc")) return "application/msword";
   return "application/octet-stream";
 }
 
@@ -91,10 +82,7 @@ function createRawEmail({
   attachmentMimeType: string;
   attachmentBase64: string;
 }) {
-  const boundary = `boundary_${Date.now()}_${Math.random()
-    .toString(36)
-    .slice(2)}`;
-
+  const boundary = `boundary_${Date.now()}_${Math.random().toString(36).slice(2)}`;
   const safeSubject = sanitizeHeader(subject);
   const safeAttachmentName = sanitizeHeader(attachmentName);
 
@@ -104,14 +92,12 @@ function createRawEmail({
     `MIME-Version: 1.0`,
     `Content-Type: multipart/mixed; boundary="${boundary}"`,
     ``,
-
     `--${boundary}`,
     `Content-Type: text/plain; charset="UTF-8"`,
     `Content-Transfer-Encoding: 7bit`,
     ``,
     body,
     ``,
-
     `--${boundary}`,
     `Content-Type: ${attachmentMimeType}; name="${safeAttachmentName}"`,
     `Content-Disposition: attachment; filename="${safeAttachmentName}"`,
@@ -119,70 +105,10 @@ function createRawEmail({
     ``,
     chunkBase64(attachmentBase64),
     ``,
-
     `--${boundary}--`,
   ];
 
   return base64UrlEncode(messageParts.join("\r\n"));
-}
-
-async function getAlreadySentEmails(gmail: any, emails: string[], subjectTemplate: string): Promise<Set<string>> {
-  const alreadySent = new Set<string>();
-  if (emails.length === 0) return alreadySent;
-
-  // Extract a static prefix from the subject template (before any {{variable}})
-  // to narrow the search to only app-sent emails.
-  const subjectPrefix = subjectTemplate.split("{{")[0].trim();
-
-  const BATCH_SIZE = 25;
-  for (let i = 0; i < emails.length; i += BATCH_SIZE) {
-    const batch = emails.slice(i, i + BATCH_SIZE);
-    const toQuery = batch.map(email => `to:${email}`).join(" OR ");
-    // If we have a static subject prefix, restrict to matching subjects so we
-    // only skip emails actually sent by this app — not unrelated personal emails.
-    const subjectFilter = subjectPrefix ? ` subject:"${subjectPrefix}"` : "";
-    const q = `in:sent${subjectFilter} (${toQuery})`;
-
-    try {
-      const listResponse = await gmail.users.messages.list({
-        userId: "me",
-        q,
-        maxResults: 100,
-      });
-
-      const messages = listResponse.data.messages || [];
-      if (messages.length > 0) {
-        const concurrency = 15;
-        for (let j = 0; j < messages.length; j += concurrency) {
-          const chunk = messages.slice(j, j + concurrency);
-          await Promise.all(
-            chunk.map(async (message: any) => {
-              try {
-                const msg = await gmail.users.messages.get({
-                  userId: "me",
-                  id: message.id!,
-                  format: "metadata",
-                  metadataHeaders: ["To"],
-                });
-                const headers = msg.data.payload?.headers || [];
-                const toHeader = headers.find((h: any) => h.name?.toLowerCase() === "to")?.value || "";
-                const matches = toHeader.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g) || [];
-                matches.forEach((email: string) => {
-                  alreadySent.add(email.trim().toLowerCase());
-                });
-              } catch (err) {
-                console.error(`Error fetching message metadata for ${message.id}:`, err);
-              }
-            })
-          );
-        }
-      }
-    } catch (err) {
-      console.error(`Error querying batch of sent emails:`, err);
-    }
-  }
-
-  return alreadySent;
 }
 
 export async function POST(req: NextRequest) {
@@ -192,151 +118,87 @@ export async function POST(req: NextRequest) {
 
     if (!refreshToken && !accessToken) {
       return NextResponse.json(
-        {
-          success: false,
-          message: "Gmail not connected. Please connect Gmail first.",
-        },
+        { success: false, message: "Gmail not connected. Please connect Gmail first." },
         { status: 401 }
       );
     }
 
     const formData = await req.formData();
-
     const rowsRaw = formData.get("rows");
     const subjectTemplate = String(formData.get("subject") || "");
     const bodyTemplate = String(formData.get("body") || "");
     const resume = formData.get("resume") as File | null;
 
-    if (!rowsRaw) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Rows data missing.",
-        },
-        { status: 400 }
-      );
-    }
+    if (!rowsRaw)
+      return NextResponse.json({ success: false, message: "Rows data missing." }, { status: 400 });
+    if (!resume)
+      return NextResponse.json({ success: false, message: "Resume file missing." }, { status: 400 });
+    if (!subjectTemplate.trim())
+      return NextResponse.json({ success: false, message: "Subject is required." }, { status: 400 });
+    if (!bodyTemplate.trim())
+      return NextResponse.json({ success: false, message: "Email body is required." }, { status: 400 });
 
-    if (!resume) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Resume file missing.",
-        },
-        { status: 400 }
-      );
-    }
-
-    if (!subjectTemplate.trim()) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Subject is required.",
-        },
-        { status: 400 }
-      );
-    }
-
-    if (!bodyTemplate.trim()) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Email body is required.",
-        },
-        { status: 400 }
-      );
-    }
-
+    // Client sends only the current batch's rows (sliced before upload).
     const rows: ExcelRow[] = JSON.parse(String(rowsRaw));
-
-    if (!Array.isArray(rows) || rows.length === 0) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "No emails found in Excel.",
-        },
-        { status: 400 }
-      );
-    }
+    if (!Array.isArray(rows) || rows.length === 0)
+      return NextResponse.json({ success: false, message: "No emails found in Excel." }, { status: 400 });
 
     const resumeBuffer = Buffer.from(await resume.arrayBuffer());
     const attachmentBase64 = resumeBuffer.toString("base64");
     const attachmentName = resume.name || "resume.pdf";
     const attachmentMimeType = getMimeType(attachmentName);
 
-    // Build Gmail client for sending emails (using logged-in user's session)
     const userOAuth = createOAuthClient();
-    userOAuth.setCredentials({
-      refresh_token: refreshToken,
-      access_token: accessToken,
-    });
-    const sendGmail = google.gmail({
-      version: "v1",
-      auth: userOAuth,
-    });
+    userOAuth.setCredentials({ refresh_token: refreshToken, access_token: accessToken });
+    const sendGmail = google.gmail({ version: "v1", auth: userOAuth });
 
-    const results: SendResult[] = [];
-    const seenEmails = new Set<string>();
+    // --- Step 1: Pre-process rows — validate & deduplicate within this batch ---
+    // Do this synchronously BEFORE launching parallel sends.
+    type Job =
+      | { type: "skip"; result: SendResult }
+      | { type: "send"; to: string; row: ExcelRow };
 
-    // Gather all valid unique emails to check in batches
-    const emailsToCheck: string[] = [];
-    for (const row of rows) {
-      const to = normalizeEmail(row.email);
-      if (to && isValidEmail(to)) {
-        emailsToCheck.push(to);
-      }
-    }
-    const uniqueEmailsToCheck = Array.from(new Set(emailsToCheck));
-    // Use the logged-in user's own Gmail to check for previously sent emails.
-    // Scoped to the subject prefix so only app-sent emails count as duplicates.
-    const alreadySentSet = await getAlreadySentEmails(sendGmail, uniqueEmailsToCheck, subjectTemplate);
-
-    for (const row of rows) {
+    const seenInBatch = new Set<string>();
+    const jobs: Job[] = rows.map((row) => {
       const to = normalizeEmail(row.email);
 
       if (!to || !isValidEmail(to)) {
-        results.push({
-          email: to || "-",
-          success: false,
-          skipped: true,
-          reason: "invalid_email",
-          message: "Skipped: Invalid email",
-        });
-        continue;
+        return {
+          type: "skip",
+          result: {
+            email: to || "-",
+            success: false,
+            skipped: true,
+            reason: "invalid_email" as const,
+            message: "Skipped: Invalid email",
+          },
+        };
       }
 
-      if (seenEmails.has(to)) {
-        results.push({
-          email: to,
-          success: false,
-          skipped: true,
-          reason: "duplicate_in_excel",
-          message: "Skipped: Duplicate email in Excel",
-        });
-        continue;
-      }
-
-      seenEmails.add(to);
-
-      try {
-        const isAlreadySent = alreadySentSet.has(to);
-
-        if (isAlreadySent) {
-          results.push({
+      if (seenInBatch.has(to)) {
+        return {
+          type: "skip",
+          result: {
             email: to,
             success: false,
             skipped: true,
-            reason: "already_sent",
-            message: "Skipped: Already sent before",
-          });
-          continue;
-        }
-
-        const normalizedRow = {
-          ...row,
-          email: to,
+            reason: "duplicate_in_excel" as const,
+            message: "Skipped: Duplicate email in Excel",
+          },
         };
+      }
 
+      seenInBatch.add(to);
+      return { type: "send", to, row };
+    });
+
+    // --- Step 2: Send all valid emails in PARALLEL (the key speed optimization) ---
+    const results: SendResult[] = await Promise.all(
+      jobs.map(async (job): Promise<SendResult> => {
+        if (job.type === "skip") return job.result;
+
+        const { to, row } = job;
+        const normalizedRow = { ...row, email: to };
         const finalSubject = replaceVariables(subjectTemplate, normalizedRow);
         const finalBody = replaceVariables(bodyTemplate, normalizedRow);
 
@@ -349,72 +211,45 @@ export async function POST(req: NextRequest) {
           attachmentBase64,
         });
 
-        await sendGmail.users.messages.send({
-          userId: "me",
-          requestBody: {
-            raw,
-          },
-        });
-
-        results.push({
-          email: to,
-          success: true,
-          skipped: false,
-          message: "Sent",
-        });
-
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-      } catch (err: any) {
-        const message =
-          err?.response?.data?.error?.message ||
-          err?.message ||
-          "Failed";
-
-        results.push({
-          email: to,
-          success: false,
-          skipped: false,
-          reason: "send_failed",
-          message,
-        });
-      }
-    }
+        try {
+          await sendGmail.users.messages.send({
+            userId: "me",
+            requestBody: { raw },
+          });
+          return { email: to, success: true, skipped: false, message: "Sent" };
+        } catch (err: any) {
+          const message =
+            err?.response?.data?.error?.message || err?.message || "Failed";
+          return {
+            email: to,
+            success: false,
+            skipped: false,
+            reason: "send_failed",
+            message,
+          };
+        }
+      })
+    );
 
     const sentCount = results.filter((r) => r.success).length;
     const skippedCount = results.filter((r) => r.skipped).length;
-    const failedCount = results.filter(
-      (r) => !r.success && !r.skipped
-    ).length;
-    const alreadySentCount = results.filter(
-      (r) => r.reason === "already_sent"
-    ).length;
-    const duplicateCount = results.filter(
-      (r) => r.reason === "duplicate_in_excel"
-    ).length;
-    const invalidEmailCount = results.filter(
-      (r) => r.reason === "invalid_email"
-    ).length;
+    const failedCount = results.filter((r) => !r.success && !r.skipped).length;
+    const duplicateCount = results.filter((r) => r.reason === "duplicate_in_excel").length;
+    const invalidEmailCount = results.filter((r) => r.reason === "invalid_email").length;
 
     return NextResponse.json({
       success: true,
-      total: rows.length,
-      uniqueChecked: seenEmails.size,
       sentCount,
       skippedCount,
       failedCount,
-      alreadySentCount,
       duplicateCount,
       invalidEmailCount,
       results,
     });
   } catch (error: any) {
     console.error("Bulk send error:", error);
-
     return NextResponse.json(
-      {
-        success: false,
-        message: error.message || "Failed to send bulk emails",
-      },
+      { success: false, message: error.message || "Failed to send bulk emails" },
       { status: 500 }
     );
   }

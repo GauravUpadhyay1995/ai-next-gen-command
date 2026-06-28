@@ -62,6 +62,7 @@ Gaurav`
   );
 
   const [loading, setLoading] = useState(false);
+  const [sendProgress, setSendProgress] = useState({ sent: 0, total: 0 });
   const [checkingConnection, setCheckingConnection] = useState(true);
   const [isConnected, setIsConnected] = useState(false);
   const [connectedEmail, setConnectedEmail] = useState("");
@@ -188,59 +189,73 @@ Gaurav`
     }
   };
 
+  const BATCH_SIZE = 8; // 8 emails sent in parallel per call ≈ 2-3s (safe under Vercel free 10s limit)
+
   const sendBulkEmails = async () => {
     try {
       setLoading(true);
       setError("");
       setResults([]);
+      setSendProgress({ sent: 0, total: 0 });
 
       if (!isConnected) {
         setError("Gmail connected nahi hai. Pehle Gmail connect karo.");
         return;
       }
-
       if (rows.length === 0) {
         setError("Please upload Excel file first.");
         return;
       }
-
       if (!resume) {
         setError("Please upload resume file.");
         return;
       }
-
       if (!subject.trim()) {
         setError("Subject required hai.");
         return;
       }
-
       if (!body.trim()) {
         setError("Email body required hai.");
         return;
       }
 
-      const formData = new FormData();
-      formData.append("resume", resume);
-      formData.append("rows", JSON.stringify(rows));
-      formData.append("subject", subject);
-      formData.append("body", body);
+      const totalBatches = Math.ceil(rows.length / BATCH_SIZE);
+      setSendProgress({ sent: 0, total: rows.length });
 
-      const res = await fetch("/api/gmail/send-bulk", {
-        method: "POST",
-        body: formData,
-      });
+      for (let batchIndex = 0; batchIndex < totalBatches; batchIndex++) {
+        const start = batchIndex * BATCH_SIZE;
+        const batchRows = rows.slice(start, start + BATCH_SIZE);
 
-      const data = await res.json();
+        const formData = new FormData();
+        formData.append("resume", resume);
+        // Send only this batch's rows — NOT all 200 every time
+        formData.append("rows", JSON.stringify(batchRows));
+        formData.append("subject", subject);
+        formData.append("body", body);
 
-      if (!res.ok) {
-        throw new Error(data.message || "Failed to send bulk emails");
+        const res = await fetch("/api/gmail/send-bulk", {
+          method: "POST",
+          body: formData,
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          throw new Error(data.message || "Failed to send bulk emails");
+        }
+
+        // Append this batch's results to the running total
+        setResults((prev) => [...prev, ...(data.results || [])]);
+        setSendProgress({
+          sent: Math.min(start + BATCH_SIZE, rows.length),
+          total: rows.length,
+        });
       }
-
-      setResults(data.results || []);
     } catch (err: any) {
       setError(err.message || "Something went wrong");
     } finally {
       setLoading(false);
+      setSendProgress({ sent: 0, total: 0 });
     }
   };
 
@@ -626,9 +641,11 @@ Gaurav`
                 <br />
                 1. Duplicate emails inside Excel
                 <br />
-                2. Already sent emails in Gmail Sent folder
+                2. Only new unique emails will be sent.
                 <br />
-                Only new unique emails will be sent.
+                <span className="text-yellow-400/70 text-xs">
+                  Emails are sent in batches of {BATCH_SIZE} to stay within server limits.
+                </span>
               </div>
 
               <button
@@ -641,12 +658,27 @@ Gaurav`
                   !subject.trim() ||
                   !body.trim()
                 }
-                className="mt-6 w-full flex items-center justify-center gap-2 px-8 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl font-bold shadow-xl hover:shadow-2xl transform hover:-translate-y-1 disabled:opacity-50 transition-all duration-300"
+                className="mt-6 w-full flex flex-col items-center justify-center gap-2 px-8 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl font-bold shadow-xl hover:shadow-2xl transform hover:-translate-y-1 disabled:opacity-50 transition-all duration-300"
               >
                 {loading ? (
                   <>
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                    Checking & Sending...
+                    <div className="flex items-center gap-2">
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      <span>
+                        Sending {Math.min(sendProgress.sent + BATCH_SIZE, sendProgress.total || rows.length)}
+                        &nbsp;/&nbsp;{sendProgress.total || rows.length} emails...
+                      </span>
+                    </div>
+                    {sendProgress.total > 0 && (
+                      <div className="w-full bg-white/20 rounded-full h-1.5 mt-1">
+                        <div
+                          className="bg-white h-1.5 rounded-full transition-all duration-500"
+                          style={{
+                            width: `${Math.round((sendProgress.sent / sendProgress.total) * 100)}%`,
+                          }}
+                        />
+                      </div>
+                    )}
                   </>
                 ) : (
                   <>
