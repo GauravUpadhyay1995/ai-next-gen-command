@@ -22,6 +22,7 @@ import {
   Eye,
   Flame,
   Rocket,
+  Download,
 } from "lucide-react";
 
 type ExcelRow = {
@@ -386,7 +387,7 @@ Gaurav`
           </div>
         )}
 
-        <div className="flex gap-2 mb-6 overflow-x-auto">
+        <div className="flex gap-2 mb-6 overflow-x-auto items-center">
           {[
             { id: "upload", icon: Upload, label: "Upload Data" },
             { id: "resume", icon: Paperclip, label: "Attachments" },
@@ -405,6 +406,15 @@ Gaurav`
               {tab.label}
             </button>
           ))}
+
+          <a
+            href="/api/sample-file"
+            download="SAMPLE.xlsx"
+            className="ml-auto flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium transition-all glass-card text-emerald-300 border border-emerald-500/40 hover:bg-emerald-500/20 hover:border-emerald-400 hover:shadow-lg hover:shadow-emerald-500/20 whitespace-nowrap"
+          >
+            <Download className="w-4 h-4" />
+            Download Sample File
+          </a>
         </div>
 
         <div className="space-y-6">
