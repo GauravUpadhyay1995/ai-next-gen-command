@@ -5,9 +5,8 @@ import { createOAuthClient } from "@/lib/google";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 // Vercel free plan: 10s timeout per function call.
-// Strategy: client sends small batches (8 rows each), server sends ALL 8 in PARALLEL.
-// 8 parallel Gmail sends ≈ 2-3s per call → well under 10s limit.
-// 200 emails ÷ 8 = 25 batches × ~3s ≈ ~1 min 15s total.
+// Each batch = 8 emails sent in PARALLEL + 1 targeted Gmail sent-check.
+// Total per batch ≈ 2–4s → safe under 10s. 200 emails ≈ ~1.5 min total.
 
 type ExcelRow = {
   email: string;
@@ -19,7 +18,7 @@ type SendResult = {
   success: boolean;
   message: string;
   skipped?: boolean;
-  reason?: "invalid_email" | "duplicate_in_excel" | "send_failed";
+  reason?: "invalid_email" | "duplicate_in_excel" | "already_sent" | "send_failed";
 };
 
 function replaceVariables(template: string, row: ExcelRow) {
@@ -111,6 +110,75 @@ function createRawEmail({
   return base64UrlEncode(messageParts.join("\r\n"));
 }
 
+/**
+ * Checks Gmail Sent folder for a small batch of emails (max 8).
+ * Uses subject prefix to filter only app-sent emails — not personal history.
+ * Fast because: targeted to-query + small maxResults + parallel metadata fetch.
+ * Typical time: 300–500ms per batch call.
+ */
+async function checkAlreadySentViaGmail(
+  gmail: any,
+  emails: string[],
+  subjectTemplate: string
+): Promise<Set<string>> {
+  const alreadySent = new Set<string>();
+  if (emails.length === 0) return alreadySent;
+
+  // Extract the static part of the subject (before any {{variable}}) as a filter.
+  // This ensures we only match emails sent by THIS app, not unrelated personal emails.
+  const subjectPrefix = subjectTemplate.split("{{")[0].trim();
+  const subjectFilter = subjectPrefix ? ` subject:"${subjectPrefix}"` : "";
+
+  // One query for all emails in this batch combined with OR
+  const toQuery = emails.map((e) => `to:${e}`).join(" OR ");
+  const q = `in:sent${subjectFilter} (${toQuery})`;
+
+  try {
+    const listRes = await gmail.users.messages.list({
+      userId: "me",
+      q,
+      maxResults: emails.length * 3, // buffer: some addresses may have multiple threads
+    });
+
+    const messages: any[] = listRes.data.messages || [];
+    if (messages.length === 0) return alreadySent;
+
+    // Fetch To: headers for all matching messages in parallel
+    await Promise.all(
+      messages.map(async (msg) => {
+        try {
+          const detail = await gmail.users.messages.get({
+            userId: "me",
+            id: msg.id,
+            format: "metadata",
+            metadataHeaders: ["To"],
+          });
+          const headers: any[] = detail.data.payload?.headers || [];
+          const toHeader =
+            headers.find((h) => h.name?.toLowerCase() === "to")?.value || "";
+          const found =
+            toHeader.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g) || [];
+          found.forEach((addr: string) => {
+            const normalized = addr.trim().toLowerCase();
+            // Only mark as "already sent" if the address is actually in our batch
+            if (emails.includes(normalized)) {
+              alreadySent.add(normalized);
+            }
+          });
+        } catch {
+          // Ignore individual message fetch errors — don't block the batch
+        }
+      })
+    );
+  } catch (err) {
+    // If the Gmail check fails entirely, log and proceed without skipping.
+    // Better to send a duplicate than to silently drop an email.
+    console.error("Gmail already-sent check failed:", err);
+  }
+
+  return alreadySent;
+}
+
 export async function POST(req: NextRequest) {
   try {
     const refreshToken = req.cookies.get("gmail_refresh_token")?.value;
@@ -138,7 +206,7 @@ export async function POST(req: NextRequest) {
     if (!bodyTemplate.trim())
       return NextResponse.json({ success: false, message: "Email body is required." }, { status: 400 });
 
-    // Client sends only the current batch's rows (sliced before upload).
+    // Client sends only the current batch's rows (already sliced before upload).
     const rows: ExcelRow[] = JSON.parse(String(rowsRaw));
     if (!Array.isArray(rows) || rows.length === 0)
       return NextResponse.json({ success: false, message: "No emails found in Excel." }, { status: 400 });
@@ -152,8 +220,7 @@ export async function POST(req: NextRequest) {
     userOAuth.setCredentials({ refresh_token: refreshToken, access_token: accessToken });
     const sendGmail = google.gmail({ version: "v1", auth: userOAuth });
 
-    // --- Step 1: Pre-process rows — validate & deduplicate within this batch ---
-    // Do this synchronously BEFORE launching parallel sends.
+    // --- Step 1: Validate & deduplicate within this batch (synchronous) ---
     type Job =
       | { type: "skip"; result: SendResult }
       | { type: "send"; to: string; row: ExcelRow };
@@ -192,9 +259,39 @@ export async function POST(req: NextRequest) {
       return { type: "send", to, row };
     });
 
-    // --- Step 2: Send all valid emails in PARALLEL (the key speed optimization) ---
+    // --- Step 2: Check Gmail Sent folder for this batch's emails only ---
+    // Targeted query (max 8 emails) → fast: ~300–500ms
+    const validEmails = jobs
+      .filter((j): j is Extract<Job, { type: "send" }> => j.type === "send")
+      .map((j) => j.to);
+
+    const alreadySentSet = await checkAlreadySentViaGmail(
+      sendGmail,
+      validEmails,
+      subjectTemplate
+    );
+
+    // Mark already-sent emails as skipped
+    const finalJobs: Job[] = jobs.map((job) => {
+      if (job.type === "skip") return job;
+      if (alreadySentSet.has(job.to)) {
+        return {
+          type: "skip",
+          result: {
+            email: job.to,
+            success: false,
+            skipped: true,
+            reason: "already_sent" as const,
+            message: "Skipped: Already sent before",
+          },
+        };
+      }
+      return job;
+    });
+
+    // --- Step 3: Send remaining emails in PARALLEL ---
     const results: SendResult[] = await Promise.all(
-      jobs.map(async (job): Promise<SendResult> => {
+      finalJobs.map(async (job): Promise<SendResult> => {
         if (job.type === "skip") return job.result;
 
         const { to, row } = job;
@@ -234,6 +331,7 @@ export async function POST(req: NextRequest) {
     const sentCount = results.filter((r) => r.success).length;
     const skippedCount = results.filter((r) => r.skipped).length;
     const failedCount = results.filter((r) => !r.success && !r.skipped).length;
+    const alreadySentCount = results.filter((r) => r.reason === "already_sent").length;
     const duplicateCount = results.filter((r) => r.reason === "duplicate_in_excel").length;
     const invalidEmailCount = results.filter((r) => r.reason === "invalid_email").length;
 
@@ -242,6 +340,7 @@ export async function POST(req: NextRequest) {
       sentCount,
       skippedCount,
       failedCount,
+      alreadySentCount,
       duplicateCount,
       invalidEmailCount,
       results,
