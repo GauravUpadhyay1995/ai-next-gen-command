@@ -473,24 +473,37 @@ export default function BulkEmailsPage() {
 
                   {/* Compact Right-Aligned Action Button */}
                   <div className="flex justify-end pt-1">
-                    <button
-                      onClick={fetchContactsInPage}
-                      disabled={inPageFetching || !isConnected}
-                      className="px-4 py-2 bg-gradient-to-r from-cyan-500 via-purple-600 to-pink-600 text-white rounded-xl font-bold font-mono text-xs flex items-center gap-2 shadow-md shadow-cyan-500/20 disabled:opacity-40 disabled:cursor-not-allowed hover:scale-105 transition-all genz-shimmer-btn"
-                      title={!isConnected ? "Please connect your account first" : "Fetch contacts"}
-                    >
-                      {inPageFetching ? (
-                        <>
-                          <RefreshCw className="w-3.5 h-3.5 animate-spin text-cyan-200" />
-                          <span>FETCHING MAIL CONTACTS...</span>
-                        </>
-                      ) : (
-                        <>
-                          <Rocket className="w-3.5 h-3.5 text-cyan-200" />
-                          <span>FETCH & AUTO-LOAD CONTACTS</span>
-                        </>
-                      )}
-                    </button>
+                    {(() => {
+                      const isAccountConnected = isConnected || Boolean(connectedEmail);
+                      const isDateRangeSelected = Boolean(inPageStartDate && inPageEndDate);
+                      const canInPageFetch = isAccountConnected && isDateRangeSelected;
+                      return (
+                        <button
+                          onClick={fetchContactsInPage}
+                          disabled={inPageFetching || !canInPageFetch}
+                          className="px-4 py-2 bg-gradient-to-r from-cyan-500 via-purple-600 to-pink-600 text-white rounded-xl font-bold font-mono text-xs flex items-center gap-2 shadow-md shadow-cyan-500/20 disabled:opacity-40 disabled:cursor-not-allowed hover:scale-105 transition-all genz-shimmer-btn"
+                          title={
+                            !isAccountConnected
+                              ? "Please connect your account first"
+                              : !isDateRangeSelected
+                              ? "Please select a date range first"
+                              : "Fetch contacts"
+                          }
+                        >
+                          {inPageFetching ? (
+                            <>
+                              <RefreshCw className="w-3.5 h-3.5 animate-spin text-cyan-200" />
+                              <span>FETCHING MAIL CONTACTS...</span>
+                            </>
+                          ) : (
+                            <>
+                              <Rocket className="w-3.5 h-3.5 text-cyan-200" />
+                              <span>FETCH & AUTO-LOAD CONTACTS</span>
+                            </>
+                          )}
+                        </button>
+                      );
+                    })()}
                   </div>
                 </div>
               ) : (

@@ -280,6 +280,8 @@ function SentEmailsContent() {
           <div className="flex flex-wrap items-center gap-2 text-xs font-mono w-full sm:w-auto">
             {(() => {
               const isGmailConnected = isConnected || Boolean(connected === "true" && connectedEmail);
+              const isDateRangeSelected = Boolean(startDate && endDate);
+              const canFetch = isGmailConnected && isDateRangeSelected;
               return (
                 <>
                   <button
@@ -295,9 +297,15 @@ function SentEmailsContent() {
                   </button>
                   <button
                     onClick={fetchSentEmails}
-                    disabled={loading || !isGmailConnected}
+                    disabled={loading || !canFetch}
                     className="flex-1 sm:flex-none px-3.5 py-1.5 bg-gradient-to-r from-cyan-500 to-purple-600 text-white rounded-lg font-bold disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-1.5 genz-shimmer-btn"
-                    title={!isGmailConnected ? "Please connect your account first" : "Fetch sent logs"}
+                    title={
+                      !isGmailConnected
+                        ? "Please connect your account first"
+                        : !isDateRangeSelected
+                        ? "Please select a date range first"
+                        : "Fetch sent logs"
+                    }
                   >
                     {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
                     <span>Fetch Sent Logs</span>
