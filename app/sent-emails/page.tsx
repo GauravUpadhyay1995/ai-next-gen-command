@@ -239,28 +239,28 @@ function SentEmailsContent() {
   }, [emails]);
 
   return (
-    <div className="h-screen max-h-screen relative overflow-hidden bg-[#03050c] text-slate-100 flex flex-col justify-between p-4 sm:p-5">
+    <div className="min-h-screen md:h-screen md:max-h-screen relative overflow-x-hidden md:overflow-hidden bg-[#03050c] text-slate-100 flex flex-col justify-between p-3 sm:p-5">
       {/* Dynamic Background Cyber Mesh */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
-        <div className="absolute top-10 left-10 w-[34rem] h-[34rem] bg-purple-600/15 rounded-full filter blur-[130px] animate-aura-1"></div>
-        <div className="absolute bottom-20 right-10 w-[38rem] h-[38rem] bg-cyan-600/15 rounded-full filter blur-[140px] animate-aura-2"></div>
+        <div className="absolute top-10 left-10 w-[24rem] sm:w-[34rem] h-[24rem] sm:h-[34rem] bg-purple-600/15 rounded-full filter blur-[100px] sm:blur-[130px] animate-aura-1"></div>
+        <div className="absolute bottom-20 right-10 w-[28rem] sm:w-[38rem] h-[28rem] sm:h-[38rem] bg-cyan-600/15 rounded-full filter blur-[110px] sm:blur-[140px] animate-aura-2"></div>
         <div
           className="absolute inset-0 opacity-[0.14]"
           style={{
             backgroundImage:
-              "linear-gradient(rgba(0,240,255,0.2) 1px, transparent 1px), linear-gradient(90deg, rgba(0,240,255,0.2) 1px, transparent 1px)",
-            backgroundSize: "60px 60px",
+              "linear-gradient(rgba(0,240,255,0.2) 1px, transparent 1px), linear-gradient(90deg, rgba(236,72,153,0.2) 1px, transparent 1px)",
+            backgroundSize: "40px 40px",
           }}
         ></div>
       </div>
 
-      <div className="relative z-10 mx-auto max-w-[1400px] w-full flex flex-col h-full space-y-3">
+      <div className="relative z-10 mx-auto max-w-[1400px] w-full flex flex-col md:h-full space-y-3">
         {/* Top Header Row */}
-        <div className="flex flex-wrap items-center justify-between gap-3 animate-fade-up">
-          <div className="flex items-center gap-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 animate-fade-up">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
             <Link
               href="/"
-              className="inline-flex items-center gap-1.5 px-3 py-1 aaa-glass-panel hud-corner rounded-full text-purple-300 text-xs font-mono font-bold hover:border-purple-400 transition-all shadow-md shrink-0"
+              className="inline-flex items-center gap-1.5 px-3 py-1 genz-glass-panel rounded-full text-purple-300 text-xs font-mono font-bold hover:border-purple-400 transition-all shadow-md self-start shrink-0"
             >
               <ArrowLeft className="w-3.5 h-3.5 text-purple-400" />
               <span>COMMAND STATION</span>
@@ -270,23 +270,23 @@ function SentEmailsContent() {
               <span className="bg-gradient-to-r from-white to-slate-300 bg-clip-text text-transparent">
                 SENT CAMPAIGN
               </span>{" "}
-              <span className="neon-glow-purple font-mono tracking-tighter text-lg">
+              <span className="genz-glow-purple font-mono tracking-tighter whitespace-nowrap">
                 [ TRACKER ]
               </span>
             </h1>
           </div>
 
-          <div className="flex items-center gap-2 text-xs font-mono">
+          <div className="flex flex-wrap items-center gap-2 text-xs font-mono w-full sm:w-auto">
             <button
               onClick={connectGmail}
-              className="px-3 py-1.5 bg-purple-600/30 hover:bg-purple-600/50 border border-purple-500/40 text-purple-200 rounded-lg font-bold transition-all"
+              className="flex-1 sm:flex-none px-3.5 py-1.5 bg-purple-600/30 hover:bg-purple-600/50 border border-purple-500/40 text-purple-200 rounded-lg font-bold transition-all text-center"
             >
               Connect Gmail
             </button>
             <button
               onClick={fetchSentEmails}
               disabled={loading}
-              className="px-3.5 py-1.5 bg-gradient-to-r from-cyan-500 to-purple-600 text-white rounded-lg font-bold disabled:opacity-40 transition-all flex items-center gap-1.5"
+              className="flex-1 sm:flex-none px-3.5 py-1.5 bg-gradient-to-r from-cyan-500 to-purple-600 text-white rounded-lg font-bold disabled:opacity-40 transition-all flex items-center justify-center gap-1.5 genz-shimmer-btn"
             >
               {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
               <span>Fetch Sent Logs</span>
@@ -294,7 +294,7 @@ function SentEmailsContent() {
             <button
               onClick={downloadExcel}
               disabled={downloading || emails.length === 0}
-              className="px-3.5 py-1.5 bg-gradient-to-r from-emerald-600 to-indigo-600 text-white rounded-lg font-bold disabled:opacity-40 transition-all shimmer-button flex items-center gap-1.5"
+              className="flex-1 sm:flex-none px-3.5 py-1.5 bg-gradient-to-r from-emerald-600 to-indigo-600 text-white rounded-lg font-bold disabled:opacity-40 transition-all genz-shimmer-btn flex items-center justify-center gap-1.5"
             >
               {downloading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
               <span>Export Excel</span>
@@ -303,18 +303,18 @@ function SentEmailsContent() {
         </div>
 
         {/* Compact Filter & Status Deck */}
-        <div className="aaa-glass-panel hud-corner rounded-2xl p-3 border border-purple-500/30 animate-fade-up">
-          <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="genz-glass-panel rounded-2xl p-3 border border-purple-500/30 animate-fade-up">
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
             {/* Status indicators */}
-            <div className="flex items-center gap-3 text-xs font-mono">
+            <div className="flex flex-wrap items-center gap-2 text-xs font-mono">
               {(connected === "true" || connectedEmail) && (
-                <span className="text-emerald-400 font-bold flex items-center gap-1.5">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                <span className="text-emerald-400 font-bold flex items-center gap-1.5 truncate">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
                   {connectedEmail ? `AUTH: ${connectedEmail}` : "AUTHENTICATED"}
                 </span>
               )}
               {ownerConnected === true && (
-                <span className="text-purple-300">
+                <span className="text-purple-300 truncate">
                   ROUTE: <strong className="text-white">{ownerEmail}</strong>
                 </span>
               )}
@@ -322,25 +322,25 @@ function SentEmailsContent() {
             </div>
 
             {/* Date Filters & Instant Search */}
-            <div className="flex flex-wrap items-center gap-2 text-xs font-mono flex-1 justify-end">
-              <div className="flex items-center gap-1 bg-slate-950/80 px-2.5 py-1 rounded-xl border border-white/10">
+            <div className="flex flex-wrap items-center gap-2 text-xs font-mono w-full md:w-auto md:flex-1 justify-start md:justify-end">
+              <div className="flex items-center gap-1 bg-slate-950/80 px-2.5 py-1 rounded-xl border border-white/10 flex-1 sm:flex-none">
                 <span className="text-purple-300 font-bold text-[10px]">START:</span>
                 <input
                   type="date"
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
-                  className="bg-transparent text-white text-xs font-mono focus:outline-none"
+                  className="bg-transparent text-white text-xs font-mono focus:outline-none w-full"
                   style={{ colorScheme: "dark" }}
                 />
               </div>
 
-              <div className="flex items-center gap-1 bg-slate-950/80 px-2.5 py-1 rounded-xl border border-white/10">
+              <div className="flex items-center gap-1 bg-slate-950/80 px-2.5 py-1 rounded-xl border border-white/10 flex-1 sm:flex-none">
                 <span className="text-pink-300 font-bold text-[10px]">END:</span>
                 <input
                   type="date"
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
-                  className="bg-transparent text-white text-xs font-mono focus:outline-none"
+                  className="bg-transparent text-white text-xs font-mono focus:outline-none w-full"
                   style={{ colorScheme: "dark" }}
                 />
               </div>
@@ -358,13 +358,13 @@ function SentEmailsContent() {
               )}
 
               {/* Search Bar */}
-              <div className="relative min-w-[220px]">
+              <div className="relative w-full sm:w-auto sm:min-w-[200px]">
                 <input
                   type="text"
-                  placeholder="Filter logs by recipient or subject..."
+                  placeholder="Filter logs..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full px-3 py-1 aaa-input rounded-xl text-white text-xs font-mono pl-8"
+                  className="w-full px-3 py-1 genz-input rounded-xl text-white text-xs font-mono pl-8"
                 />
                 <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-cyan-400" />
               </div>
@@ -374,13 +374,13 @@ function SentEmailsContent() {
 
         {/* Sync Progress Indicator */}
         {loading && fetchProgress.fetchedCount > 0 && (
-          <div className="rounded-xl aaa-glass-panel hud-corner p-2.5 border border-cyan-500/30">
+          <div className="rounded-xl genz-glass-panel p-2.5 border border-cyan-500/30">
             <div className="flex items-center justify-between text-xs font-mono text-cyan-300">
-              <span className="flex items-center gap-2">
-                <RefreshCw className="w-3.5 h-3.5 text-cyan-400 animate-spin" />
+              <span className="flex items-center gap-2 truncate">
+                <RefreshCw className="w-3.5 h-3.5 text-cyan-400 animate-spin shrink-0" />
                 FETCHING PAGE {fetchProgress.currentPage}...
               </span>
-              <span className="font-bold">
+              <span className="font-bold shrink-0">
                 {fetchProgress.fetchedCount} {fetchProgress.estimatedTotal ? `/ ~${fetchProgress.estimatedTotal}` : "RECORDS"}
               </span>
             </div>
@@ -390,45 +390,45 @@ function SentEmailsContent() {
         {/* Telemetry Stats Pills */}
         {emails.length > 0 && (
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 animate-fade-up">
-            <div className="aaa-glass-panel hud-corner rounded-xl p-2.5 border border-purple-500/30 flex items-center justify-between">
+            <div className="genz-glass-panel rounded-xl p-2.5 border border-purple-500/30 flex items-center justify-between">
               <div>
-                <p className="text-slate-400 text-[10px] font-mono font-bold uppercase">TOTAL MAILS</p>
-                <p className="text-xl font-mono font-black text-white">{stats.total}</p>
+                <p className="text-slate-400 text-[9px] sm:text-[10px] font-mono font-bold uppercase">TOTAL MAILS</p>
+                <p className="text-lg sm:text-xl font-mono font-black text-white">{stats.total}</p>
               </div>
-              <Send className="w-5 h-5 text-purple-400" />
+              <Send className="w-4 sm:w-5 h-4 sm:h-5 text-purple-400" />
             </div>
 
-            <div className="aaa-glass-panel hud-corner rounded-xl p-2.5 border border-cyan-500/30 flex items-center justify-between">
+            <div className="genz-glass-panel rounded-xl p-2.5 border border-cyan-500/30 flex items-center justify-between">
               <div>
-                <p className="text-slate-400 text-[10px] font-mono font-bold uppercase">UNIQUE CONTACTS</p>
-                <p className="text-xl font-mono font-black text-white">{stats.uniqueRecipients}</p>
+                <p className="text-slate-400 text-[9px] sm:text-[10px] font-mono font-bold uppercase">CONTACTS</p>
+                <p className="text-lg sm:text-xl font-mono font-black text-white">{stats.uniqueRecipients}</p>
               </div>
-              <Users className="w-5 h-5 text-cyan-400" />
+              <Users className="w-4 sm:w-5 h-4 sm:h-5 text-cyan-400" />
             </div>
 
-            <div className="aaa-glass-panel hud-corner rounded-xl p-2.5 border border-amber-500/30 flex items-center justify-between">
+            <div className="genz-glass-panel rounded-xl p-2.5 border border-amber-500/30 flex items-center justify-between">
               <div>
-                <p className="text-slate-400 text-[10px] font-mono font-bold uppercase">AVG SUBJECT</p>
-                <p className="text-xl font-mono font-black text-white">{stats.avgSubjectLength} ch</p>
+                <p className="text-slate-400 text-[9px] sm:text-[10px] font-mono font-bold uppercase">AVG SUBJECT</p>
+                <p className="text-lg sm:text-xl font-mono font-black text-white">{stats.avgSubjectLength} ch</p>
               </div>
-              <BarChart3 className="w-5 h-5 text-amber-400" />
+              <BarChart3 className="w-4 sm:w-5 h-4 sm:h-5 text-amber-400" />
             </div>
 
-            <div className="aaa-glass-panel hud-corner rounded-xl p-2.5 border border-pink-500/30 flex items-center justify-between">
+            <div className="genz-glass-panel rounded-xl p-2.5 border border-pink-500/30 flex items-center justify-between">
               <div>
-                <p className="text-slate-400 text-[10px] font-mono font-bold uppercase">PEAK MONTH</p>
-                <p className="text-sm font-mono font-bold text-white">{stats.mostActiveMonth}</p>
+                <p className="text-slate-400 text-[9px] sm:text-[10px] font-mono font-bold uppercase">PEAK MONTH</p>
+                <p className="text-xs sm:text-sm font-mono font-bold text-white truncate max-w-[80px] sm:max-w-none">{stats.mostActiveMonth}</p>
               </div>
-              <Crown className="w-5 h-5 text-pink-400" />
+              <Crown className="w-4 sm:w-5 h-4 sm:h-5 text-pink-400" />
             </div>
           </div>
         )}
 
         {/* Scrollable Email Logs Vault Box */}
-        <div className="flex-1 min-h-0 rounded-2xl cyber-panel-elevated hud-corner p-4 border border-white/10 overflow-hidden flex flex-col justify-between">
-          <div className="overflow-y-auto custom-scrollbar flex-1 pr-1 space-y-3">
+        <div className="flex-1 md:min-h-0 rounded-2xl genz-glass-panel p-3 sm:p-4 border border-white/10 overflow-hidden flex flex-col justify-between">
+          <div className="md:overflow-y-auto custom-scrollbar flex-1 pr-0 sm:pr-1 space-y-3">
             {filteredEmails.length === 0 ? (
-              <div className="h-full flex flex-col items-center justify-center py-12 text-center">
+              <div className="h-full flex flex-col items-center justify-center py-10 text-center">
                 <div className="p-3 bg-purple-500/10 border border-purple-500/30 rounded-full mb-3">
                   <Inbox className="w-8 h-8 text-purple-400" />
                 </div>
@@ -440,15 +440,15 @@ function SentEmailsContent() {
               filteredEmails.map((email, index) => (
                 <div
                   key={email.id}
-                  className="aaa-glass-card-interactive hud-corner rounded-xl p-4 border border-white/10 group relative"
+                  className="genz-glass-interactive rounded-xl p-3 sm:p-4 border border-white/10 group relative"
                 >
                   <div className="flex flex-col md:flex-row md:items-start justify-between gap-3">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1.5 flex-wrap text-[11px] font-mono">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5 mb-1.5 flex-wrap text-[10px] sm:text-[11px] font-mono">
                         <span className="px-2 py-0.5 bg-cyan-500/15 border border-cyan-500/30 rounded text-cyan-300 font-bold">
                           #{index + 1}
                         </span>
-                        <span className="px-2 py-0.5 bg-white/5 border border-white/10 rounded text-slate-300">
+                        <span className="px-2 py-0.5 bg-white/5 border border-white/10 rounded text-slate-300 truncate max-w-[200px] sm:max-w-none">
                           TO: <strong className="text-white">{email.to || "-"}</strong>
                         </span>
                         <span className="px-2 py-0.5 bg-white/5 border border-white/10 rounded text-slate-300">
@@ -458,18 +458,18 @@ function SentEmailsContent() {
 
                       <h3
                         onClick={() => setSelectedEmail(selectedEmail?.id === email.id ? null : email)}
-                        className="text-sm font-bold text-white group-hover:text-cyan-300 transition-colors mb-1 cursor-pointer"
+                        className="text-xs sm:text-sm font-bold text-white group-hover:text-cyan-300 transition-colors mb-1 cursor-pointer truncate"
                       >
                         {email.subject || "No Subject"}
                       </h3>
 
-                      <p className="text-slate-400 text-[11px] font-mono line-clamp-1 leading-relaxed mb-2">
+                      <p className="text-slate-400 text-[10px] sm:text-[11px] font-mono line-clamp-2 leading-relaxed mb-2">
                         {email.snippet || "-"}
                       </p>
 
-                      <div className="flex items-center gap-3 text-[10px] font-mono text-slate-500">
+                      <div className="flex flex-wrap items-center gap-3 text-[10px] font-mono text-slate-500">
                         <div className="flex items-center gap-1">
-                          <Clock className="w-3 h-3 text-cyan-400" />
+                          <Clock className="w-3 h-3 text-cyan-400 shrink-0" />
                           <span>
                             {email.rawDate && !isNaN(new Date(email.rawDate).getTime())
                               ? new Date(email.rawDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })
@@ -478,7 +478,7 @@ function SentEmailsContent() {
                         </div>
                         {email.threadId && (
                           <div className="flex items-center gap-1">
-                            <MessageSquare className="w-3 h-3 text-purple-400" />
+                            <MessageSquare className="w-3 h-3 text-purple-400 shrink-0" />
                             <span>THREAD: {email.threadId.slice(0, 8)}...</span>
                           </div>
                         )}
@@ -486,7 +486,7 @@ function SentEmailsContent() {
 
                       {/* Detailed Accordion Drawer */}
                       {selectedEmail?.id === email.id && (
-                        <div className="mt-3 p-4 quantum-terminal rounded-xl text-xs font-mono space-y-2 animate-fade-up">
+                        <div className="mt-3 p-3 sm:p-4 bg-slate-950/90 border border-cyan-500/30 rounded-xl text-xs font-mono space-y-2 animate-fade-up">
                           <div className="text-cyan-400 font-bold uppercase border-b border-cyan-500/20 pb-1.5 flex justify-between items-center">
                             <span>MESSAGE PAYLOAD CONTENT</span>
                             <button
@@ -506,10 +506,10 @@ function SentEmailsContent() {
                               )}
                             </button>
                           </div>
-                          <p className="text-slate-200 leading-relaxed whitespace-pre-wrap">{email.snippet}</p>
-                          <div className="pt-2 border-t border-white/10 grid grid-cols-1 md:grid-cols-2 gap-2 text-slate-400 text-[10px]">
-                            <div>THREAD ID: <span className="text-white">{email.threadId}</span></div>
-                            <div>MESSAGE ID: <span className="text-white">{email.id}</span></div>
+                          <p className="text-slate-200 leading-relaxed whitespace-pre-wrap text-[11px] sm:text-xs">{email.snippet}</p>
+                          <div className="pt-2 border-t border-white/10 grid grid-cols-1 sm:grid-cols-2 gap-2 text-slate-400 text-[10px]">
+                            <div className="truncate">THREAD ID: <span className="text-white">{email.threadId}</span></div>
+                            <div className="truncate">MESSAGE ID: <span className="text-white">{email.id}</span></div>
                           </div>
                         </div>
                       )}
@@ -517,7 +517,7 @@ function SentEmailsContent() {
 
                     <div
                       onClick={() => setSelectedEmail(selectedEmail?.id === email.id ? null : email)}
-                      className="flex items-center gap-1.5 self-start pt-1 cursor-pointer"
+                      className="flex items-center gap-1.5 self-end md:self-start pt-1 cursor-pointer"
                     >
                       <span className="text-[10px] font-mono font-semibold text-cyan-400 group-hover:text-purple-300 transition-colors">
                         {selectedEmail?.id === email.id ? "HIDE" : "INSPECT"}
@@ -533,9 +533,9 @@ function SentEmailsContent() {
 
         {/* Footer Badge Bar */}
         <div className="text-center pt-1">
-          <div className="inline-flex items-center gap-2 px-4 py-1 aaa-glass-panel rounded-full border border-white/10 text-[10px] font-mono text-slate-400">
+          <div className="inline-flex items-center gap-2 px-3 py-1 genz-glass-panel rounded-full border border-white/10 text-[9px] sm:text-[10px] font-mono text-slate-400">
             <Flame className="w-3 h-3 text-cyan-400" />
-            <span>POWERED BY HYPER-QUANTUM DISPATCH MATRIX</span>
+            <span className="truncate">POWERED BY HYPER-QUANTUM DISPATCH MATRIX</span>
             <Sparkles className="w-3 h-3 text-purple-400" />
           </div>
         </div>
@@ -546,9 +546,9 @@ function SentEmailsContent() {
 
 function SentEmailsLoading() {
   return (
-    <div className="min-h-screen relative overflow-hidden bg-[#03050c] flex items-center justify-center">
-      <div className="text-center p-8 aaa-glass-panel hud-corner rounded-3xl">
-        <Loader2 className="w-10 h-10 text-cyan-400 animate-spin mx-auto mb-4" />
+    <div className="min-h-screen relative overflow-hidden bg-[#03050c] flex items-center justify-center p-4">
+      <div className="text-center p-6 sm:p-8 genz-glass-panel rounded-3xl max-w-sm w-full">
+        <Loader2 className="w-8 h-8 text-cyan-400 animate-spin mx-auto mb-3" />
         <p className="text-slate-300 text-xs font-mono font-semibold">INITIALIZING TELEMETRY TRACKER...</p>
       </div>
     </div>

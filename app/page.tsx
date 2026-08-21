@@ -3,27 +3,26 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
-  Mail,
-  Send,
-  Sparkles,
-  Flame,
   Rocket,
   ArrowRight,
   ShieldCheck,
-  CheckCircle,
   AlertCircle,
   Loader2,
-  Database,
   MailOpen,
-  Zap,
-  Activity,
   Radio,
   Cpu,
-  Terminal,
-  Compass,
-  Layers,
   Lock,
-  BarChart3
+  BarChart3,
+  Sparkles,
+  Zap,
+  Flame,
+  Activity,
+  CheckCircle2,
+  Layers,
+  Terminal,
+  Send,
+  RefreshCw,
+  PlayCircle
 } from "lucide-react";
 
 export default function Home() {
@@ -61,91 +60,118 @@ export default function Home() {
   };
 
   return (
-    <div className="h-screen max-h-screen relative overflow-hidden bg-[#03050c] text-slate-100 flex flex-col justify-between p-4 sm:p-6">
-      {/* Hyper-Quantum Ambient Background Canvas */}
+    <div className="min-h-screen relative overflow-x-hidden bg-[#03050c] text-slate-100 flex flex-col justify-between p-3 sm:p-6 pb-12">
+      {/* Gen Z Ambient Holographic Glow Aura Background */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
-        {/* Dynamic Moving Aura Lights */}
-        <div className="absolute top-10 left-10 w-[36rem] h-[36rem] bg-cyan-500/20 rounded-full filter blur-[140px] animate-aura-1"></div>
-        <div className="absolute bottom-10 right-10 w-[42rem] h-[42rem] bg-purple-600/20 rounded-full filter blur-[150px] animate-aura-2"></div>
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[28rem] h-[28rem] bg-pink-500/15 rounded-full filter blur-[130px] animate-pulse-halo"></div>
+        {/* Dynamic Neon Aura Spheres */}
+        <div className="absolute -top-20 -left-20 w-[30rem] sm:w-[45rem] h-[30rem] sm:h-[45rem] bg-cyan-500/20 rounded-full filter blur-[120px] sm:blur-[160px] animate-aura-1"></div>
+        <div className="absolute -bottom-20 -right-20 w-[32rem] sm:w-[48rem] h-[32rem] sm:h-[48rem] bg-pink-600/20 rounded-full filter blur-[130px] sm:blur-[170px] animate-aura-2"></div>
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[24rem] sm:w-[38rem] h-[24rem] sm:h-[38rem] bg-purple-600/15 rounded-full filter blur-[140px] animate-pulse-glow"></div>
 
-        {/* Triple Orbital Radar Rings */}
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[52rem] h-[52rem] rounded-full border border-cyan-500/15 animate-radar"></div>
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[36rem] h-[36rem] rounded-full border border-dashed border-purple-500/20 animate-radar" style={{ animationDirection: "reverse", animationDuration: "22s" }}></div>
-
-        {/* Cyberpunk Grid Overlay */}
+        {/* Cinematic Grid Overlay */}
         <div
-          className="absolute inset-0 opacity-[0.15]"
+          className="absolute inset-0 opacity-[0.14]"
           style={{
             backgroundImage:
-              "linear-gradient(rgba(0,240,255,0.2) 1px, transparent 1px), linear-gradient(90deg, rgba(0,240,255,0.2) 1px, transparent 1px)",
-            backgroundSize: "60px 60px",
+              "linear-gradient(rgba(0,240,255,0.2) 1px, transparent 1px), linear-gradient(90deg, rgba(236,72,153,0.2) 1px, transparent 1px)",
+            backgroundSize: "40px 40px",
           }}
         ></div>
       </div>
 
-      <div className="relative z-10 mx-auto max-w-6xl w-full flex flex-col justify-between h-full py-2">
-        {/* Top Header Section */}
-        <div className="text-center animate-fade-up">
-          <div className="inline-flex items-center gap-2.5 px-3.5 py-1 mb-2 aaa-glass-panel hud-corner rounded-full border border-cyan-500/40 text-[10px] font-mono tracking-widest text-cyan-300 uppercase shadow-lg shadow-cyan-950/50">
-            <div className="flex items-center gap-1 h-2.5">
-              <span className="w-0.5 bg-cyan-400 rounded-full animate-bounce" style={{ height: "60%", animationDelay: "0.1s" }}></span>
-              <span className="w-0.5 bg-pink-400 rounded-full animate-bounce" style={{ height: "100%", animationDelay: "0.3s" }}></span>
-              <span className="w-0.5 bg-purple-400 rounded-full animate-bounce" style={{ height: "40%", animationDelay: "0.2s" }}></span>
-            </div>
-            <span>QUANTUM DISPATCH MATRIX • GMAIL SATELLITE ONLINE</span>
-            <Radio className="w-3 h-3 text-cyan-400 animate-pulse" />
+      <div className="relative z-10 mx-auto max-w-6xl w-full flex flex-col space-y-6">
+        {/* Kinetic Ticker Marquee Header Banner */}
+        <div className="w-full overflow-hidden genz-glass-panel rounded-full py-1.5 px-4 border border-cyan-500/30 text-[10px] font-mono tracking-widest text-cyan-300 shadow-lg shadow-cyan-950/40 animate-fade-up">
+          <div className="flex whitespace-nowrap animate-marquee items-center gap-8">
+            <span className="flex items-center gap-2">
+              <Zap className="w-3 h-3 text-cyan-400" /> 8x PARALLEL DISPATCH ENGINE
+            </span>
+            <span className="text-pink-400">•</span>
+            <span className="flex items-center gap-2 text-pink-300">
+              <ShieldCheck className="w-3 h-3 text-pink-400" /> GOOGLE OAUTH SECURED
+            </span>
+            <span className="text-purple-400">•</span>
+            <span className="flex items-center gap-2 text-purple-300">
+              <Activity className="w-3 h-3 text-purple-400" /> ZERO DUPLICATE PRECHECK
+            </span>
+            <span className="text-cyan-400">•</span>
+            <span className="flex items-center gap-2 text-emerald-300">
+              <Flame className="w-3 h-3 text-emerald-400" /> REALTIME TELEMETRY VAULT
+            </span>
+            <span className="text-pink-400">•</span>
+            {/* Duplicated set for seamless loop */}
+            <span className="flex items-center gap-2">
+              <Zap className="w-3 h-3 text-cyan-400" /> 8x PARALLEL DISPATCH ENGINE
+            </span>
+            <span className="text-pink-400">•</span>
+            <span className="flex items-center gap-2 text-pink-300">
+              <ShieldCheck className="w-3 h-3 text-pink-400" /> GOOGLE OAUTH SECURED
+            </span>
+          </div>
+        </div>
+
+        {/* Oversized Kinetic Hero Title Section */}
+        <div className="text-center animate-fade-up pt-1">
+          <div className="inline-flex items-center gap-2 px-3 py-1 mb-2.5 genz-glass-panel rounded-full border border-pink-500/40 text-[10px] font-mono font-bold text-pink-300 uppercase shadow-md">
+            <Sparkles className="w-3 h-3 text-pink-400 animate-spin" style={{ animationDuration: "6s" }} />
+            <span>NEXT-GEN CAMPAIGN AUTOMATION</span>
+            <Sparkles className="w-3 h-3 text-cyan-400" />
           </div>
 
-          <h1 className="text-2xl sm:text-4xl md:text-5xl font-black tracking-tight leading-none mb-1.5">
+          <h1 className="text-3xl sm:text-5xl md:text-6xl font-black tracking-tight leading-none mb-2">
             <span className="bg-gradient-to-r from-white via-slate-100 to-slate-300 bg-clip-text text-transparent">
               HYPER MAILING
             </span>{" "}
-            <span className="bg-gradient-to-r from-cyan-400 via-purple-400 to-pink-400 bg-clip-text text-transparent animate-text-gradient font-mono tracking-tighter whitespace-nowrap inline-block">
-              [ COMMAND STATION ]
+            <span className="genz-text-gradient font-mono tracking-tighter whitespace-nowrap inline-block animate-holo">
+              [ NEXT-GEN COMMAND ]
             </span>
           </h1>
 
-          <p className="text-xs sm:text-sm text-slate-300/85 max-w-xl mx-auto font-medium leading-tight">
-            Automated batch dispatcher, real-time Gmail sent-folder validator, and intelligent zero-duplicate delivery controller.
+          <p className="text-xs sm:text-sm md:text-base text-slate-300/90 max-w-xl mx-auto font-medium leading-relaxed px-2">
+            Personalize thousands of emails in seconds. Parallel batch speed, zero duplicate drops, and live telemetry tracking.
           </p>
         </div>
 
-        {/* Wide 2-Column Dashboard Center Layout */}
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-5 items-center my-auto">
-          {/* Left Column: Connection Deck & Stat Telemetry */}
-          <div className="md:col-span-5 space-y-3.5 animate-fade-up">
-            {/* Connection Status Panel */}
-            <div className="aaa-glass-panel hud-corner rounded-2xl p-4 border border-cyan-500/30">
-              <div className="text-[10px] font-mono font-bold text-cyan-400 uppercase tracking-widest mb-2 flex items-center gap-1.5">
-                <Activity className="w-3.5 h-3.5 text-cyan-400 animate-pulse" />
-                <span>SYSTEM ROUTE STATUS</span>
+        {/* Wide 2-Column Gen Z Holographic Dashboard Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-4 sm:gap-5 items-center">
+          {/* Left Column: Route Control & Telemetry Deck */}
+          <div className="md:col-span-5 space-y-3 animate-fade-up">
+            {/* System Status Deck */}
+            <div className="genz-glass-panel rounded-2xl p-3.5 sm:p-4 border border-cyan-500/40 shadow-xl">
+              <div className="text-[10px] font-mono font-bold text-cyan-400 uppercase tracking-widest mb-2 flex items-center justify-between">
+                <span className="flex items-center gap-1.5">
+                  <Activity className="w-3.5 h-3.5 text-cyan-400 animate-pulse" />
+                  SYSTEM ROUTE STATUS
+                </span>
+                <span className="px-2 py-0.5 bg-cyan-500/15 border border-cyan-500/30 rounded-full text-[9px] text-cyan-300 font-mono">
+                  LIVE V3.0
+                </span>
               </div>
 
               {checkingConnection ? (
-                <div className="flex items-center gap-2 text-slate-300 text-xs font-mono">
+                <div className="flex items-center gap-2 text-slate-300 text-xs font-mono py-1">
                   <Loader2 className="w-4 h-4 text-cyan-400 animate-spin" />
                   <span>CALIBRATING AUTHENTICATION NODE...</span>
                 </div>
               ) : (
                 <div className="space-y-2">
                   {isConnected ? (
-                    <div className="flex items-center gap-2.5 text-emerald-300 font-mono text-xs font-bold">
-                      <span className="relative flex h-2.5 w-2.5">
+                    <div className="flex items-center gap-2.5 text-emerald-300 font-mono text-xs font-bold bg-emerald-500/10 p-2.5 rounded-xl border border-emerald-500/30">
+                      <span className="relative flex h-2.5 w-2.5 shrink-0">
                         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                         <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
                       </span>
-                      <span className="truncate">AUTHENTICATED: {connectedEmail}</span>
+                      <span className="truncate">AUTH NODE: {connectedEmail}</span>
                     </div>
                   ) : (
-                    <div className="flex items-center justify-between gap-2">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 bg-rose-500/10 p-2.5 rounded-xl border border-rose-500/30">
                       <div className="flex items-center gap-2 text-rose-300 text-xs font-mono font-bold">
-                        <AlertCircle className="w-3.5 h-3.5 text-rose-400" />
-                        <span>GMAIL CONNECTION INACTIVE</span>
+                        <AlertCircle className="w-3.5 h-3.5 text-rose-400 shrink-0" />
+                        <span>GMAIL ROUTE INACTIVE</span>
                       </div>
                       <button
                         onClick={connectGmail}
-                        className="px-3 py-1 bg-gradient-to-r from-cyan-500 to-purple-600 rounded-lg text-white text-[10px] font-mono font-bold hover:shadow-lg hover:shadow-cyan-500/40 transition-all duration-300"
+                        className="w-full sm:w-auto px-3.5 py-1.5 bg-gradient-to-r from-cyan-500 via-purple-600 to-pink-600 rounded-lg text-white text-[11px] font-mono font-bold genz-shimmer-btn shadow-lg text-center"
                       >
                         AUTHORIZE NOW
                       </button>
@@ -153,8 +179,8 @@ export default function Home() {
                   )}
 
                   {ownerConnected === true && (
-                    <div className="text-[10px] font-mono text-purple-300 border-t border-white/10 pt-1.5 flex items-center gap-1.5">
-                      <ShieldCheck className="w-3 h-3 text-purple-400 shrink-0" />
+                    <div className="text-[10px] font-mono text-purple-300 border-t border-white/10 pt-2 flex items-center gap-1.5">
+                      <ShieldCheck className="w-3.5 h-3.5 text-purple-400 shrink-0" />
                       <span className="truncate">DISPATCH ROUTE: <strong className="text-white">{ownerEmail}</strong></span>
                     </div>
                   )}
@@ -163,78 +189,78 @@ export default function Home() {
             </div>
 
             {/* Floating Telemetry Stats Grid (2x2) */}
-            <div className="grid grid-cols-2 gap-2.5 text-xs font-mono">
-              <div className="p-3 aaa-glass-panel hud-corner rounded-xl border border-cyan-500/25 text-cyan-300">
+            <div className="grid grid-cols-2 gap-2 text-xs font-mono">
+              <div className="p-2.5 sm:p-3 genz-glass-panel rounded-xl border border-cyan-500/30 text-cyan-300">
                 <div className="text-slate-400 text-[9px]">BATCH ENGINE</div>
-                <div className="font-bold text-xs text-white">8x PARALLEL</div>
+                <div className="font-bold text-xs text-white mt-0.5">8x PARALLEL</div>
               </div>
-              <div className="p-3 aaa-glass-panel hud-corner rounded-xl border border-purple-500/25 text-purple-300">
+              <div className="p-2.5 sm:p-3 genz-glass-panel rounded-xl border border-purple-500/30 text-purple-300">
                 <div className="text-slate-400 text-[9px]">AUTH VAULT</div>
-                <div className="font-bold text-xs text-white">GOOGLE OAUTH</div>
+                <div className="font-bold text-xs text-white mt-0.5">GOOGLE OAUTH</div>
               </div>
-              <div className="p-3 aaa-glass-panel hud-corner rounded-xl border border-pink-500/25 text-pink-300">
+              <div className="p-2.5 sm:p-3 genz-glass-panel rounded-xl border border-pink-500/30 text-pink-300">
                 <div className="text-slate-400 text-[9px]">PRECHECK MATRIX</div>
-                <div className="font-bold text-xs text-white">100% ACCURACY</div>
+                <div className="font-bold text-xs text-white mt-0.5">100% ACCURACY</div>
               </div>
-              <div className="p-3 aaa-glass-panel hud-corner rounded-xl border border-emerald-500/25 text-emerald-300">
+              <div className="p-2.5 sm:p-3 genz-glass-panel rounded-xl border border-emerald-500/30 text-emerald-300">
                 <div className="text-slate-400 text-[9px]">DATABASE STORE</div>
-                <div className="font-bold text-xs text-white">ENCRYPTED MONGO</div>
+                <div className="font-bold text-xs text-white mt-0.5">ENCRYPTED MONGO</div>
               </div>
             </div>
           </div>
 
-          {/* Right Column: 2 Main Command Module Cards */}
+          {/* Right Column: 2 Main Interactive Module Cards */}
           <div className="md:col-span-7 grid grid-cols-1 sm:grid-cols-2 gap-4 animate-fade-up">
-            {/* Bulk Emails Card Module */}
+            {/* Mass Mail Commander Card */}
             <Link href="/bulk-emails" className="group text-left block">
-              <div className="h-full rounded-2xl aaa-glass-card-interactive hud-corner p-5 flex flex-col justify-between cursor-pointer border border-cyan-500/30">
+              <div className="h-full rounded-2xl genz-glass-interactive p-4 sm:p-5 flex flex-col justify-between cursor-pointer border border-cyan-500/30">
                 <div>
-                  <div className="flex justify-between items-start mb-3">
-                    <div className="p-2.5 bg-cyan-500/15 border border-cyan-500/30 rounded-xl text-cyan-400">
+                  <div className="flex justify-between items-start mb-2.5">
+                    <div className="p-2.5 bg-cyan-500/15 border border-cyan-500/30 rounded-xl text-cyan-400 group-hover:scale-110 transition-transform">
                       <Rocket className="w-5 h-5 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform duration-300" />
                     </div>
-                    <span className="text-[9px] font-mono font-bold text-cyan-300 bg-cyan-500/15 px-2 py-0.5 rounded-full border border-cyan-500/30 uppercase tracking-widest">
+                    <span className="text-[9px] font-mono font-bold text-cyan-300 bg-cyan-500/15 px-2.5 py-0.5 rounded-full border border-cyan-500/30 uppercase tracking-widest">
                       MODULE_01
                     </span>
                   </div>
 
-                  <h3 className="text-lg font-bold text-white mb-1 group-hover:text-cyan-300 transition-colors">
+                  <h3 className="text-base sm:text-lg font-bold text-white mb-1 group-hover:text-cyan-300 transition-colors">
                     Mass Mail Commander
                   </h3>
-                  <p className="text-slate-300/80 text-[11px] leading-relaxed font-medium">
-                    Upload spreadsheets, write dynamic variable templates, attach documents, and send optimized emails with auto-skip prechecks.
+                  <p className="text-slate-300/85 text-[11px] leading-relaxed font-medium">
+                    Upload spreadsheets, write dynamic variable templates, attach documents, and send optimized emails.
                   </p>
                 </div>
 
-                <div className="mt-4 flex items-center gap-2 text-cyan-400 font-mono text-[10px] font-bold group-hover:text-pink-300 transition-colors">
+                <div className="mt-3.5 flex items-center gap-2 text-cyan-400 font-mono text-[10px] font-bold group-hover:text-pink-300 transition-colors">
                   <span>LAUNCH COMMANDER</span>
                   <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1.5 transition-transform duration-300" />
                 </div>
               </div>
             </Link>
 
-            {/* Sent Emails Tracker Module */}
+            {/* Sent Campaign Tracker Card */}
             <Link href="/sent-emails" className="group text-left block">
-              <div className="h-full rounded-2xl aaa-glass-card-interactive hud-corner p-5 flex flex-col justify-between cursor-pointer border border-purple-500/30">
+              <div className="h-full rounded-2xl genz-glass-interactive p-4 sm:p-5 flex flex-col justify-between cursor-pointer border border-pink-500/30">
                 <div>
-                  <div className="flex justify-between items-start mb-3">
-                    <div className="p-2.5 bg-purple-500/15 border border-purple-500/30 rounded-xl text-purple-400">
+                  <div className="flex justify-between items-start mb-2.5">
+                    <div className="p-2.5 bg-pink-500/15 border border-pink-500/30 rounded-xl text-pink-400 group-hover:scale-110 transition-transform">
                       <MailOpen className="w-5 h-5 group-hover:rotate-12 transition-transform duration-300" />
                     </div>
-                    <span className="text-[9px] font-mono font-bold text-purple-300 bg-purple-500/15 px-2 py-0.5 rounded-full border border-purple-500/30 uppercase tracking-widest">
+                    <span className="text-[9px] font-mono font-bold text-pink-300 bg-pink-500/15 px-2.5 py-0.5 rounded-full border border-pink-500/30 uppercase tracking-widest">
                       MODULE_02
                     </span>
                   </div>
 
-                  <h3 className="text-lg font-bold text-white mb-1 group-hover:text-purple-300 transition-colors">
+                  <h3 className="text-base sm:text-lg font-bold text-white mb-1 group-hover:text-pink-300 transition-colors">
                     Sent Campaign Tracker
                   </h3>
-                  <p className="text-slate-300/80 text-[11px] leading-relaxed font-medium">
-                    Inspect recently sent campaigns, analyze subject and delivery performance, search logs, and export reports to Excel formats.
+                  <p className="text-slate-300/85 text-[11px] leading-relaxed font-medium">
+                    Inspect recently sent campaigns, analyze subject performance, search logs, and export reports to Excel.
                   </p>
                 </div>
 
-                <div className="mt-4 flex items-center gap-2 text-purple-400 font-mono text-[10px] font-bold group-hover:text-cyan-300 transition-colors">
+                <div className="mt-3.5 flex items-center gap-2 text-pink-400 font-mono text-[10px] font-bold group-hover:text-cyan-300 transition-colors">
                   <span>ANALYZE HISTORY</span>
                   <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1.5 transition-transform duration-300" />
                 </div>
@@ -243,18 +269,144 @@ export default function Home() {
           </div>
         </div>
 
+        {/* 🎥 CINEMATIC CONVERSION-CENTERED MOBILE VIDEO SHOWCASE SECTION */}
+        <div className="w-full genz-glass-panel rounded-3xl p-4 sm:p-6 border border-cyan-500/40 relative overflow-hidden animate-fade-up shadow-2xl">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
+            {/* Video Container Frame - Tight cyan border wrapped around sphere */}
+            <div className="lg:col-span-4 flex justify-center lg:justify-start">
+              <div className="relative w-[270px] sm:w-[290px] h-[270px] sm:h-[290px] aspect-square rounded-2xl overflow-hidden border border-cyan-500/40 bg-black p-0 flex items-center justify-center group shadow-xl shrink-0">
+                <video
+                  src="/videos/conversion-centered-mobile.mp4"
+                  autoPlay
+                  loop
+                  muted
+                  playsInline
+                  className="w-full h-full object-cover scale-100 group-hover:scale-105 transition-transform duration-500 opacity-95 group-hover:opacity-100 bg-black"
+                />
+                {/* Overlay Gradient Vignette */}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/20 pointer-events-none"></div>
+
+                {/* Video Floating Badge */}
+                <div className="absolute top-2.5 left-2.5 px-2.5 py-0.5 bg-black/85 backdrop-blur-md rounded-full border border-cyan-500/40 text-[9px] font-mono text-cyan-300 font-bold flex items-center gap-1 z-10 shadow-lg truncate max-w-[90%]">
+                  <PlayCircle className="w-3 h-3 text-cyan-400 animate-pulse shrink-0" />
+                  <span className="truncate">MOBILE CONVERSION DISPATCH</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Video Overlaid / Related Content Text */}
+            <div className="lg:col-span-8 space-y-4">
+              <div className="inline-flex items-center gap-2 px-3 py-1 bg-cyan-500/15 border border-cyan-500/30 rounded-full text-[10px] font-mono font-bold text-cyan-300 uppercase">
+                <Zap className="w-3 h-3 text-cyan-400" />
+                <span>CONVERSION-CENTERED DISPATCH ENGINE</span>
+              </div>
+
+              <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight leading-tight">
+                HIGH-CONVERSION MOBILE & DESKTOP <span className="genz-glow-cyan">EMAIL DISPATCH</span>
+              </h2>
+
+              <p className="text-slate-300/90 text-xs sm:text-sm font-medium leading-relaxed">
+                Empower your outbound campaigns with mobile-first, high-conversion email layouts. Reach your targets on any device with responsive variable templates, automatic Gmail sent-folder validation, and zero spam drops.
+              </p>
+
+              {/* High-Impact Stat Pills */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-2 font-mono text-xs">
+                <div className="p-3 bg-slate-950/80 border border-cyan-500/30 rounded-xl">
+                  <div className="text-[10px] text-cyan-400 font-bold">DELIVERABILITY</div>
+                  <div className="text-base font-black text-white mt-0.5">99.8% INBOX</div>
+                </div>
+
+                <div className="p-3 bg-slate-950/80 border border-purple-500/30 rounded-xl">
+                  <div className="text-[10px] text-purple-400 font-bold">BATCH SPEED</div>
+                  <div className="text-base font-black text-white mt-0.5">8x PARALLEL</div>
+                </div>
+
+                <div className="p-3 bg-slate-950/80 border border-pink-500/30 rounded-xl col-span-2 sm:col-span-1">
+                  <div className="text-[10px] text-pink-400 font-bold">DEDUPLICATION</div>
+                  <div className="text-base font-black text-white mt-0.5">100% ACCURACY</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* 🎬 CINEMATIC INFINITE REALTIME STREAM SHOWCASE SECTION */}
+        <div className="w-full genz-glass-panel rounded-2xl p-3 border border-cyan-500/30 space-y-2 animate-fade-up shadow-xl">
+          <div className="flex items-center justify-between text-[10px] font-mono text-slate-400 border-b border-white/10 pb-1.5">
+            <span className="flex items-center gap-2 text-cyan-300 font-bold uppercase tracking-widest">
+              <Terminal className="w-3.5 h-3.5 text-cyan-400 animate-pulse" />
+              CINEMATIC LIVE QUANTUM DISPATCH & FETCH STREAM
+            </span>
+            <span className="flex items-center gap-1.5 text-emerald-400 font-bold">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+              </span>
+              INFINITE LOOP ACTIVE
+            </span>
+          </div>
+
+          {/* Line 1: Sending Mail Infinite Ticker */}
+          <div className="w-full overflow-hidden bg-slate-950/80 rounded-xl py-1.5 px-3 border border-cyan-500/20 text-[10px] font-mono text-cyan-300">
+            <div className="flex items-center gap-2">
+              <span className="px-2 py-0.5 bg-cyan-500/20 text-cyan-300 rounded font-bold text-[9px] shrink-0 flex items-center gap-1">
+                <Send className="w-2.5 h-2.5 text-cyan-400 animate-bounce" /> SENDING STREAM
+              </span>
+              <div className="overflow-hidden w-full">
+                <div className="flex whitespace-nowrap animate-marquee items-center gap-6 text-slate-300">
+                  <span>[DISPATCHING] batch_01 -&gt; <strong className="text-white">alex@techcorp.io</strong> <span className="text-emerald-400 font-bold">[200 OK]</span></span>
+                  <span className="text-slate-600">•</span>
+                  <span>[DISPATCHING] batch_02 -&gt; <strong className="text-white">sarah@innovate.co</strong> <span className="text-emerald-400 font-bold">[200 OK]</span></span>
+                  <span className="text-slate-600">•</span>
+                  <span>[DISPATCHING] batch_03 -&gt; <strong className="text-white">dev@build.io</strong> <span className="text-amber-400 font-bold">[SKIPPED DUP]</span></span>
+                  <span className="text-slate-600">•</span>
+                  <span>[DISPATCHING] batch_04 -&gt; <strong className="text-white">founder@nextgen.app</strong> <span className="text-emerald-400 font-bold">[200 OK]</span></span>
+                  <span className="text-slate-600">•</span>
+                  {/* Duplicated loop set */}
+                  <span>[DISPATCHING] batch_01 -&gt; <strong className="text-white">alex@techcorp.io</strong> <span className="text-emerald-400 font-bold">[200 OK]</span></span>
+                  <span className="text-slate-600">•</span>
+                  <span>[DISPATCHING] batch_02 -&gt; <strong className="text-white">sarah@innovate.co</strong> <span className="text-emerald-400 font-bold">[200 OK]</span></span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Line 2: Fetching Mail Infinite Ticker */}
+          <div className="w-full overflow-hidden bg-slate-950/80 rounded-xl py-1.5 px-3 border border-pink-500/20 text-[10px] font-mono text-pink-300">
+            <div className="flex items-center gap-2">
+              <span className="px-2 py-0.5 bg-pink-500/20 text-pink-300 rounded font-bold text-[9px] shrink-0 flex items-center gap-1">
+                <RefreshCw className="w-2.5 h-2.5 text-pink-400 animate-spin" /> FETCHING STREAM
+              </span>
+              <div className="overflow-hidden w-full">
+                <div className="flex whitespace-nowrap animate-marquee-reverse items-center gap-6 text-slate-300">
+                  <span>[FETCHING] sent_folder -&gt; <strong className="text-white">100 records synced</strong> <span className="text-cyan-400 font-bold">[RATE RETRY OK]</span></span>
+                  <span className="text-slate-600">•</span>
+                  <span>[FETCHING] gmail_api -&gt; <strong className="text-white">deduplication index updated</strong> <span className="text-purple-400 font-bold">[VALIDATED]</span></span>
+                  <span className="text-slate-600">•</span>
+                  <span>[FETCHING] oauth_refresh -&gt; <strong className="text-white">token active</strong> <span className="text-emerald-400 font-bold">[0ms DELAY]</span></span>
+                  <span className="text-slate-600">•</span>
+                  <span>[FETCHING] db_vault -&gt; <strong className="text-white">mongo persistent store sync</strong> <span className="text-pink-400 font-bold">[ENCRYPTED]</span></span>
+                  <span className="text-slate-600">•</span>
+                  {/* Duplicated loop set */}
+                  <span>[FETCHING] sent_folder -&gt; <strong className="text-white">100 records synced</strong> <span className="text-cyan-400 font-bold">[RATE RETRY OK]</span></span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* Footer Feature Telemetry */}
-        <div className="pt-2 border-t border-white/10 flex flex-wrap items-center justify-center gap-6 text-slate-400 text-[10px] font-mono animate-fade-up">
+        <div className="pt-2 border-t border-white/10 flex flex-wrap items-center justify-center gap-4 sm:gap-6 text-slate-400 text-[10px] font-mono animate-fade-up">
           <div className="flex items-center gap-1.5">
-            <Cpu className="w-3 h-3 text-cyan-400" />
+            <Cpu className="w-3.5 h-3.5 text-cyan-400" />
             <span>BATCH DISPATCH: 8x PARALLEL</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <Lock className="w-3 h-3 text-purple-400" />
+            <Lock className="w-3.5 h-3.5 text-purple-400" />
             <span>ENCRYPTED REFRESH VAULT</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <BarChart3 className="w-3 h-3 text-pink-400" />
+            <BarChart3 className="w-3.5 h-3.5 text-pink-400" />
             <span>REALTIME TELEMETRY LOGS</span>
           </div>
         </div>
