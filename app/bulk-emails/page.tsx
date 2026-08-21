@@ -1,132 +1,84 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useState, useEffect } from "react";
 import * as XLSX from "xlsx";
 import Link from "next/link";
 import {
-  Mail,
   Upload,
-  FileText,
-  Send,
-  CheckCircle,
-  AlertCircle,
-  Database,
-  Users,
-  FileSpreadsheet,
   Paperclip,
-  Edit3,
-  BarChart3,
-  MessageSquare,
+  Send,
   Loader2,
-  ArrowLeft,
-  Eye,
-  Flame,
-  Rocket,
+  FileSpreadsheet,
+  CheckCircle2,
+  AlertCircle,
+  FileText,
+  Trash2,
+  Users,
+  Database,
+  Info,
+  Sparkles,
+  Zap,
+  ArrowRight,
+  ShieldCheck,
+  CheckCircle,
+  Radio,
   Download,
+  Flame,
+  Terminal,
+  Activity,
+  Code,
+  Edit3,
+  Eye,
+  ArrowLeft,
+  X,
+  Play
 } from "lucide-react";
 
-type ExcelRow = {
-  email: string;
-  name?: string;
-  company?: string;
-  role?: string;
-  [key: string]: any;
-};
+const BATCH_SIZE = 8; // Parallel send batching size
 
-type SendResult = {
-  email: string;
-  success: boolean;
-  message: string;
-  skipped?: boolean;
-  reason?:
-  | "invalid_email"
-  | "duplicate_in_excel"
-  | "already_sent"
-  | "send_failed";
-};
-
-export default function BulkMailPage() {
-  const [rows, setRows] = useState<ExcelRow[]>([]);
+export default function BulkEmailsPage() {
+  const [rows, setRows] = useState<Record<string, any>[]>([]);
   const [resume, setResume] = useState<File | null>(null);
-  const [subject, setSubject] = useState("Application for {{role}}");
-  const [body, setBody] = useState(
-    `Hello {{name}},
-
-I hope you are doing well.
-
-I am interested in the {{role}} opportunity at {{company}}.
-Please find my resume attached for your consideration.
-
-Regards,
-Gaurav`
-  );
+  const [subject, setSubject] = useState("");
+  const [body, setBody] = useState("");
 
   const [loading, setLoading] = useState(false);
-  const [sendProgress, setSendProgress] = useState({ sent: 0, total: 0 });
-  const [checkingConnection, setCheckingConnection] = useState(true);
+  const [sendProgress, setSendProgress] = useState<{
+    sent: number;
+    total: number;
+  }>({ sent: 0, total: 0 });
+
+  const [results, setResults] = useState<
+    { email: string; success: boolean; message?: string; skipped?: boolean }[]
+  >([]);
+
+  const [error, setError] = useState("");
   const [isConnected, setIsConnected] = useState(false);
   const [connectedEmail, setConnectedEmail] = useState("");
   const [ownerConnected, setOwnerConnected] = useState<boolean | null>(null);
-  const [ownerEmail, setOwnerEmail] = useState("");
-  const [results, setResults] = useState<SendResult[]>([]);
-  const [error, setError] = useState("");
-  const [previewEmail, setPreviewEmail] = useState<ExcelRow | null>(null);
-  const [activeTab, setActiveTab] = useState("upload");
+  const [checkingConnection, setCheckingConnection] = useState(true);
+
+  // Stepper tab state
+  const [activeTab, setActiveTab] = useState<
+    "upload" | "resume" | "content" | "preview"
+  >("upload");
 
   useEffect(() => {
     checkGmailConnection();
-
-    const style = document.createElement("style");
-    style.textContent = `
-      @keyframes float {
-        0%, 100% { transform: translateY(0px) rotate(0deg); }
-        50% { transform: translateY(-20px) rotate(5deg); }
-      }
-      @keyframes gradientShift {
-        0% { background-position: 0% 50%; }
-        50% { background-position: 100% 50%; }
-        100% { background-position: 0% 50%; }
-      }
-      @keyframes slideIn {
-        from { opacity: 0; transform: translateX(-30px); }
-        to { opacity: 1; transform: translateX(0); }
-      }
-      @keyframes fadeInUp {
-        from { opacity: 0; transform: translateY(30px); }
-        to { opacity: 1; transform: translateY(0); }
-      }
-      .animate-float { animation: float 6s ease-in-out infinite; }
-      .animate-gradient { background-size: 200% 200%; animation: gradientShift 3s ease infinite; }
-      .animate-slide-in { animation: slideIn 0.5s ease-out forwards; }
-      .animate-fade-up { animation: fadeInUp 0.6s ease-out forwards; }
-      .glass-card { background: rgba(255, 255, 255, 0.08); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.15); }
-      .hover-glow:hover { box-shadow: 0 0 20px rgba(139, 92, 246, 0.4); transform: translateY(-2px); }
-    `;
-    document.head.appendChild(style);
-
-    return () => {
-      document.head.removeChild(style);
-    };
   }, []);
 
   const checkGmailConnection = async () => {
     try {
       setCheckingConnection(true);
-
-      const res = await fetch("/api/gmail/status", {
-        cache: "no-store",
-      });
-
+      const res = await fetch("/api/gmail/status", { cache: "no-store" });
       const data = await res.json();
       setIsConnected(Boolean(data.connected));
       setConnectedEmail(data.email || "");
       setOwnerConnected(Boolean(data.ownerConnected));
-      setOwnerEmail(data.ownerEmail || "");
     } catch {
       setIsConnected(false);
       setConnectedEmail("");
       setOwnerConnected(null);
-      setOwnerEmail("");
     } finally {
       setCheckingConnection(false);
     }
@@ -136,91 +88,85 @@ Gaurav`
     window.location.href = "/api/auth/google";
   };
 
-  const cleanEmail = (email: any) => {
-    return String(email || "")
-      .trim()
-      .toLowerCase()
-      .replace(/[<>"']/g, "");
+  const handleExcelUpload = (file: File | null) => {
+    if (!file) return;
+    setError("");
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const buffer = e.target?.result;
+        const workbook = XLSX.read(buffer, { type: "binary" });
+        const sheetName = workbook.SheetNames[0];
+        const sheet = workbook.Sheets[sheetName];
+        const rawData = XLSX.utils.sheet_to_json<Record<string, any>>(sheet);
+
+        if (rawData.length === 0) {
+          setError("Excel file is empty.");
+          return;
+        }
+
+        const firstRow = rawData[0];
+        const keys = Object.keys(firstRow);
+        const hasEmail = keys.some((k) => k.toLowerCase() === "email");
+
+        if (!hasEmail) {
+          setError("Excel file must contain an 'email' column header.");
+          return;
+        }
+
+        const normalizedData = rawData.map((row) => {
+          const newRow: Record<string, any> = {};
+          for (const key in row) {
+            newRow[key.toLowerCase()] = row[key];
+          }
+          return newRow;
+        });
+
+        setRows(normalizedData);
+        setActiveTab("resume");
+      } catch (err: any) {
+        setError("Failed to parse Excel file: " + err.message);
+      }
+    };
+
+    reader.readAsBinaryString(file);
   };
 
-  const handleExcelUpload = async (file: File | null) => {
-    try {
-      setError("");
-      setRows([]);
-      setResults([]);
-
-      if (!file) return;
-
-      const data = await file.arrayBuffer();
-      const workbook = XLSX.read(data);
-      const sheetName = workbook.SheetNames[0];
-      const worksheet = workbook.Sheets[sheetName];
-
-      const jsonData = XLSX.utils.sheet_to_json<ExcelRow>(worksheet, {
-        defval: "",
-      });
-
-      const cleanedRows = jsonData
-        .map((row) => {
-          const normalized: ExcelRow = {
-            email: "",
-          };
-
-          Object.keys(row).forEach((key) => {
-            normalized[key.trim().toLowerCase()] = row[key];
-          });
-
-          return {
-            ...normalized,
-            email: cleanEmail(normalized.email),
-          };
-        })
-        .filter((row) => row.email && row.email.includes("@"));
-
-      if (cleanedRows.length === 0) {
-        setError("Excel file me email column required hai.");
-        return;
-      }
-
-      setRows(cleanedRows);
-      setActiveTab("resume");
-    } catch (err: any) {
-      setError(err.message || "Failed to read Excel file");
-    }
+  const insertVariable = (tag: string) => {
+    setBody((prev) => prev + ` {{${tag}}}`);
   };
 
-  const BATCH_SIZE = 8; // 8 emails sent in parallel per call ≈ 2-3s (safe under Vercel free 10s limit)
+  // Compute duplicate email stats
+  const excelEmailList = rows.map((r) => r.email).filter(Boolean);
+  const excelUniqueCount = new Set(excelEmailList).size;
+  const excelDuplicateCount = excelEmailList.length - excelUniqueCount;
 
-  const sendBulkEmails = async () => {
+  const handleSubmit = async () => {
     try {
-      setLoading(true);
       setError("");
       setResults([]);
-      setSendProgress({ sent: 0, total: 0 });
+      setSendProgress({ sent: 0, total: rows.length });
 
-      if (!isConnected) {
-        setError("Gmail connected nahi hai. Pehle Gmail connect karo.");
-        return;
-      }
       if (rows.length === 0) {
-        setError("Please upload Excel file first.");
+        setError("Upload an Excel file first.");
         return;
       }
       if (!resume) {
-        setError("Please upload resume file.");
+        setError("Please upload your PDF Resume attachment.");
         return;
       }
       if (!subject.trim()) {
-        setError("Subject required hai.");
+        setError("Subject line required.");
         return;
       }
       if (!body.trim()) {
-        setError("Email body required hai.");
+        setError("Email body required.");
         return;
       }
 
+      setLoading(true);
       const totalBatches = Math.ceil(rows.length / BATCH_SIZE);
-      setSendProgress({ sent: 0, total: rows.length });
 
       for (let batchIndex = 0; batchIndex < totalBatches; batchIndex++) {
         const start = batchIndex * BATCH_SIZE;
@@ -228,7 +174,6 @@ Gaurav`
 
         const formData = new FormData();
         formData.append("resume", resume);
-        // Send only this batch's rows — NOT all 200 every time
         formData.append("rows", JSON.stringify(batchRows));
         formData.append("subject", subject);
         formData.append("body", body);
@@ -244,7 +189,6 @@ Gaurav`
           throw new Error(data.message || "Failed to send bulk emails");
         }
 
-        // Append this batch's results to the running total
         setResults((prev) => [...prev, ...(data.results || [])]);
         setSendProgress({
           sent: Math.min(start + BATCH_SIZE, rows.length),
@@ -255,241 +199,156 @@ Gaurav`
       setError(err.message || "Something went wrong");
     } finally {
       setLoading(false);
-      setSendProgress({ sent: 0, total: 0 });
     }
   };
 
-  const replaceVariables = (text: string, row: ExcelRow) => {
-    return text.replace(/{{\s*([^}]+)\s*}}/g, (_, key) => {
-      const cleanKey = String(key).trim().toLowerCase();
-      return row[cleanKey] ? String(row[cleanKey]) : "";
-    });
-  };
-
-  const { excelUniqueCount, excelDuplicateCount } = useMemo(() => {
-    const unique = new Set(rows.map((row) => cleanEmail(row.email))).size;
-    return {
-      excelUniqueCount: unique,
-      excelDuplicateCount: rows.length - unique,
-    };
-  }, [rows]);
-
-  const {
-    successCount,
-    skippedCount,
-    failCount,
-    alreadySentCount,
-    duplicateCount,
-    invalidEmailCount,
-  } = useMemo(() => {
-    return {
-      successCount: results.filter((r) => r.success).length,
-      skippedCount: results.filter((r) => r.skipped).length,
-      failCount: results.filter((r) => !r.success && !r.skipped).length,
-      alreadySentCount: results.filter((r) => r.reason === "already_sent").length,
-      duplicateCount: results.filter((r) => r.reason === "duplicate_in_excel").length,
-      invalidEmailCount: results.filter((r) => r.reason === "invalid_email").length,
-    };
-  }, [results]);
-
   return (
-    <div className="min-h-screen relative overflow-hidden bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
-      <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute top-20 left-10 w-72 h-72 bg-purple-500 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-float"></div>
+    <div className="h-screen max-h-screen relative overflow-hidden bg-[#03050c] text-slate-100 flex flex-col justify-between p-4 sm:p-5">
+      {/* Hyper-Quantum Ambient Background Canvas */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden">
+        <div className="absolute top-10 left-10 w-[36rem] h-[36rem] bg-cyan-500/15 rounded-full filter blur-[140px] animate-aura-1"></div>
+        <div className="absolute bottom-10 right-10 w-[42rem] h-[42rem] bg-purple-600/15 rounded-full filter blur-[150px] animate-aura-2"></div>
         <div
-          className="absolute bottom-20 right-10 w-96 h-96 bg-pink-500 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-float"
-          style={{ animationDelay: "2s" }}
-        ></div>
-        <div
-          className="absolute top-1/2 left-1/2 w-80 h-80 bg-indigo-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-float"
-          style={{ animationDelay: "4s" }}
-        ></div>
-        <div
-          className="absolute inset-0"
+          className="absolute inset-0 opacity-[0.14]"
           style={{
             backgroundImage:
-              "radial-gradient(circle at 2px 2px, rgba(139,92,246,0.15) 1px, transparent 1px)",
-            backgroundSize: "50px 50px",
+              "linear-gradient(rgba(0,240,255,0.2) 1px, transparent 1px), linear-gradient(90deg, rgba(0,240,255,0.2) 1px, transparent 1px)",
+            backgroundSize: "60px 60px",
           }}
         ></div>
       </div>
 
-      <div className="relative z-10 px-4 py-8 mx-auto max-w-7xl">
-        <div className="mb-8 text-center animate-fade-up">
-          <div className="inline-flex items-center gap-3 px-5 py-2.5 mb-6 glass-card rounded-full border border-purple-500/30">
-            <Flame className="w-5 h-5 text-orange-400 animate-pulse" />
-            <span className="text-sm font-semibold text-transparent bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text">
-              BULK EMAIL MASTERY
-            </span>
-            <Rocket className="w-4 h-4 text-purple-400" />
+      <div className="relative z-10 mx-auto max-w-[1400px] w-full flex flex-col h-full space-y-3">
+        {/* Compact Top Header Bar */}
+        <div className="flex flex-wrap items-center justify-between gap-3 animate-fade-up">
+          <div className="flex items-center gap-3">
+            <Link
+              href="/"
+              className="inline-flex items-center gap-1.5 px-3 py-1 aaa-glass-panel hud-corner rounded-full text-cyan-300 text-xs font-mono font-bold hover:border-cyan-400 transition-all shadow-md shrink-0"
+            >
+              <ArrowLeft className="w-3.5 h-3.5 text-cyan-400" />
+              <span>COMMAND STATION</span>
+            </Link>
+
+            <h1 className="text-xl sm:text-2xl font-black tracking-tight flex items-center gap-2">
+              <span className="bg-gradient-to-r from-white to-slate-300 bg-clip-text text-transparent">
+                MASS MAIL
+              </span>{" "}
+              <span className="neon-glow-cyan font-mono tracking-tighter text-lg">
+                [ COMMANDER ]
+              </span>
+            </h1>
           </div>
 
-          <h1 className="text-6xl md:text-7xl font-black mb-4 tracking-tighter">
-            <span className="bg-gradient-to-r from-purple-400 via-pink-400 to-purple-400 bg-clip-text text-transparent animate-gradient">
-              Mass Mail
-            </span>
-            <br />
-            <span className="bg-gradient-to-r from-pink-400 via-purple-400 to-indigo-400 bg-clip-text text-transparent animate-gradient">
-              Commander
-            </span>
-          </h1>
-
-          <p className="text-xl text-purple-200 max-w-2xl mx-auto">
-            Send only unique emails and automatically skip already-sent recipients.
-          </p>
-        </div>
-
-        <div className="mb-6 animate-slide-in space-y-3">
-          {checkingConnection ? (
-            <div className="flex items-center gap-3 p-4 glass-card rounded-xl">
-              <Loader2 className="w-5 h-5 text-purple-400 animate-spin" />
-              <span className="text-purple-200">
-                Checking Gmail connection...
+          {/* Quick Header Actions */}
+          <div className="flex items-center gap-2 text-xs font-mono">
+            {isConnected ? (
+              <span className="text-emerald-400 font-bold px-3 py-1 bg-emerald-500/10 border border-emerald-500/30 rounded-lg flex items-center gap-1.5">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                {connectedEmail ? `AUTH: ${connectedEmail}` : "CONNECTED"}
               </span>
-            </div>
-          ) : (
-            <>
-              {isConnected ? (
-                <div className="flex items-center justify-between p-4 bg-emerald-500/20 border border-emerald-500/30 rounded-xl text-emerald-300">
-                  <div className="flex items-center gap-3">
-                    <CheckCircle className="w-5 h-5" />
-                    <span className="font-medium text-sm">
-                      Logged in as {connectedEmail}
-                    </span>
-                  </div>
-                </div>
-              ) : (
-                <div className="flex items-center justify-between p-4 bg-red-500/20 border border-red-500/30 rounded-xl">
-                  <div className="flex items-center gap-3 text-red-300">
-                    <AlertCircle className="w-5 h-5" />
-                    <span>Gmail not connected</span>
-                  </div>
+            ) : (
+              <button
+                onClick={connectGmail}
+                className="px-3.5 py-1 bg-gradient-to-r from-cyan-500 to-purple-600 text-white rounded-lg font-bold shadow-md"
+              >
+                Connect Gmail
+              </button>
+            )}
 
-                  <button
-                    onClick={connectGmail}
-                    className="px-5 py-2 bg-gradient-to-r from-purple-600 to-pink-600 rounded-lg text-white font-medium hover:shadow-xl transition-all"
-                  >
-                    Connect Now
-                  </button>
-                </div>
-              )}
-
-              {ownerConnected === false && (
-                <div className="flex items-center gap-3 p-3 bg-amber-500/20 border border-amber-500/30 rounded-xl text-amber-300 text-xs animate-slide-in">
-                  <AlertCircle className="w-4 h-4 shrink-0 animate-pulse" />
-                  <span>
-                    Owner Gmail is not connected. Duplicate checking and bulk campaigns will fail.
-                  </span>
-                </div>
-              )}
-
-              {ownerConnected === true && (
-                <div className="flex items-center gap-3 p-3 bg-purple-500/20 border border-purple-500/30 rounded-xl text-purple-300 text-xs animate-slide-in">
-                  <CheckCircle className="w-4 h-4 text-purple-400 shrink-0" />
-                  <span>
-                    Campaigns will send and check duplicates via: <strong> {connectedEmail}</strong>
-                  </span>
-                </div>
-              )}
-            </>
-          )}
+            <a
+              href="/api/sample-file"
+              download="SAMPLE.xlsx"
+              className="px-3.5 py-1 aaa-glass-panel hud-corner text-emerald-300 border border-emerald-500/40 rounded-lg font-bold flex items-center gap-1.5 hover:bg-emerald-500/20"
+            >
+              <Download className="w-3.5 h-3.5 text-emerald-400" />
+              <span>SAMPLE MATRIX</span>
+            </a>
+          </div>
         </div>
 
         {error && (
-          <div className="mb-6 p-4 bg-red-500/20 border border-red-500/30 rounded-xl text-red-300 animate-slide-in flex items-center gap-2">
-            <AlertCircle className="w-5 h-5" />
-            <span>{error}</span>
+          <div className="p-2.5 bg-rose-500/15 border border-rose-500/40 rounded-xl text-rose-300 font-mono text-xs animate-slide-left flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
+            <span>ERR: {error}</span>
           </div>
         )}
 
-        <div className="flex gap-2 mb-6 overflow-x-auto items-center">
+        {/* Quantum Stepper Navigation Rail */}
+        <div className="flex gap-2 overflow-x-auto items-center pb-1">
           {[
-            { id: "upload", icon: Upload, label: "Upload Data" },
-            { id: "resume", icon: Paperclip, label: "Attachments" },
-            { id: "content", icon: Edit3, label: "Email Content" },
-            { id: "preview", icon: Eye, label: "Preview & Send" },
+            { id: "upload", icon: Upload, label: "01. EXCEL INGEST" },
+            { id: "resume", icon: Paperclip, label: "02. ATTACHMENT VAULT" },
+            { id: "content", icon: Edit3, label: "03. TEMPLATE SYNTAX" },
+            { id: "preview", icon: Eye, label: "04. DISPATCH PREVIEW" },
           ].map((tab) => (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 px-6 py-2.5 rounded-xl font-medium transition-all ${activeTab === tab.id
-                ? "bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg"
-                : "glass-card text-purple-200 hover:bg-white/10"
+              onClick={() => setActiveTab(tab.id as any)}
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-xl font-mono text-xs font-bold transition-all duration-300 whitespace-nowrap hud-corner ${activeTab === tab.id
+                ? "bg-gradient-to-r from-cyan-500 via-purple-600 to-pink-600 text-white border border-cyan-400/50 shadow-md scale-[1.02]"
+                : "aaa-glass-card-interactive text-slate-300 hover:text-white"
                 }`}
             >
-              <tab.icon className="w-4 h-4" />
+              <tab.icon className="w-3.5 h-3.5 text-cyan-400" />
               {tab.label}
             </button>
           ))}
-
-          <a
-            href="/api/sample-file"
-            download="SAMPLE.xlsx"
-            className="ml-auto flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium transition-all glass-card text-emerald-300 border border-emerald-500/40 hover:bg-emerald-500/20 hover:border-emerald-400 hover:shadow-lg hover:shadow-emerald-500/20 whitespace-nowrap"
-          >
-            <Download className="w-4 h-4" />
-            Download Sample File
-          </a>
         </div>
 
-        <div className="space-y-6">
+        {/* Scrollable Workstation Container */}
+        <div className="flex-1 min-h-0 rounded-2xl cyber-panel-elevated hud-corner p-4 sm:p-5 border border-white/10 overflow-y-auto custom-scrollbar">
           {activeTab === "upload" && (
-            <div className="glass-card rounded-2xl p-8 animate-fade-up hover-glow transition-all">
-              <div className="flex items-center gap-3 mb-4">
-                <FileSpreadsheet className="w-8 h-8 text-purple-400" />
-                <h2 className="text-2xl font-bold text-white">
-                  Upload Excel File
-                </h2>
+            <div className="space-y-4 animate-fade-up">
+              <div className="flex items-center gap-3">
+                <div className="p-3 bg-cyan-500/15 border border-cyan-500/30 rounded-xl text-cyan-400">
+                  <FileSpreadsheet className="w-6 h-6" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-white">Excel Data Ingestion</h2>
+                  <p className="text-slate-400 text-xs font-mono">
+                    Mandatory column: <code className="px-1.5 py-0.5 bg-cyan-500/15 text-cyan-300 rounded font-bold">email</code>
+                  </p>
+                </div>
               </div>
 
-              <p className="text-purple-200 mb-4">
-                Excel must contain{" "}
-                <code className="px-2 py-1 bg-white/10 rounded">email</code>{" "}
-                column. Optional: name, company, role.
-              </p>
-
-              <label className="relative flex flex-col items-center justify-center w-full p-8 border-2 border-dashed border-purple-500/50 rounded-xl cursor-pointer hover:border-purple-400 transition-all bg-white/5">
-                <Upload className="w-12 h-12 text-purple-400 mb-3" />
-                <span className="text-purple-200">
-                  Click to upload Excel file
+              <label className="relative flex flex-col items-center justify-center w-full p-8 border-2 border-dashed border-cyan-500/40 rounded-2xl cursor-pointer hover:border-cyan-400 hover:bg-cyan-500/5 transition-all bg-slate-950/70 group">
+                <Upload className="w-8 h-8 text-cyan-400 mb-2 group-hover:scale-110 transition-transform" />
+                <span className="text-white font-bold text-sm mb-1 font-mono">
+                  DROP EXCEL RECIPIENT FILE HERE
                 </span>
-
+                <span className="text-slate-400 text-xs font-mono">Supports .xlsx, .xls, .csv</span>
                 <input
                   type="file"
                   accept=".xlsx,.xls,.csv"
-                  onChange={(e) =>
-                    handleExcelUpload(e.target.files?.[0] || null)
-                  }
+                  onChange={(e) => handleExcelUpload(e.target.files?.[0] || null)}
                   className="absolute inset-0 opacity-0 cursor-pointer"
                 />
               </label>
 
               {rows.length > 0 && (
-                <div className="mt-4 grid gap-3 md:grid-cols-3">
-                  <div className="p-3 bg-emerald-500/20 rounded-lg text-emerald-300">
-                    <div className="flex items-center gap-2">
-                      <Database className="w-4 h-4" />
-                      <span className="font-medium">
-                        Total loaded: {rows.length}
-                      </span>
+                <div className="grid gap-3 sm:grid-cols-3 font-mono text-xs">
+                  <div className="p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-xl text-emerald-300 flex items-center gap-2.5">
+                    <Database className="w-4 h-4 text-emerald-400 shrink-0" />
+                    <div>
+                      <div className="text-[10px] text-emerald-400/80">TOTAL ROWS</div>
+                      <div className="font-bold">{rows.length} records</div>
                     </div>
                   </div>
 
-                  <div className="p-3 bg-blue-500/20 rounded-lg text-blue-300">
-                    <div className="flex items-center gap-2">
-                      <Users className="w-4 h-4" />
-                      <span className="font-medium">
-                        Unique in Excel: {excelUniqueCount}
-                      </span>
+                  <div className="p-3 bg-cyan-500/10 border border-cyan-500/30 rounded-xl text-cyan-300 flex items-center gap-2.5">
+                    <Users className="w-4 h-4 text-cyan-400 shrink-0" />
+                    <div>
+                      <div className="text-[10px] text-cyan-400/80">UNIQUE RECIPIENTS</div>
+                      <div className="font-bold">{excelUniqueCount} contacts</div>
                     </div>
                   </div>
 
-                  <div className="p-3 bg-yellow-500/20 rounded-lg text-yellow-300">
-                    <div className="flex items-center gap-2">
-                      <AlertCircle className="w-4 h-4" />
-                      <span className="font-medium">
-                        Duplicates in Excel: {excelDuplicateCount}
-                      </span>
+                  <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl text-amber-300 flex items-center gap-2.5">
+                    <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
+                    <div>
+                      <div className="text-[10px] text-amber-400/80">FILE DUPLICATES</div>
+                      <div className="font-bold">{excelDuplicateCount} rows</div>
                     </div>
                   </div>
                 </div>
@@ -498,404 +357,208 @@ Gaurav`
           )}
 
           {activeTab === "resume" && (
-            <div className="glass-card rounded-2xl p-8 animate-fade-up hover-glow transition-all">
-              <div className="flex items-center gap-3 mb-4">
-                <Paperclip className="w-8 h-8 text-pink-400" />
-                <h2 className="text-2xl font-bold text-white">
-                  Upload Resume
-                </h2>
+            <div className="space-y-4 animate-fade-up">
+              <div className="flex items-center gap-3">
+                <div className="p-3 bg-purple-500/15 border border-purple-500/30 rounded-xl text-purple-400">
+                  <Paperclip className="w-6 h-6" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-white">Attachment Vault (PDF Resume)</h2>
+                  <p className="text-slate-400 text-xs font-mono">PDF will be attached to every outgoing email</p>
+                </div>
               </div>
 
-              <p className="text-purple-200 mb-4">
-                Attach your resume PDF, DOC, or DOCX. It will be sent with every
-                new email.
-              </p>
-
-              <label className="relative flex flex-col items-center justify-center w-full p-8 border-2 border-dashed border-pink-500/50 rounded-xl cursor-pointer hover:border-pink-400 transition-all bg-white/5">
-                <FileText className="w-12 h-12 text-pink-400 mb-3" />
-                <span className="text-purple-200">Click to upload resume</span>
-
+              <label className="relative flex flex-col items-center justify-center w-full p-8 border-2 border-dashed border-purple-500/40 rounded-2xl cursor-pointer hover:border-purple-400 hover:bg-purple-500/5 transition-all bg-slate-950/70 group">
+                <FileText className="w-8 h-8 text-purple-400 mb-2 group-hover:scale-110 transition-transform" />
+                <span className="text-white font-bold text-sm mb-1 font-mono">UPLOAD RESUME PDF ATTACHMENT</span>
                 <input
                   type="file"
-                  accept=".pdf,.doc,.docx"
-                  onChange={(e) => setResume(e.target.files?.[0] || null)}
+                  accept="application/pdf"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0] || null;
+                    setResume(f);
+                    if (f) setActiveTab("content");
+                  }}
                   className="absolute inset-0 opacity-0 cursor-pointer"
                 />
               </label>
 
               {resume && (
-                <div className="mt-4 p-3 bg-emerald-500/20 rounded-lg">
-                  <div className="flex items-center gap-2 text-emerald-300">
-                    <CheckCircle className="w-4 h-4" />
-                    <span className="font-medium">
-                      Resume attached: {resume.name}
-                    </span>
+                <div className="p-4 bg-purple-500/10 border border-purple-500/30 rounded-xl text-purple-300 flex items-center justify-between font-mono text-xs">
+                  <div className="flex items-center gap-2">
+                    <FileText className="w-4 h-4 text-purple-400" />
+                    <span className="font-bold text-white">{resume.name}</span>
+                    <span className="text-slate-400">({(resume.size / 1024).toFixed(1)} KB)</span>
                   </div>
+                  <button onClick={() => setResume(null)} className="text-rose-400 hover:text-rose-300">
+                    <Trash2 className="w-4 h-4" />
+                  </button>
                 </div>
               )}
             </div>
           )}
 
           {activeTab === "content" && (
-            <div className="glass-card rounded-2xl p-8 animate-fade-up hover-glow transition-all">
-              <div className="flex items-center gap-3 mb-4">
-                <Edit3 className="w-8 h-8 text-orange-400" />
-                <h2 className="text-2xl font-bold text-white">
-                  Dynamic Email Content
-                </h2>
+            <div className="space-y-4 animate-fade-up">
+              <div className="flex items-center gap-3">
+                <div className="p-3 bg-pink-500/15 border border-pink-500/30 rounded-xl text-pink-400">
+                  <Edit3 className="w-6 h-6" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-white">Email Subject & Dynamic Template</h2>
+                  <p className="text-slate-400 text-xs font-mono">Use variable chips to auto-fill column values from Excel</p>
+                </div>
               </div>
 
-              <p className="text-purple-200 mb-4">
-                Use variables like{" "}
-                <code className="px-2 py-1 bg-white/10 rounded">
-                  {"{{name}}"}
-                </code>
-                ,{" "}
-                <code className="px-2 py-1 bg-white/10 rounded">
-                  {"{{company}}"}
-                </code>
-                ,{" "}
-                <code className="px-2 py-1 bg-white/10 rounded">
-                  {"{{role}}"}
-                </code>{" "}
-                from Excel.
-              </p>
-
-              <div className="space-y-4">
+              <div className="space-y-3">
                 <div>
-                  <label className="block text-sm font-medium text-purple-200 mb-2">
-                    Subject Line
-                  </label>
-
+                  <label className="block text-xs font-mono font-bold text-slate-300 mb-1">SUBJECT LINE</label>
                   <input
+                    type="text"
                     value={subject}
                     onChange={(e) => setSubject(e.target.value)}
-                    className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:border-purple-500"
-                    placeholder="Application for {{role}}"
+                    placeholder="e.g. Application for {{role}} position at {{company}}"
+                    className="w-full px-4 py-2.5 aaa-input rounded-xl text-white text-xs font-mono"
                   />
+                </div>
+
+                {/* Variable tag injectors */}
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-xs font-mono font-bold text-slate-300">DYNAMIC VARIABLE TAG INJECTOR</label>
+                    <span className="text-[10px] font-mono text-cyan-400">CLICK CHIP TO APPEND</span>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {["name", "company", "role", "email"].map((tag) => (
+                      <button
+                        key={tag}
+                        type="button"
+                        onClick={() => insertVariable(tag)}
+                        className="px-3 py-1 bg-cyan-500/15 hover:bg-cyan-500/30 border border-cyan-500/40 text-cyan-300 rounded-lg font-mono text-xs font-bold transition-all"
+                      >
+                        +{`{{${tag}}}`}
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-purple-200 mb-2">
-                    Email Body
-                  </label>
-
+                  <label className="block text-xs font-mono font-bold text-slate-300 mb-1">BODY TEMPLATE</label>
                   <textarea
+                    rows={6}
                     value={body}
                     onChange={(e) => setBody(e.target.value)}
-                    rows={12}
-                    className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:border-purple-500 font-mono text-sm"
-                  />
+                    placeholder="Hi {{name}}, I am excited to apply for the {{role}} opening at {{company}}..."
+                    className="w-full px-4 py-3 aaa-input rounded-xl text-white text-xs font-mono leading-relaxed resize-none"
+                  ></textarea>
                 </div>
+
+                <button
+                  onClick={() => setActiveTab("preview")}
+                  className="px-5 py-2.5 bg-gradient-to-r from-cyan-500 to-purple-600 text-white rounded-xl text-xs font-mono font-bold uppercase tracking-wider shadow-md flex items-center gap-2"
+                >
+                  <span>PROCEED TO PREVIEW & DISPATCH</span>
+                  <ArrowRight className="w-4 h-4" />
+                </button>
               </div>
             </div>
           )}
 
-          {activeTab === "preview" && rows.length > 0 && (
-            <div className="glass-card rounded-2xl p-8 animate-fade-up hover-glow transition-all">
-              <div className="flex items-center gap-3 mb-4">
-                <Eye className="w-8 h-8 text-indigo-400" />
-                <h2 className="text-2xl font-bold text-white">
-                  Preview & Send
-                </h2>
-              </div>
+          {activeTab === "preview" && (
+            <div className="space-y-4 animate-fade-up">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 pb-3">
+                <div>
+                  <h2 className="text-xl font-bold text-white font-mono">Dispatch Preview & Execution</h2>
+                  <p className="text-slate-400 text-xs font-mono">Verify campaign configuration before sending</p>
+                </div>
 
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-purple-200 mb-2">
-                  Preview for recipient:
-                </label>
-
-                <select
-                  onChange={(e) =>
-                    setPreviewEmail(rows[Number(e.target.value)])
-                  }
-                  className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white"
-                  defaultValue=""
+                <button
+                  onClick={handleSubmit}
+                  disabled={loading || rows.length === 0}
+                  className="px-6 py-2.5 bg-gradient-to-r from-emerald-500 via-cyan-500 to-purple-600 text-white rounded-xl text-xs font-mono font-bold uppercase tracking-wider shadow-lg disabled:opacity-40 shimmer-button flex items-center gap-2"
                 >
-                  <option className="text-black" value="">
-                    Select a recipient to preview
-                  </option>
-
-                  {rows.map((row, idx) => (
-                    <option className="text-black" key={idx} value={idx}>
-                      {row.email} - {row.name || "No name"}
-                    </option>
-                  ))}
-                </select>
+                  {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
+                  <span>{loading ? "DISPATCHING CAMPAIGN..." : "START BULK DISPATCH"}</span>
+                </button>
               </div>
 
-              {previewEmail && (
-                <div className="mt-4 p-4 bg-black/30 rounded-lg border border-white/10">
-                  <div className="text-sm text-purple-300 mb-2">
-                    Subject: {replaceVariables(subject, previewEmail)}
+              {/* Terminal progress monitor */}
+              {(loading || results.length > 0) && (
+                <div className="p-4 quantum-terminal rounded-xl font-mono text-xs space-y-2">
+                  <div className="flex items-center justify-between text-cyan-400 border-b border-cyan-500/20 pb-2">
+                    <span className="font-bold flex items-center gap-2">
+                      <Terminal className="w-4 h-4 text-cyan-400 animate-pulse" />
+                      DISPATCH TERMINAL MONITOR
+                    </span>
+                    <span>{sendProgress.sent} / {sendProgress.total} PROCESSED</span>
                   </div>
 
-                  <div className="whitespace-pre-wrap text-white/80 text-sm">
-                    {replaceVariables(body, previewEmail)}
+                  <div className="w-full h-2 bg-slate-950 rounded-full overflow-hidden border border-cyan-500/30">
+                    <div
+                      className="h-full bg-cyan-400 transition-all duration-300"
+                      style={{ width: `${sendProgress.total ? (sendProgress.sent / sendProgress.total) * 100 : 0}%` }}
+                    ></div>
+                  </div>
+
+                  <div className="max-h-40 overflow-y-auto space-y-1 pt-2 custom-scrollbar text-[11px]">
+                    {results.map((res, i) => (
+                      <div key={i} className="flex items-center gap-2">
+                        {res.skipped ? (
+                          <span className="text-amber-400 font-bold">[SKIPPED]</span>
+                        ) : res.success ? (
+                          <span className="text-emerald-400 font-bold">[SENT]</span>
+                        ) : (
+                          <span className="text-rose-400 font-bold">[FAILED]</span>
+                        )}
+                        <span className="text-white">{res.email}</span>
+                        {res.message && <span className="text-slate-400">({res.message})</span>}
+                      </div>
+                    ))}
                   </div>
                 </div>
               )}
 
-              <div className="mt-5 p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-xl text-yellow-200 text-sm">
-                Before sending, system will check:
-                <br />
-                1. Duplicate emails inside Excel
-                <br />
-                2. Only new unique emails will be sent.
-                <br />
-                <span className="text-yellow-400/70 text-xs">
-                  Emails are sent in batches of {BATCH_SIZE} to stay within server limits.
-                </span>
-              </div>
-
-              <button
-                onClick={sendBulkEmails}
-                disabled={
-                  loading ||
-                  !isConnected ||
-                  rows.length === 0 ||
-                  !resume ||
-                  !subject.trim() ||
-                  !body.trim()
-                }
-                className="mt-6 w-full flex flex-col items-center justify-center gap-2 px-8 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl font-bold shadow-xl hover:shadow-2xl transform hover:-translate-y-1 disabled:opacity-50 transition-all duration-300"
-              >
-                {loading ? (
-                  <>
-                    <div className="flex items-center gap-2">
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                      <span>
-                        Sending {Math.min(sendProgress.sent + BATCH_SIZE, sendProgress.total || rows.length)}
-                        &nbsp;/&nbsp;{sendProgress.total || rows.length} emails...
-                      </span>
-                    </div>
-                    {sendProgress.total > 0 && (
-                      <div className="w-full bg-white/20 rounded-full h-1.5 mt-1">
-                        <div
-                          className="bg-white h-1.5 rounded-full transition-all duration-500"
-                          style={{
-                            width: `${Math.round((sendProgress.sent / sendProgress.total) * 100)}%`,
-                          }}
-                        />
-                      </div>
-                    )}
-                  </>
-                ) : (
-                  <>
-                    <Send className="w-5 h-5" />
-                    Send Only New Unique Emails ({excelUniqueCount})
-                  </>
-                )}
-              </button>
+              {/* Data Row Table Preview */}
+              {rows.length > 0 && (
+                <div className="space-y-2">
+                  <h3 className="text-xs font-mono font-bold text-slate-300">PARSED RECIPIENTS ({rows.length} ROWS)</h3>
+                  <div className="max-h-48 overflow-y-auto border border-white/10 rounded-xl custom-scrollbar">
+                    <table className="w-full text-left text-xs font-mono">
+                      <thead className="bg-slate-950 text-cyan-300 border-b border-white/10 sticky top-0">
+                        <tr>
+                          <th className="p-2.5">#</th>
+                          <th className="p-2.5">Email</th>
+                          <th className="p-2.5">Name</th>
+                          <th className="p-2.5">Company</th>
+                          <th className="p-2.5">Role</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-white/5">
+                        {rows.map((r, i) => (
+                          <tr key={i} className="hover:bg-white/5 text-slate-300">
+                            <td className="p-2.5 font-bold text-cyan-400">{i + 1}</td>
+                            <td className="p-2.5 text-white">{r.email || "-"}</td>
+                            <td className="p-2.5">{r.name || "-"}</td>
+                            <td className="p-2.5">{r.company || "-"}</td>
+                            <td className="p-2.5">{r.role || "-"}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
 
-        {rows.length > 0 && (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6 animate-fade-up">
-            <div className="glass-card rounded-xl p-4 text-center">
-              <Users className="w-6 h-6 text-purple-400 mx-auto mb-2" />
-              <p className="text-2xl font-bold text-white">{rows.length}</p>
-              <p className="text-xs text-purple-300">Total Rows</p>
-            </div>
-
-            <div className="glass-card rounded-xl p-4 text-center">
-              <Database className="w-6 h-6 text-blue-400 mx-auto mb-2" />
-              <p className="text-2xl font-bold text-white">
-                {excelUniqueCount}
-              </p>
-              <p className="text-xs text-purple-300">Unique Emails</p>
-            </div>
-
-            <div className="glass-card rounded-xl p-4 text-center">
-              <FileText className="w-6 h-6 text-pink-400 mx-auto mb-2" />
-              <p className="text-2xl font-bold text-white">
-                {resume ? 1 : 0}
-              </p>
-              <p className="text-xs text-purple-300">Attachments</p>
-            </div>
-
-            <div className="glass-card rounded-xl p-4 text-center">
-              <BarChart3 className="w-6 h-6 text-indigo-400 mx-auto mb-2" />
-              <p className="text-2xl font-bold text-white">
-                {excelDuplicateCount}
-              </p>
-              <p className="text-xs text-purple-300">Excel Duplicates</p>
-            </div>
+        {/* Footer Badge Bar */}
+        <div className="text-center pt-1">
+          <div className="inline-flex items-center gap-2 px-4 py-1 aaa-glass-panel rounded-full border border-white/10 text-[10px] font-mono text-slate-400">
+            <Flame className="w-3 h-3 text-cyan-400" />
+            <span>POWERED BY HYPER-QUANTUM DISPATCH MATRIX</span>
+            <Sparkles className="w-3 h-3 text-purple-400" />
           </div>
-        )}
-
-        {results.length > 0 && (
-          <div className="mt-6 glass-card rounded-2xl p-6 animate-fade-up">
-            <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
-              <div className="flex items-center gap-3">
-                <Send className="w-6 h-6 text-purple-400" />
-                <h2 className="text-xl font-bold text-white">
-                  Sending Results
-                </h2>
-              </div>
-
-              <div className="flex gap-2 flex-wrap">
-                <div className="px-3 py-1 bg-emerald-500/20 rounded-lg text-emerald-300 text-sm">
-                  ✅ Sent: {successCount}
-                </div>
-
-                <div className="px-3 py-1 bg-yellow-500/20 rounded-lg text-yellow-300 text-sm">
-                  ⏭️ Skipped: {skippedCount}
-                </div>
-
-                <div className="px-3 py-1 bg-blue-500/20 rounded-lg text-blue-300 text-sm">
-                  📩 Already Sent: {alreadySentCount}
-                </div>
-
-                <div className="px-3 py-1 bg-purple-500/20 rounded-lg text-purple-300 text-sm">
-                  🔁 Duplicate: {duplicateCount}
-                </div>
-
-                <div className="px-3 py-1 bg-orange-500/20 rounded-lg text-orange-300 text-sm">
-                  ⚠️ Invalid: {invalidEmailCount}
-                </div>
-
-                <div className="px-3 py-1 bg-red-500/20 rounded-lg text-red-300 text-sm">
-                  ❌ Failed: {failCount}
-                </div>
-              </div>
-            </div>
-
-            <div className="overflow-x-auto max-h-96">
-              <table className="w-full">
-                <thead className="bg-white/5 sticky top-0">
-                  <tr>
-                    <th className="px-4 py-3 text-left text-sm text-purple-300">
-                      #
-                    </th>
-                    <th className="px-4 py-3 text-left text-sm text-purple-300">
-                      Email
-                    </th>
-                    <th className="px-4 py-3 text-left text-sm text-purple-300">
-                      Status
-                    </th>
-                    <th className="px-4 py-3 text-left text-sm text-purple-300">
-                      Message
-                    </th>
-                  </tr>
-                </thead>
-
-                <tbody>
-                  {results.map((result, idx) => (
-                    <tr
-                      key={`${result.email}-${idx}`}
-                      className="border-t border-white/10 hover:bg-white/5 transition-colors"
-                    >
-                      <td className="px-4 py-3 text-sm text-white/60">
-                        {idx + 1}
-                      </td>
-
-                      <td className="px-4 py-3 text-sm text-white">
-                        {result.email}
-                      </td>
-
-                      <td className="px-4 py-3 text-sm">
-                        {result.success ? (
-                          <span className="text-emerald-400">✓ Sent</span>
-                        ) : result.skipped ? (
-                          <span className="text-yellow-400">⏭ Skipped</span>
-                        ) : (
-                          <span className="text-red-400">✗ Failed</span>
-                        )}
-                      </td>
-
-                      <td className="px-4 py-3 text-sm text-white/60">
-                        {result.message}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-
-        {rows.length > 0 && activeTab !== "preview" && (
-          <div className="mt-6 glass-card rounded-2xl p-6 animate-fade-up">
-            <div className="flex items-center gap-3 mb-4">
-              <Database className="w-6 h-6 text-purple-400" />
-              <h2 className="text-xl font-bold text-white">
-                Recipients List
-              </h2>
-            </div>
-
-            <div className="overflow-x-auto max-h-80">
-              <table className="w-full">
-                <thead className="bg-white/5 sticky top-0">
-                  <tr>
-                    <th className="px-4 py-3 text-left text-sm text-purple-300">
-                      #
-                    </th>
-                    <th className="px-4 py-3 text-left text-sm text-purple-300">
-                      Email
-                    </th>
-                    <th className="px-4 py-3 text-left text-sm text-purple-300">
-                      Name
-                    </th>
-                    <th className="px-4 py-3 text-left text-sm text-purple-300">
-                      Company
-                    </th>
-                    <th className="px-4 py-3 text-left text-sm text-purple-300">
-                      Role
-                    </th>
-                  </tr>
-                </thead>
-
-                <tbody>
-                  {rows.slice(0, 10).map((row, idx) => (
-                    <tr
-                      key={`${row.email}-${idx}`}
-                      className="border-t border-white/10 hover:bg-white/5 transition-colors"
-                    >
-                      <td className="px-4 py-3 text-sm text-white/60">
-                        {idx + 1}
-                      </td>
-
-                      <td className="px-4 py-3 text-sm text-white">
-                        {row.email}
-                      </td>
-
-                      <td className="px-4 py-3 text-sm text-white/80">
-                        {row.name || "-"}
-                      </td>
-
-                      <td className="px-4 py-3 text-sm text-white/80">
-                        {row.company || "-"}
-                      </td>
-
-                      <td className="px-4 py-3 text-sm text-white/80">
-                        {row.role || "-"}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-
-              {rows.length > 10 && (
-                <p className="text-center text-white/40 text-sm mt-3">
-                  + {rows.length - 10} more recipients
-                </p>
-              )}
-            </div>
-          </div>
-        )}
-
-        <div className="mt-8 text-center">
-          <Link
-            href="/sent-emails"
-            className="inline-flex items-center gap-2 px-6 py-3 glass-card rounded-full hover:bg-white/10 transition-all"
-          >
-            <ArrowLeft className="w-4 h-4 text-purple-400" />
-            <span className="text-sm text-white/80">
-              Back to Sent Emails
-            </span>
-          </Link>
         </div>
       </div>
     </div>

@@ -33,7 +33,13 @@ import {
   MessageSquare,
   Hash,
   Calendar,
-  X
+  X,
+  ArrowLeft,
+  ChevronDown,
+  Check,
+  Activity,
+  Terminal,
+  Search
 } from "lucide-react";
 import Link from "next/link";
 
@@ -49,7 +55,6 @@ type SentEmail = {
   snippet: string;
 };
 
-// Component that uses useSearchParams
 function SentEmailsContent() {
   const searchParams = useSearchParams();
   const connected = searchParams.get("connected");
@@ -61,6 +66,7 @@ function SentEmailsContent() {
   const [error, setError] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedEmail, setSelectedEmail] = useState<SentEmail | null>(null);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
   const [connectedEmail, setConnectedEmail] = useState("");
   const [ownerConnected, setOwnerConnected] = useState<boolean | null>(null);
   const [ownerEmail, setOwnerEmail] = useState("");
@@ -77,108 +83,7 @@ function SentEmailsContent() {
   });
 
   useEffect(() => {
-    const style = document.createElement("style");
-
-    style.textContent = `
-      @keyframes float {
-        0%, 100% { transform: translateY(0px) rotate(0deg); }
-        50% { transform: translateY(-20px) rotate(5deg); }
-      }
-
-      @keyframes gradientShift {
-        0% { background-position: 0% 50%; }
-        50% { background-position: 100% 50%; }
-        100% { background-position: 0% 50%; }
-      }
-
-      @keyframes pulseGlow {
-        0%, 100% { box-shadow: 0 0 0 0 rgba(139, 92, 246, 0.4); }
-        50% { box-shadow: 0 0 0 20px rgba(139, 92, 246, 0); }
-      }
-
-      @keyframes slideIn {
-        from {
-          opacity: 0;
-          transform: translateX(-50px);
-        }
-        to {
-          opacity: 1;
-          transform: translateX(0);
-        }
-      }
-
-      @keyframes bounceIn {
-        0% {
-          opacity: 0;
-          transform: scale(0.3);
-        }
-        50% {
-          opacity: 1;
-          transform: scale(1.05);
-        }
-        70% {
-          transform: scale(0.9);
-        }
-        100% {
-          transform: scale(1);
-        }
-      }
-
-      @keyframes glowPulse {
-        0%, 100% {
-          text-shadow: 0 0 5px rgba(139,92,246,0.5);
-        }
-        50% {
-          text-shadow: 0 0 20px rgba(139,92,246,0.8);
-        }
-      }
-
-      .animate-float {
-        animation: float 6s ease-in-out infinite;
-      }
-
-      .animate-gradient {
-        background-size: 200% 200%;
-        animation: gradientShift 3s ease infinite;
-      }
-
-      .animate-pulse-glow {
-        animation: pulseGlow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-      }
-
-      .animate-slide-in {
-        animation: slideIn 0.6s ease-out forwards;
-        opacity: 0;
-      }
-
-      .animate-bounce-in {
-        animation: bounceIn 0.5s ease-out;
-      }
-
-      .glow-text {
-        animation: glowPulse 2s ease-in-out infinite;
-      }
-
-      .glass-card {
-        background: rgba(255, 255, 255, 0.08);
-        backdrop-filter: blur(12px);
-        border: 1px solid rgba(255, 255, 255, 0.15);
-      }
-
-      .hover-glow:hover {
-        box-shadow: 0 0 20px rgba(139, 92, 246, 0.4);
-      }
-    `;
-
-    document.head.appendChild(style);
-
     checkGmailConnection();
-
-    return (): void => {
-      if (document.head.contains(style)) {
-        document.head.removeChild(style);
-      }
-    };
   }, []);
 
   const checkGmailConnection = async () => {
@@ -201,6 +106,12 @@ function SentEmailsContent() {
     window.location.href = "/api/auth/google";
   };
 
+  const copyToClipboard = (text: string, id: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 2000);
+  };
+
   const fetchSentEmails = async () => {
     try {
       setLoading(true);
@@ -216,7 +127,7 @@ function SentEmailsContent() {
       let pageToken = "";
       let allFetched: SentEmail[] = [];
       let page = 1;
-      const MAX_PAGES = 5; // Safety cap to prevent rate limits and memory issues
+      const MAX_PAGES = 5;
 
       do {
         let url = `/api/gmail/sent-emails?limit=100`;
@@ -328,411 +239,304 @@ function SentEmailsContent() {
   }, [emails]);
 
   return (
-    <div className="min-h-screen relative overflow-hidden bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
-      {/* Animated Background Particles */}
-      <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute top-20 left-10 w-72 h-72 bg-purple-500 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-float"></div>
-        <div className="absolute bottom-20 right-10 w-96 h-96 bg-pink-500 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-float" style={{ animationDelay: "2s" }}></div>
-        <div className="absolute top-1/2 left-1/2 w-80 h-80 bg-indigo-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-float" style={{ animationDelay: "4s" }}></div>
-        <div className="absolute top-40 right-40 w-60 h-60 bg-blue-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-float" style={{ animationDelay: "3s" }}></div>
-
-        {/* Grid Pattern */}
-        <div className="absolute inset-0" style={{
-          backgroundImage: `radial-gradient(circle at 2px 2px, rgba(139,92,246,0.15) 1px, transparent 1px)`,
-          backgroundSize: '50px 50px'
-        }}></div>
+    <div className="h-screen max-h-screen relative overflow-hidden bg-[#03050c] text-slate-100 flex flex-col justify-between p-4 sm:p-5">
+      {/* Dynamic Background Cyber Mesh */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden">
+        <div className="absolute top-10 left-10 w-[34rem] h-[34rem] bg-purple-600/15 rounded-full filter blur-[130px] animate-aura-1"></div>
+        <div className="absolute bottom-20 right-10 w-[38rem] h-[38rem] bg-cyan-600/15 rounded-full filter blur-[140px] animate-aura-2"></div>
+        <div
+          className="absolute inset-0 opacity-[0.14]"
+          style={{
+            backgroundImage:
+              "linear-gradient(rgba(0,240,255,0.2) 1px, transparent 1px), linear-gradient(90deg, rgba(0,240,255,0.2) 1px, transparent 1px)",
+            backgroundSize: "60px 60px",
+          }}
+        ></div>
       </div>
 
-      {/* Main Content */}
-      <div className="relative z-10 px-4 py-8 mx-auto max-w-7xl">
-        {/* Header with Glow Effect */}
-        <div className="text-center mb-12 animate-bounce-in">
-          <div className="inline-flex items-center gap-3 px-5 py-2.5 mb-6 glass-card rounded-full border border-purple-500/30">
-            <Flame className="w-5 h-5 text-orange-400 animate-pulse" />
-            <span className="text-sm font-semibold text-transparent bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text">
-              NEXT GEN EMAIL MANAGER
-            </span>
-            <Sparkles className="w-4 h-4 text-yellow-400" />
+      <div className="relative z-10 mx-auto max-w-[1400px] w-full flex flex-col h-full space-y-3">
+        {/* Top Header Row */}
+        <div className="flex flex-wrap items-center justify-between gap-3 animate-fade-up">
+          <div className="flex items-center gap-3">
+            <Link
+              href="/"
+              className="inline-flex items-center gap-1.5 px-3 py-1 aaa-glass-panel hud-corner rounded-full text-purple-300 text-xs font-mono font-bold hover:border-purple-400 transition-all shadow-md shrink-0"
+            >
+              <ArrowLeft className="w-3.5 h-3.5 text-purple-400" />
+              <span>COMMAND STATION</span>
+            </Link>
+
+            <h1 className="text-xl sm:text-2xl font-black tracking-tight flex items-center gap-2">
+              <span className="bg-gradient-to-r from-white to-slate-300 bg-clip-text text-transparent">
+                SENT CAMPAIGN
+              </span>{" "}
+              <span className="neon-glow-purple font-mono tracking-tighter text-lg">
+                [ TRACKER ]
+              </span>
+            </h1>
           </div>
 
-          <h1 className="text-7xl md:text-8xl font-black mb-4 tracking-tighter">
-            <span className="bg-gradient-to-r from-purple-400 via-pink-400 to-purple-400 bg-clip-text text-transparent animate-gradient">
-              EMAIL
-            </span>
-            <br />
-            <span className="bg-gradient-to-r from-pink-400 via-purple-400 to-indigo-400 bg-clip-text text-transparent animate-gradient">
-              MASTERS
-            </span>
-          </h1>
-
-          <p className="text-xl text-purple-200 max-w-2xl mx-auto">
-            Dominate your inbox analytics with next-level email intelligence
-          </p>
+          <div className="flex items-center gap-2 text-xs font-mono">
+            <button
+              onClick={connectGmail}
+              className="px-3 py-1.5 bg-purple-600/30 hover:bg-purple-600/50 border border-purple-500/40 text-purple-200 rounded-lg font-bold transition-all"
+            >
+              Connect Gmail
+            </button>
+            <button
+              onClick={fetchSentEmails}
+              disabled={loading}
+              className="px-3.5 py-1.5 bg-gradient-to-r from-cyan-500 to-purple-600 text-white rounded-lg font-bold disabled:opacity-40 transition-all flex items-center gap-1.5"
+            >
+              {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+              <span>Fetch Sent Logs</span>
+            </button>
+            <button
+              onClick={downloadExcel}
+              disabled={downloading || emails.length === 0}
+              className="px-3.5 py-1.5 bg-gradient-to-r from-emerald-600 to-indigo-600 text-white rounded-lg font-bold disabled:opacity-40 transition-all shimmer-button flex items-center gap-1.5"
+            >
+              {downloading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
+              <span>Export Excel</span>
+            </button>
+          </div>
         </div>
 
-        {/* Floating Action Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <div onClick={connectGmail} className="group relative overflow-hidden rounded-2xl glass-card p-6 hover:scale-105 transition-all duration-300 cursor-pointer hover-glow">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-purple-500/20 to-transparent rounded-full blur-2xl"></div>
-            <Rocket className="w-12 h-12 text-purple-400 mb-4 group-hover:translate-x-2 group-hover:-translate-y-2 transition-all duration-300" />
-            <h3 className="text-2xl font-bold text-white mb-2">Connect</h3>
-            <p className="text-purple-200 text-sm">Secure Gmail integration</p>
-          </div>
-
-          <div onClick={fetchSentEmails} className="group relative overflow-hidden rounded-2xl glass-card p-6 hover:scale-105 transition-all duration-300 cursor-pointer hover-glow">
-            <Zap className="w-12 h-12 text-pink-400 mb-4 group-hover:rotate-12 transition-transform duration-300" />
-            <h3 className="text-2xl font-bold text-white mb-2">Fetch</h3>
-            <p className="text-pink-200 text-sm">Lightning fast retrieval</p>
-          </div>
-
-          <div onClick={downloadExcel} className="group relative overflow-hidden rounded-2xl glass-card p-6 hover:scale-105 transition-all duration-300 cursor-pointer hover-glow">
-            <Target className="w-12 h-12 text-orange-400 mb-4 group-hover:scale-110 transition-transform duration-300" />
-            <h3 className="text-2xl font-bold text-white mb-2">Export</h3>
-            <p className="text-orange-200 text-sm">Excel with one click</p>
-          </div>
-        </div>
-
-        {/* Main Action Bar */}
-        <div className="relative mb-8 overflow-hidden rounded-2xl glass-card p-1">
-          <div className="absolute inset-0 bg-gradient-to-r from-purple-500/10 via-pink-500/10 to-orange-500/10"></div>
-
-          {(connected === "true" || connectedEmail) && (
-            <div className="flex flex-col gap-2 mb-4 p-4 bg-emerald-500/20 border border-emerald-500/30 rounded-xl text-emerald-300 animate-slide-in">
-              <div className="flex items-center gap-2">
-                <CheckCircle2 className="w-5 h-5 text-emerald-400" />
-                <span className="text-sm font-medium">
-                  {connectedEmail ? `Logged in as ${connectedEmail}` : "Logged in successfully!"}
+        {/* Compact Filter & Status Deck */}
+        <div className="aaa-glass-panel hud-corner rounded-2xl p-3 border border-purple-500/30 animate-fade-up">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            {/* Status indicators */}
+            <div className="flex items-center gap-3 text-xs font-mono">
+              {(connected === "true" || connectedEmail) && (
+                <span className="text-emerald-400 font-bold flex items-center gap-1.5">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                  {connectedEmail ? `AUTH: ${connectedEmail}` : "AUTHENTICATED"}
                 </span>
-              </div>
+              )}
               {ownerConnected === true && (
-                <div className="text-xs text-purple-300 ml-7 flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 bg-purple-400 rounded-full"></span>
-                  <span>Fetch Mails From  <strong>{ownerEmail}</strong></span>
-                </div>
+                <span className="text-purple-300">
+                  ROUTE: <strong className="text-white">{ownerEmail}</strong>
+                </span>
               )}
-              {ownerConnected === false && (
-                <div className="text-xs text-amber-300 ml-7 flex items-center gap-1.5">
-                  <AlertCircle className="w-3.5 h-3.5 animate-pulse shrink-0" />
-                  <span>Owner is not connected! Fetching will fail. Please connect the owner Gmail account first.</span>
-                </div>
-              )}
+              {error && <span className="text-rose-400 font-bold">ERR: {error}</span>}
             </div>
-          )}
 
+            {/* Date Filters & Instant Search */}
+            <div className="flex flex-wrap items-center gap-2 text-xs font-mono flex-1 justify-end">
+              <div className="flex items-center gap-1 bg-slate-950/80 px-2.5 py-1 rounded-xl border border-white/10">
+                <span className="text-purple-300 font-bold text-[10px]">START:</span>
+                <input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  className="bg-transparent text-white text-xs font-mono focus:outline-none"
+                  style={{ colorScheme: "dark" }}
+                />
+              </div>
 
-          {error && (
-            <div className="flex items-center gap-2 mb-4 p-3 bg-red-500/20 border border-red-500/30 rounded-xl text-red-300 animate-slide-in">
-              <AlertCircle className="w-5 h-5" />
-              <span className="text-sm">{error}</span>
-            </div>
-          )}
+              <div className="flex items-center gap-1 bg-slate-950/80 px-2.5 py-1 rounded-xl border border-white/10">
+                <span className="text-pink-300 font-bold text-[10px]">END:</span>
+                <input
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  className="bg-transparent text-white text-xs font-mono focus:outline-none"
+                  style={{ colorScheme: "dark" }}
+                />
+              </div>
 
-          {/* Date Range Filter Section */}
-          <div className="relative z-10 p-4 border-b border-white/10 flex flex-wrap gap-4 items-end">
-            <div className="flex-1 min-w-[200px]">
-              <label className="flex items-center gap-2 text-xs font-semibold text-purple-300 uppercase tracking-wider mb-2">
-                <Calendar className="w-3.5 h-3.5" />
-                Start Date
-              </label>
-              <input
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                className="w-full px-4 py-2.5 bg-slate-900/50 backdrop-blur-md rounded-xl text-white border border-white/10 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all font-medium"
-                style={{ colorScheme: "dark" }}
-              />
-            </div>
-            <div className="flex-1 min-w-[200px]">
-              <label className="flex items-center gap-2 text-xs font-semibold text-pink-300 uppercase tracking-wider mb-2">
-                <Calendar className="w-3.5 h-3.5" />
-                End Date
-              </label>
-              <input
-                type="date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                className="w-full px-4 py-2.5 bg-slate-900/50 backdrop-blur-md rounded-xl text-white border border-white/10 focus:outline-none focus:border-pink-500 focus:ring-1 focus:ring-pink-500 transition-all font-medium"
-                style={{ colorScheme: "dark" }}
-              />
-            </div>
-            <div className="flex gap-2">
               {(startDate || endDate) && (
                 <button
                   onClick={() => {
                     setStartDate("");
                     setEndDate("");
                   }}
-                  className="px-4 py-2.5 bg-white/5 hover:bg-white/10 text-white hover:text-red-400 text-sm font-semibold rounded-xl border border-white/10 transition-all flex items-center gap-2"
+                  className="p-1 text-slate-400 hover:text-rose-400"
                 >
-                  <X className="w-4 h-4" />
-                  Clear
+                  <X className="w-3.5 h-3.5" />
                 </button>
               )}
+
+              {/* Search Bar */}
+              <div className="relative min-w-[220px]">
+                <input
+                  type="text"
+                  placeholder="Filter logs by recipient or subject..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full px-3 py-1 aaa-input rounded-xl text-white text-xs font-mono pl-8"
+                />
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-cyan-400" />
+              </div>
             </div>
-          </div>
-
-          <div className="flex flex-wrap gap-3 p-4">
-            <button
-              onClick={connectGmail}
-              className="group relative inline-flex items-center gap-2 px-8 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl font-bold shadow-xl hover:shadow-2xl transform hover:-translate-y-1 transition-all duration-300 overflow-hidden"
-            >
-              <div className="absolute inset-0 bg-gradient-to-r from-purple-500 to-pink-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-              <Mail className="relative w-5 h-5 group-hover:rotate-12 transition-transform" />
-              <span className="relative">Connect Gmail</span>
-              <ArrowRight className="relative w-4 h-4 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
-            </button>
-
-            <button
-              onClick={fetchSentEmails}
-              disabled={loading}
-              className="group relative inline-flex items-center gap-2 px-8 py-3 bg-gradient-to-r from-pink-600 to-orange-600 text-white rounded-xl font-bold shadow-xl hover:shadow-2xl transform hover:-translate-y-1 disabled:opacity-50 transition-all duration-300"
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                  <span>Fetching Emails...</span>
-                </>
-              ) : (
-                <>
-                  <RefreshCw className="w-5 h-5 group-hover:rotate-180 transition-transform duration-500" />
-                  <span>Fetch Emails</span>
-                </>
-              )}
-            </button>
-            <Link href={`/bulk-emails`} className="group relative inline-flex items-center gap-2 px-8 py-3 bg-gradient-to-r from-orange-600 to-yellow-600 text-white rounded-xl font-bold shadow-xl hover:shadow-2xl transform hover:-translate-y-1 disabled:opacity-50 transition-all duration-300">
-              Send BulkMail
-
-            </Link>
-
-            <button
-              onClick={downloadExcel}
-              disabled={downloading || emails.length === 0}
-              className="group relative inline-flex items-center gap-2 px-8 py-3 bg-gradient-to-r from-orange-600 to-yellow-600 text-white rounded-xl font-bold shadow-xl hover:shadow-2xl transform hover:-translate-y-1 disabled:opacity-50 transition-all duration-300"
-            >
-              {downloading ? (
-                <>
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                  <span>Downloading...</span>
-                </>
-              ) : (
-                <>
-                  <Download className="w-5 h-5 group-hover:scale-110 transition-transform" />
-                  <span>Export Excel</span>
-
-                </>
-
-              )}
-            </button>
           </div>
         </div>
 
-        {/* Syncing Progress Card */}
+        {/* Sync Progress Indicator */}
         {loading && fetchProgress.fetchedCount > 0 && (
-          <div className="mb-8 rounded-2xl glass-card p-6 border border-purple-500/30 animate-slide-in relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-48 h-48 bg-gradient-to-br from-purple-500/10 to-transparent rounded-full blur-2xl"></div>
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
+          <div className="rounded-xl aaa-glass-panel hud-corner p-2.5 border border-cyan-500/30">
+            <div className="flex items-center justify-between text-xs font-mono text-cyan-300">
+              <span className="flex items-center gap-2">
+                <RefreshCw className="w-3.5 h-3.5 text-cyan-400 animate-spin" />
+                FETCHING PAGE {fetchProgress.currentPage}...
+              </span>
+              <span className="font-bold">
+                {fetchProgress.fetchedCount} {fetchProgress.estimatedTotal ? `/ ~${fetchProgress.estimatedTotal}` : "RECORDS"}
+              </span>
+            </div>
+          </div>
+        )}
+
+        {/* Telemetry Stats Pills */}
+        {emails.length > 0 && (
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 animate-fade-up">
+            <div className="aaa-glass-panel hud-corner rounded-xl p-2.5 border border-purple-500/30 flex items-center justify-between">
               <div>
-                <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                  <RefreshCw className="w-4 h-4 text-purple-400 animate-spin" />
-                  Syncing Sent Campaigns...
-                </h3>
-                <p className="text-purple-200/70 text-xs mt-1">
-                  Loading page {fetchProgress.currentPage} from Gmail servers. Details are fetched with rate-limiting protection.
+                <p className="text-slate-400 text-[10px] font-mono font-bold uppercase">TOTAL MAILS</p>
+                <p className="text-xl font-mono font-black text-white">{stats.total}</p>
+              </div>
+              <Send className="w-5 h-5 text-purple-400" />
+            </div>
+
+            <div className="aaa-glass-panel hud-corner rounded-xl p-2.5 border border-cyan-500/30 flex items-center justify-between">
+              <div>
+                <p className="text-slate-400 text-[10px] font-mono font-bold uppercase">UNIQUE CONTACTS</p>
+                <p className="text-xl font-mono font-black text-white">{stats.uniqueRecipients}</p>
+              </div>
+              <Users className="w-5 h-5 text-cyan-400" />
+            </div>
+
+            <div className="aaa-glass-panel hud-corner rounded-xl p-2.5 border border-amber-500/30 flex items-center justify-between">
+              <div>
+                <p className="text-slate-400 text-[10px] font-mono font-bold uppercase">AVG SUBJECT</p>
+                <p className="text-xl font-mono font-black text-white">{stats.avgSubjectLength} ch</p>
+              </div>
+              <BarChart3 className="w-5 h-5 text-amber-400" />
+            </div>
+
+            <div className="aaa-glass-panel hud-corner rounded-xl p-2.5 border border-pink-500/30 flex items-center justify-between">
+              <div>
+                <p className="text-slate-400 text-[10px] font-mono font-bold uppercase">PEAK MONTH</p>
+                <p className="text-sm font-mono font-bold text-white">{stats.mostActiveMonth}</p>
+              </div>
+              <Crown className="w-5 h-5 text-pink-400" />
+            </div>
+          </div>
+        )}
+
+        {/* Scrollable Email Logs Vault Box */}
+        <div className="flex-1 min-h-0 rounded-2xl cyber-panel-elevated hud-corner p-4 border border-white/10 overflow-hidden flex flex-col justify-between">
+          <div className="overflow-y-auto custom-scrollbar flex-1 pr-1 space-y-3">
+            {filteredEmails.length === 0 ? (
+              <div className="h-full flex flex-col items-center justify-center py-12 text-center">
+                <div className="p-3 bg-purple-500/10 border border-purple-500/30 rounded-full mb-3">
+                  <Inbox className="w-8 h-8 text-purple-400" />
+                </div>
+                <p className="text-slate-300 font-mono text-xs">
+                  {emails.length === 0 ? "NO SENT MESSAGES FETCHED YET. CLICK 'FETCH SENT LOGS' ABOVE." : "NO MESSAGES MATCH YOUR QUERY SEARCH."}
                 </p>
               </div>
-              <div className="text-right">
-                <span className="text-2xl font-black bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
-                  {fetchProgress.fetchedCount}
-                </span>
-                <span className="text-purple-200/50 text-xs ml-1">
-                  {fetchProgress.estimatedTotal ? `of ~${fetchProgress.estimatedTotal} loaded` : "loaded"}
-                </span>
-              </div>
-            </div>
-
-            {/* Progress bar */}
-            <div className="w-full h-2 bg-slate-900/50 rounded-full overflow-hidden border border-white/5">
-              <div
-                className="h-full bg-gradient-to-r from-purple-500 via-pink-500 to-orange-500 transition-all duration-300"
-                style={{
-                  width: fetchProgress.estimatedTotal
-                    ? `${Math.min(100, Math.round((fetchProgress.fetchedCount / fetchProgress.estimatedTotal) * 100))}%`
-                    : `${Math.min(100, (fetchProgress.currentPage * 8))}%`
-                }}
-              ></div>
-            </div>
-
-            {/* Real-time status update */}
-            <div className="flex justify-between items-center mt-3 text-[11px] text-purple-200/50">
-              <span>Status: Fetching metadata & preparing spreadsheet format</span>
-              <span>API requests protected with auto-retry backoff</span>
-            </div>
-          </div>
-        )}
-
-        {/* Stats Dashboard */}
-        {emails.length > 0 && (
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8 animate-slide-in">
-            <div className="relative overflow-hidden rounded-xl glass-card p-4 border border-purple-500/30">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-purple-300 text-xs uppercase tracking-wider">Total Emails</p>
-                  <p className="text-3xl font-bold text-white">{stats.total}</p>
-                </div>
-                <Send className="w-8 h-8 text-purple-400 opacity-50" />
-              </div>
-            </div>
-
-            <div className="relative overflow-hidden rounded-xl glass-card p-4 border border-pink-500/30">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-pink-300 text-xs uppercase tracking-wider">Unique Recipients</p>
-                  <p className="text-3xl font-bold text-white">{stats.uniqueRecipients}</p>
-                </div>
-                <Users className="w-8 h-8 text-pink-400 opacity-50" />
-              </div>
-            </div>
-
-            <div className="relative overflow-hidden rounded-xl glass-card p-4 border border-orange-500/30">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-orange-300 text-xs uppercase tracking-wider">Avg Subject Length</p>
-                  <p className="text-3xl font-bold text-white">{stats.avgSubjectLength}</p>
-                </div>
-                <BarChart3 className="w-8 h-8 text-orange-400 opacity-50" />
-              </div>
-            </div>
-
-            <div className="relative overflow-hidden rounded-xl glass-card p-4 border border-indigo-500/30">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-indigo-300 text-xs uppercase tracking-wider">Most Active</p>
-                  <p className="text-lg font-bold text-white">{stats.mostActiveMonth}</p>
-                </div>
-                <Crown className="w-8 h-8 text-indigo-400 opacity-50" />
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Search Bar */}
-        {emails.length > 0 && (
-          <div className="mb-6 animate-slide-in">
-            <div className="relative">
-              <input
-                type="text"
-                placeholder="🔍 Search through your emails..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full px-6 py-3 glass-card rounded-xl text-white placeholder-white/50 focus:outline-none focus:border-purple-500 transition-all pl-12"
-              />
-              <Hash className="absolute left-4 top-1/2 transform -translate-y-1/2 w-4 h-4 text-white/40" />
-            </div>
-          </div>
-        )}
-
-        {/* Email Cards */}
-        {filteredEmails.length === 0 ? (
-          <div className="relative overflow-hidden rounded-2xl glass-card p-16 text-center">
-            <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 to-pink-500/5"></div>
-            <Inbox className="w-20 h-20 mx-auto mb-4 text-white/30" />
-            <p className="text-white/60 text-lg">
-              {emails.length === 0 ? "🚀 No emails fetched yet. Hit the fetch button!" : "🔍 No matching emails found."}
-            </p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 gap-4">
-            {filteredEmails.map((email, index) => (
-              <div
-                key={email.id}
-                onClick={() => setSelectedEmail(selectedEmail?.id === email.id ? null : email)}
-                className="group relative overflow-hidden rounded-xl glass-card hover:border-purple-500/50 transition-all duration-300 transform hover:-translate-y-1 cursor-pointer animate-slide-in"
-                style={{ animationDelay: `${index * 0.05}s` }}
-              >
-                <div className="absolute inset-0 bg-gradient-to-r from-purple-500/10 to-pink-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-
-                <div className="relative p-6">
-                  <div className="flex items-start justify-between gap-4">
+            ) : (
+              filteredEmails.map((email, index) => (
+                <div
+                  key={email.id}
+                  className="aaa-glass-card-interactive hud-corner rounded-xl p-4 border border-white/10 group relative"
+                >
+                  <div className="flex flex-col md:flex-row md:items-start justify-between gap-3">
                     <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-3 flex-wrap">
-                        <span className="inline-flex items-center gap-1 px-3 py-1 bg-gradient-to-r from-purple-500/20 to-pink-500/20 rounded-lg text-xs font-mono text-purple-300">
-                          <Award className="w-3 h-3" />
+                      <div className="flex items-center gap-2 mb-1.5 flex-wrap text-[11px] font-mono">
+                        <span className="px-2 py-0.5 bg-cyan-500/15 border border-cyan-500/30 rounded text-cyan-300 font-bold">
                           #{index + 1}
                         </span>
-                        <span className="inline-flex items-center gap-1 px-3 py-1 bg-white/5 rounded-lg text-xs text-white/60">
-                          <Mail className="w-3 h-3" />
-                          To: {email.to?.split('@')[0] || '-'}
+                        <span className="px-2 py-0.5 bg-white/5 border border-white/10 rounded text-slate-300">
+                          TO: <strong className="text-white">{email.to || "-"}</strong>
                         </span>
-                        <span className="inline-flex items-center gap-1 px-3 py-1 bg-white/5 rounded-lg text-xs text-white/60">
-                          <Send className="w-3 h-3" />
-                          From: me
+                        <span className="px-2 py-0.5 bg-white/5 border border-white/10 rounded text-slate-300">
+                          FROM: <strong className="text-white">me</strong>
                         </span>
                       </div>
 
-                      <h3 className="text-xl font-bold mb-2 transition-all duration-300 text-white group-hover:text-transparent group-hover:bg-gradient-to-r group-hover:from-purple-400 group-hover:to-pink-400 group-hover:bg-clip-text group-hover:scale-105">
+                      <h3
+                        onClick={() => setSelectedEmail(selectedEmail?.id === email.id ? null : email)}
+                        className="text-sm font-bold text-white group-hover:text-cyan-300 transition-colors mb-1 cursor-pointer"
+                      >
                         {email.subject || "No Subject"}
                       </h3>
 
-                      <p className="text-white/60 text-sm line-clamp-2 mb-3">
+                      <p className="text-slate-400 text-[11px] font-mono line-clamp-1 leading-relaxed mb-2">
                         {email.snippet || "-"}
                       </p>
 
-                      <div className="flex items-center gap-4 text-xs text-white/40">
+                      <div className="flex items-center gap-3 text-[10px] font-mono text-slate-500">
                         <div className="flex items-center gap-1">
-                          <Clock className="w-3 h-3" />
+                          <Clock className="w-3 h-3 text-cyan-400" />
                           <span>
                             {email.rawDate && !isNaN(new Date(email.rawDate).getTime())
-                              ? new Date(email.rawDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                              ? new Date(email.rawDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })
                               : email.date || "-"}
                           </span>
                         </div>
                         {email.threadId && (
                           <div className="flex items-center gap-1">
-                            <MessageSquare className="w-3 h-3" />
-                            <span>Thread: {email.threadId.slice(0, 8)}...</span>
+                            <MessageSquare className="w-3 h-3 text-purple-400" />
+                            <span>THREAD: {email.threadId.slice(0, 8)}...</span>
                           </div>
                         )}
                       </div>
 
-                      {/* Expanded View */}
+                      {/* Detailed Accordion Drawer */}
                       {selectedEmail?.id === email.id && (
-                        <div className="mt-4 p-4 bg-black/20 rounded-lg border border-white/10 animate-slide-in">
-                          <p className="text-white/80 text-sm">{email.snippet}</p>
-                          <div className="mt-2 pt-2 border-t border-white/10">
-                            <p className="text-xs text-white/40">Thread ID: {email.threadId}</p>
-                            <p className="text-xs text-white/40 mt-1">Message ID: {email.id}</p>
+                        <div className="mt-3 p-4 quantum-terminal rounded-xl text-xs font-mono space-y-2 animate-fade-up">
+                          <div className="text-cyan-400 font-bold uppercase border-b border-cyan-500/20 pb-1.5 flex justify-between items-center">
+                            <span>MESSAGE PAYLOAD CONTENT</span>
+                            <button
+                              onClick={() => copyToClipboard(email.snippet, email.id)}
+                              className="px-2 py-0.5 bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 rounded flex items-center gap-1 transition-all"
+                            >
+                              {copiedId === email.id ? (
+                                <>
+                                  <Check className="w-3 h-3 text-emerald-400" />
+                                  <span>COPIED</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Copy className="w-3 h-3" />
+                                  <span>COPY TEXT</span>
+                                </>
+                              )}
+                            </button>
+                          </div>
+                          <p className="text-slate-200 leading-relaxed whitespace-pre-wrap">{email.snippet}</p>
+                          <div className="pt-2 border-t border-white/10 grid grid-cols-1 md:grid-cols-2 gap-2 text-slate-400 text-[10px]">
+                            <div>THREAD ID: <span className="text-white">{email.threadId}</span></div>
+                            <div>MESSAGE ID: <span className="text-white">{email.id}</span></div>
                           </div>
                         </div>
                       )}
                     </div>
 
-                    <div className="flex gap-2 transition-all duration-300 opacity-0 translate-x-4 group-hover:opacity-100 group-hover:translate-x-0">
-                      <button className="p-2 bg-white/10 rounded-lg hover:bg-white/20 transition-colors">
-                        <Eye className="w-4 h-4 text-white/80" />
-                      </button>
-                      <button className="p-2 bg-white/10 rounded-lg hover:bg-white/20 transition-colors">
-                        <Copy className="w-4 h-4 text-white/80" />
-                      </button>
-                      <button className="p-2 bg-white/10 rounded-lg hover:bg-white/20 transition-colors">
-                        <Share2 className="w-4 h-4 text-white/80" />
-                      </button>
+                    <div
+                      onClick={() => setSelectedEmail(selectedEmail?.id === email.id ? null : email)}
+                      className="flex items-center gap-1.5 self-start pt-1 cursor-pointer"
+                    >
+                      <span className="text-[10px] font-mono font-semibold text-cyan-400 group-hover:text-purple-300 transition-colors">
+                        {selectedEmail?.id === email.id ? "HIDE" : "INSPECT"}
+                      </span>
+                      <ChevronDown className={`w-3.5 h-3.5 text-cyan-400 transition-transform duration-300 ${selectedEmail?.id === email.id ? "rotate-180" : ""}`} />
                     </div>
                   </div>
-
-                  {/* Animated Progress Bar */}
-                  <div className="absolute bottom-0 left-0 h-0.5 bg-gradient-to-r from-purple-500 via-pink-500 to-orange-500 transition-all duration-500 w-0 group-hover:w-full"></div>
                 </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
-        )}
+        </div>
 
-        {/* Footer with Glow Text */}
-        <div className="mt-12 text-center">
-          <div className="inline-flex items-center gap-2 px-6 py-3 glass-card rounded-full border border-white/10">
-            <Flame className="w-4 h-4 text-orange-400" />
-            <span className="text-sm text-white/60 glow-text">Built with 🔥 for email domination</span>
-            <Sparkles className="w-4 h-4 text-yellow-400" />
+        {/* Footer Badge Bar */}
+        <div className="text-center pt-1">
+          <div className="inline-flex items-center gap-2 px-4 py-1 aaa-glass-panel rounded-full border border-white/10 text-[10px] font-mono text-slate-400">
+            <Flame className="w-3 h-3 text-cyan-400" />
+            <span>POWERED BY HYPER-QUANTUM DISPATCH MATRIX</span>
+            <Sparkles className="w-3 h-3 text-purple-400" />
           </div>
         </div>
       </div>
@@ -740,19 +544,17 @@ function SentEmailsContent() {
   );
 }
 
-// Loading fallback component
 function SentEmailsLoading() {
   return (
-    <div className="min-h-screen relative overflow-hidden bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
-      <div className="text-center">
-        <Loader2 className="w-12 h-12 text-purple-400 animate-spin mx-auto mb-4" />
-        <p className="text-white/60">Loading...</p>
+    <div className="min-h-screen relative overflow-hidden bg-[#03050c] flex items-center justify-center">
+      <div className="text-center p-8 aaa-glass-panel hud-corner rounded-3xl">
+        <Loader2 className="w-10 h-10 text-cyan-400 animate-spin mx-auto mb-4" />
+        <p className="text-slate-300 text-xs font-mono font-semibold">INITIALIZING TELEMETRY TRACKER...</p>
       </div>
     </div>
   );
 }
 
-// Main page component with Suspense boundary
 export default function SentEmailsPage() {
   return (
     <Suspense fallback={<SentEmailsLoading />}>
