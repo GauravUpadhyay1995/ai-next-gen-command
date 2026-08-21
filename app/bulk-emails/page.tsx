@@ -31,7 +31,10 @@ import {
   Eye,
   ArrowLeft,
   X,
-  Play
+  Play,
+  RefreshCw,
+  Calendar,
+  Rocket
 } from "lucide-react";
 
 const BATCH_SIZE = 8; // Parallel send batching size
@@ -58,6 +61,13 @@ export default function BulkEmailsPage() {
   const [ownerConnected, setOwnerConnected] = useState<boolean | null>(null);
   const [checkingConnection, setCheckingConnection] = useState(true);
 
+  // In-Page Gmail Auto Fetcher States
+  const [inPageStartDate, setInPageStartDate] = useState("");
+  const [inPageEndDate, setInPageEndDate] = useState("");
+  const [inPageFetching, setInPageFetching] = useState(false);
+  const [autoLoadedSource, setAutoLoadedSource] = useState(false);
+  const [ingestMode, setIngestMode] = useState<"gmail" | "excel">("gmail");
+
   // Stepper tab state
   const [activeTab, setActiveTab] = useState<
     "upload" | "resume" | "content" | "preview"
@@ -65,6 +75,21 @@ export default function BulkEmailsPage() {
 
   useEffect(() => {
     checkGmailConnection();
+
+    // Auto-load contacts from sessionStorage if passed from sent-emails page
+    try {
+      const saved = sessionStorage.getItem("auto_loaded_contacts");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setRows(parsed);
+          setAutoLoadedSource(true);
+          setActiveTab("resume");
+        }
+      }
+    } catch (e) {
+      console.error("Failed to read auto_loaded_contacts from sessionStorage:", e);
+    }
   }, []);
 
   const checkGmailConnection = async () => {
@@ -82,6 +107,69 @@ export default function BulkEmailsPage() {
     } finally {
       setCheckingConnection(false);
     }
+  };
+
+  const fetchContactsInPage = async () => {
+    try {
+      setInPageFetching(true);
+      setError("");
+
+      let pageToken = "";
+      let allFetched: any[] = [];
+      let page = 1;
+      const MAX_PAGES = 5;
+
+      do {
+        let url = `/api/gmail/sent-emails?limit=100`;
+        if (pageToken) url += `&pageToken=${pageToken}`;
+        if (inPageStartDate) url += `&startDate=${inPageStartDate}`;
+        if (inPageEndDate) url += `&endDate=${inPageEndDate}`;
+
+        const res = await fetch(url, { cache: "no-store" });
+        const data = await res.json();
+
+        if (!res.ok) throw new Error(data.message || "Failed to fetch contacts from Gmail");
+
+        const newEmails = data.emails || [];
+        allFetched = [...allFetched, ...newEmails];
+
+        const nextToken = data.nextPageToken || "";
+        pageToken = nextToken;
+        page++;
+
+        if (page > MAX_PAGES) break;
+        if (pageToken) await new Promise((r) => setTimeout(r, 150));
+      } while (pageToken);
+
+      const normalized = allFetched
+        .filter((e: any) => e.to && e.to.trim())
+        .map((e: any) => ({
+          email: e.to.trim(),
+          subject: e.subject || "",
+          snippet: e.snippet || "",
+          date: e.date || "",
+        }));
+
+      if (normalized.length === 0) {
+        setError("No recipient contacts found in Gmail logs for selected date range.");
+        return;
+      }
+
+      setRows(normalized);
+      setAutoLoadedSource(true);
+      sessionStorage.setItem("auto_loaded_contacts", JSON.stringify(normalized));
+      setActiveTab("resume");
+    } catch (err: any) {
+      setError(err.message || "Failed to fetch contacts from Gmail");
+    } finally {
+      setInPageFetching(false);
+    }
+  };
+
+  const clearContacts = () => {
+    setRows([]);
+    setAutoLoadedSource(false);
+    sessionStorage.removeItem("auto_loaded_contacts");
   };
 
   const connectGmail = () => {
@@ -277,7 +365,7 @@ export default function BulkEmailsPage() {
         {/* Gen Z Stepper Navigation Rail */}
         <div className="flex gap-2 overflow-x-auto items-center pb-1.5 custom-scrollbar w-full">
           {[
-            { id: "upload", icon: Upload, label: "01. EXCEL INGEST" },
+            { id: "upload", icon: Users, label: "01. LOAD CONTACTS" },
             { id: "resume", icon: Paperclip, label: "02. ATTACHMENT VAULT" },
             { id: "content", icon: Edit3, label: "03. TEMPLATE SYNTAX" },
             { id: "preview", icon: Eye, label: "04. DISPATCH PREVIEW" },
@@ -300,31 +388,145 @@ export default function BulkEmailsPage() {
         <div className="flex-1 md:min-h-0 rounded-2xl genz-glass-panel p-4 sm:p-5 border border-white/10 overflow-y-auto custom-scrollbar">
           {activeTab === "upload" && (
             <div className="space-y-4 animate-fade-up">
-              <div className="flex items-center gap-3">
-                <div className="p-2.5 sm:p-3 bg-cyan-500/15 border border-cyan-500/30 rounded-xl text-cyan-400">
-                  <FileSpreadsheet className="w-5 sm:w-6 h-5 sm:h-6" />
+              {/* Auto-Loaded Status Banner */}
+              {autoLoadedSource && rows.length > 0 && (
+                <div className="p-3.5 bg-gradient-to-r from-cyan-500/20 via-purple-600/20 to-pink-500/20 border border-cyan-500/40 rounded-2xl flex flex-wrap items-center justify-between gap-3 font-mono text-xs shadow-lg shadow-cyan-950/40">
+                  <div className="flex items-center gap-3">
+                    <Sparkles className="w-5 h-5 text-cyan-300 animate-pulse shrink-0" />
+                    <div>
+                      <div className="text-white font-bold flex items-center gap-2">
+                        <span>⚡ {rows.length} RECIPIENT CONTACTS AUTO-LOADED FROM GMAIL</span>
+                      </div>
+                      <div className="text-cyan-300/80 text-[11px]">Ready for template composition & campaign execution</div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setActiveTab("resume")}
+                      className="px-3.5 py-1.5 bg-gradient-to-r from-cyan-500 to-purple-600 text-white font-bold rounded-xl flex items-center gap-1.5 shadow-md hover:scale-105 transition-transform"
+                    >
+                      <span>Proceed to Attachment</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={clearContacts}
+                      className="px-2.5 py-1.5 bg-slate-900/80 hover:bg-rose-500/20 text-slate-300 hover:text-rose-400 border border-white/10 rounded-xl transition-all flex items-center gap-1 text-[11px]"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>Reset</span>
+                    </button>
+                  </div>
                 </div>
-                <div>
-                  <h2 className="text-lg sm:text-xl font-bold text-white">Excel Data Ingestion</h2>
-                  <p className="text-slate-400 text-xs font-mono">
-                    Mandatory column: <code className="px-1.5 py-0.5 bg-cyan-500/15 text-cyan-300 rounded font-bold">email</code>
-                  </p>
-                </div>
+              )}
+
+              {/* Mode Selection Sub-Tabs */}
+              <div className="flex items-center gap-2 p-1 bg-slate-950/80 rounded-xl border border-white/10 w-fit text-xs font-mono">
+                <button
+                  onClick={() => setIngestMode("gmail")}
+                  className={`px-3.5 py-1.5 rounded-lg font-bold transition-all flex items-center gap-1.5 ${ingestMode === "gmail"
+                    ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm"
+                    : "text-slate-400 hover:text-white"
+                    }`}
+                >
+                  <RefreshCw className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>Fetch Direct from Gmail</span>
+                </button>
+                <button
+                  onClick={() => setIngestMode("excel")}
+                  className={`px-3.5 py-1.5 rounded-lg font-bold transition-all flex items-center gap-1.5 ${ingestMode === "excel"
+                    ? "bg-purple-500/20 text-purple-300 border border-purple-500/40 shadow-sm"
+                    : "text-slate-400 hover:text-white"
+                    }`}
+                >
+                  <FileSpreadsheet className="w-3.5 h-3.5 text-purple-400" />
+                  <span>Upload Custom Excel File</span>
+                </button>
               </div>
 
-              <label className="relative flex flex-col items-center justify-center w-full p-6 sm:p-8 border-2 border-dashed border-cyan-500/40 rounded-2xl cursor-pointer hover:border-cyan-400 hover:bg-cyan-500/5 transition-all bg-slate-950/70 group">
-                <Upload className="w-7 sm:w-8 h-7 sm:h-8 text-cyan-400 mb-2 group-hover:scale-110 transition-transform" />
-                <span className="text-white font-bold text-xs sm:text-sm mb-1 font-mono text-center">
-                  DROP EXCEL RECIPIENT FILE HERE
-                </span>
-                <span className="text-slate-400 text-[10px] sm:text-xs font-mono">Supports .xlsx, .xls, .csv</span>
-                <input
-                  type="file"
-                  accept=".xlsx,.xls,.csv"
-                  onChange={(e) => handleExcelUpload(e.target.files?.[0] || null)}
-                  className="absolute inset-0 opacity-0 cursor-pointer"
-                />
-              </label>
+              {ingestMode === "gmail" ? (
+                <div className="p-5 genz-glass-panel rounded-2xl border border-cyan-500/30 space-y-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2.5 bg-cyan-500/15 border border-cyan-500/30 rounded-xl text-cyan-400">
+                      <Calendar className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h2 className="text-base sm:text-lg font-bold text-white">Fetch Gmail Recipients by Date Range</h2>
+                      <p className="text-slate-400 text-xs font-mono">Pulls email contacts directly from your sent Gmail log</p>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-3 sm:grid-cols-2 font-mono text-xs">
+                    <div className="flex flex-col gap-1">
+                      <label className="text-cyan-300 font-bold text-[11px]">START DATE (OPTIONAL)</label>
+                      <input
+                        type="date"
+                        value={inPageStartDate}
+                        onChange={(e) => setInPageStartDate(e.target.value)}
+                        className="px-3 py-2 bg-slate-950/80 border border-white/10 rounded-xl text-white font-mono focus:border-cyan-400 focus:outline-none"
+                        style={{ colorScheme: "dark" }}
+                      />
+                    </div>
+
+                    <div className="flex flex-col gap-1">
+                      <label className="text-pink-300 font-bold text-[11px]">END DATE (OPTIONAL)</label>
+                      <input
+                        type="date"
+                        value={inPageEndDate}
+                        onChange={(e) => setInPageEndDate(e.target.value)}
+                        className="px-3 py-2 bg-slate-950/80 border border-white/10 rounded-xl text-white font-mono focus:border-pink-400 focus:outline-none"
+                        style={{ colorScheme: "dark" }}
+                      />
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={fetchContactsInPage}
+                    disabled={inPageFetching}
+                    className="w-full py-2.5 bg-gradient-to-r from-cyan-500 via-purple-600 to-pink-600 text-white rounded-xl font-bold font-mono text-xs flex items-center justify-center gap-2 shadow-lg shadow-cyan-500/20 disabled:opacity-40 genz-shimmer-btn"
+                  >
+                    {inPageFetching ? (
+                      <>
+                        <RefreshCw className="w-4 h-4 animate-spin text-cyan-200" />
+                        <span>FETCHING GMAIL CONTACTS...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Rocket className="w-4 h-4 text-cyan-200" />
+                        <span>FETCH & AUTO-LOAD CONTACTS</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2.5 sm:p-3 bg-purple-500/15 border border-purple-500/30 rounded-xl text-purple-400">
+                      <FileSpreadsheet className="w-5 sm:w-6 h-5 sm:h-6" />
+                    </div>
+                    <div>
+                      <h2 className="text-lg sm:text-xl font-bold text-white">Excel Data Ingestion</h2>
+                      <p className="text-slate-400 text-xs font-mono">
+                        Mandatory column: <code className="px-1.5 py-0.5 bg-purple-500/15 text-purple-300 rounded font-bold">email</code>
+                      </p>
+                    </div>
+                  </div>
+
+                  <label className="relative flex flex-col items-center justify-center w-full p-6 sm:p-8 border-2 border-dashed border-purple-500/40 rounded-2xl cursor-pointer hover:border-purple-400 hover:bg-purple-500/5 transition-all bg-slate-950/70 group">
+                    <Upload className="w-7 sm:w-8 h-7 sm:h-8 text-purple-400 mb-2 group-hover:scale-110 transition-transform" />
+                    <span className="text-white font-bold text-xs sm:text-sm mb-1 font-mono text-center">
+                      DROP EXCEL RECIPIENT FILE HERE
+                    </span>
+                    <span className="text-slate-400 text-[10px] sm:text-xs font-mono">Supports .xlsx, .xls, .csv</span>
+                    <input
+                      type="file"
+                      accept=".xlsx,.xls,.csv"
+                      onChange={(e) => handleExcelUpload(e.target.files?.[0] || null)}
+                      className="absolute inset-0 opacity-0 cursor-pointer"
+                    />
+                  </label>
+                </div>
+              )}
 
               {rows.length > 0 && (
                 <div className="grid gap-3 sm:grid-cols-3 font-mono text-xs">

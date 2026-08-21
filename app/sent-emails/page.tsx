@@ -173,34 +173,27 @@ function SentEmailsContent() {
     }
   };
 
-  const downloadExcel = () => {
-    try {
-      setDownloading(true);
-      if (emails.length === 0) {
-        setError("Please fetch sent emails first.");
-        return;
-      }
-      const excelData = emails.map((email, index) => ({
-        "S.No": index + 1,
-        "To Email": email.to || "-",
-        "From Email": email.from || "-",
-        Subject: email.subject || "No Subject",
-        Date: email.date || "-",
-        Snippet: email.snippet || "-",
-        "Thread ID": email.threadId || "-",
-        "Message ID": email.id || "-",
-      }));
-      const worksheet = XLSX.utils.json_to_sheet(excelData);
-      const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, "Sent Emails");
-      const excelBuffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
-      const file = new Blob([excelBuffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
-      saveAs(file, `sent-emails-${new Date().toISOString().slice(0, 10)}.xlsx`);
-    } catch (err: any) {
-      setError(err.message || "Failed to download Excel file");
-    } finally {
-      setDownloading(false);
+  const launchCampaignWithContacts = () => {
+    if (emails.length === 0) {
+      setError("Please fetch sent emails first.");
+      return;
     }
+    const contactsToLoad = emails
+      .filter((e) => e.to && e.to.trim())
+      .map((e) => ({
+        email: e.to.trim(),
+        subject: e.subject || "",
+        snippet: e.snippet || "",
+        date: e.date || "",
+      }));
+
+    if (contactsToLoad.length === 0) {
+      setError("No valid recipient email addresses found in fetched logs.");
+      return;
+    }
+
+    sessionStorage.setItem("auto_loaded_contacts", JSON.stringify(contactsToLoad));
+    window.location.href = "/bulk-emails?source=auto";
   };
 
   const filteredEmails = useMemo(() => {
@@ -292,12 +285,12 @@ function SentEmailsContent() {
               <span>Fetch Sent Logs</span>
             </button>
             <button
-              onClick={downloadExcel}
-              disabled={downloading || emails.length === 0}
-              className="flex-1 sm:flex-none px-3.5 py-1.5 bg-gradient-to-r from-emerald-600 to-indigo-600 text-white rounded-lg font-bold disabled:opacity-40 transition-all genz-shimmer-btn flex items-center justify-center gap-1.5"
+              onClick={launchCampaignWithContacts}
+              disabled={emails.length === 0}
+              className="flex-1 sm:flex-none px-3.5 py-1.5 bg-gradient-to-r from-pink-500 via-purple-600 to-cyan-500 text-white rounded-lg font-bold disabled:opacity-40 transition-all genz-shimmer-btn flex items-center justify-center gap-1.5 shadow-lg shadow-pink-500/20"
             >
-              {downloading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
-              <span>Export Excel</span>
+              <Rocket className="w-3.5 h-3.5" />
+              <span>Launch Campaign ({emails.length})</span>
             </button>
           </div>
         </div>
