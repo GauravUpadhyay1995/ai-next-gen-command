@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import DateRangePicker from "../components/DateRangePicker";
 import * as XLSX from "xlsx";
 import Link from "next/link";
 import {
@@ -456,28 +457,17 @@ export default function BulkEmailsPage() {
                     </div>
                   </div>
 
-                  <div className="grid gap-3 sm:grid-cols-2 font-mono text-xs">
-                    <div className="flex flex-col gap-1">
-                      <label className="text-cyan-300 font-bold text-[11px]">START DATE (OPTIONAL)</label>
-                      <input
-                        type="date"
-                        value={inPageStartDate}
-                        onChange={(e) => setInPageStartDate(e.target.value)}
-                        className="px-3 py-2 bg-slate-950/80 border border-white/10 rounded-xl text-white font-mono focus:border-cyan-400 focus:outline-none"
-                        style={{ colorScheme: "dark" }}
-                      />
-                    </div>
-
-                    <div className="flex flex-col gap-1">
-                      <label className="text-pink-300 font-bold text-[11px]">END DATE (OPTIONAL)</label>
-                      <input
-                        type="date"
-                        value={inPageEndDate}
-                        onChange={(e) => setInPageEndDate(e.target.value)}
-                        className="px-3 py-2 bg-slate-950/80 border border-white/10 rounded-xl text-white font-mono focus:border-pink-400 focus:outline-none"
-                        style={{ colorScheme: "dark" }}
-                      />
-                    </div>
+                  <div className="space-y-2 font-mono text-xs">
+                    <label className="text-cyan-300 font-bold text-[11px] block">SELECT CALENDAR DATE RANGE</label>
+                    <DateRangePicker
+                      startDate={inPageStartDate}
+                      endDate={inPageEndDate}
+                      onChange={(start, end) => {
+                        setInPageStartDate(start);
+                        setInPageEndDate(end);
+                      }}
+                      placeholder="Click to pick range (e.g. 1 - 20)"
+                    />
                   </div>
 
                   <button
@@ -674,14 +664,33 @@ export default function BulkEmailsPage() {
                   <p className="text-slate-400 text-xs font-mono">Verify campaign configuration before sending</p>
                 </div>
 
-                <button
-                  onClick={handleSubmit}
-                  disabled={loading || rows.length === 0}
-                  className="w-full sm:w-auto px-6 py-2.5 bg-gradient-to-r from-emerald-500 via-cyan-500 to-purple-600 text-white rounded-xl text-xs font-mono font-bold uppercase tracking-wider shadow-lg disabled:opacity-40 genz-shimmer-btn flex items-center justify-center gap-2"
-                >
-                  {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
-                  <span>{loading ? "DISPATCHING CAMPAIGN..." : "START BULK DISPATCH"}</span>
-                </button>
+                {(() => {
+                  const isCompleted = results.length > 0 && sendProgress.sent === sendProgress.total;
+                  const isBtnDisabled = loading || rows.length === 0 || isCompleted;
+
+                  return (
+                    <button
+                      onClick={handleSubmit}
+                      disabled={isBtnDisabled}
+                      className="w-full sm:w-auto px-6 py-2.5 bg-gradient-to-r from-emerald-500 via-cyan-500 to-purple-600 text-white rounded-xl text-xs font-mono font-bold uppercase tracking-wider shadow-lg disabled:opacity-40 disabled:cursor-not-allowed genz-shimmer-btn flex items-center justify-center gap-2"
+                    >
+                      {loading ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : isCompleted ? (
+                        <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                      ) : (
+                        <Play className="w-4 h-4" />
+                      )}
+                      <span>
+                        {loading
+                          ? "DISPATCHING CAMPAIGN..."
+                          : isCompleted
+                          ? "DISPATCH COMPLETED"
+                          : "START BULK DISPATCH"}
+                      </span>
+                    </button>
+                  );
+                })()}
               </div>
 
               {/* Terminal progress monitor */}

@@ -209,60 +209,32 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Right Column: 2 Main Interactive Module Cards */}
-          <div className="md:col-span-7 grid grid-cols-1 sm:grid-cols-2 gap-4 animate-fade-up">
-            {/* Mass Mail Commander Card */}
-            <Link href="/bulk-emails" className="group text-left block">
-              <div className="h-full rounded-2xl genz-glass-interactive p-4 sm:p-5 flex flex-col justify-between cursor-pointer border border-cyan-500/30">
-                <div>
-                  <div className="flex justify-between items-start mb-2.5">
-                    <div className="p-2.5 bg-cyan-500/15 border border-cyan-500/30 rounded-xl text-cyan-400 group-hover:scale-110 transition-transform">
-                      <Rocket className="w-5 h-5 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform duration-300" />
-                    </div>
-                    <span className="text-[9px] font-mono font-bold text-cyan-300 bg-cyan-500/15 px-2.5 py-0.5 rounded-full border border-cyan-500/30 uppercase tracking-widest">
-                      MODULE_01
-                    </span>
-                  </div>
-
-                  <h3 className="text-base sm:text-lg font-bold text-white mb-1 group-hover:text-cyan-300 transition-colors">
-                    Mass Mail Commander
-                  </h3>
-                  <p className="text-slate-300/85 text-[11px] leading-relaxed font-medium">
-                    Upload spreadsheets, write dynamic variable templates, attach documents, and send optimized emails.
-                  </p>
-                </div>
-
-                <div className="mt-3.5 flex items-center gap-2 text-cyan-400 font-mono text-[10px] font-bold group-hover:text-pink-300 transition-colors">
-                  <span>LAUNCH COMMANDER</span>
-                  <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1.5 transition-transform duration-300" />
-                </div>
-              </div>
-            </Link>
-
+          {/* Right Column: Main Interactive Campaign Hub Card */}
+          <div className="md:col-span-7 flex flex-col justify-stretch animate-fade-up">
             {/* Sent Campaign Tracker Card */}
-            <Link href="/sent-emails" className="group text-left block">
-              <div className="h-full rounded-2xl genz-glass-interactive p-4 sm:p-5 flex flex-col justify-between cursor-pointer border border-pink-500/30">
+            <Link href="/sent-emails" className="group text-left block h-full">
+              <div className="h-full rounded-2xl genz-glass-interactive p-5 sm:p-6 flex flex-col justify-between cursor-pointer border border-pink-500/30">
                 <div>
-                  <div className="flex justify-between items-start mb-2.5">
-                    <div className="p-2.5 bg-pink-500/15 border border-pink-500/30 rounded-xl text-pink-400 group-hover:scale-110 transition-transform">
-                      <MailOpen className="w-5 h-5 group-hover:rotate-12 transition-transform duration-300" />
+                  <div className="flex justify-between items-start mb-3">
+                    <div className="p-3 bg-pink-500/15 border border-pink-500/30 rounded-xl text-pink-400 group-hover:scale-110 transition-transform">
+                      <MailOpen className="w-6 h-6 group-hover:rotate-12 transition-transform duration-300" />
                     </div>
-                    <span className="text-[9px] font-mono font-bold text-pink-300 bg-pink-500/15 px-2.5 py-0.5 rounded-full border border-pink-500/30 uppercase tracking-widest">
-                      MODULE_02
+                    <span className="text-[10px] font-mono font-bold text-pink-300 bg-pink-500/15 px-3 py-1 rounded-full border border-pink-500/30 uppercase tracking-widest">
+                      CAMPAIGN ENGINE
                     </span>
                   </div>
 
-                  <h3 className="text-base sm:text-lg font-bold text-white mb-1 group-hover:text-pink-300 transition-colors">
-                    Sent Campaign Tracker
+                  <h3 className="text-lg sm:text-xl font-bold text-white mb-1.5 group-hover:text-pink-300 transition-colors">
+                    Sent Campaign Tracker & Auto Mailer
                   </h3>
-                  <p className="text-slate-300/85 text-[11px] leading-relaxed font-medium">
-                    Inspect recently sent campaigns, analyze subject performance, search logs, and export reports to Excel.
+                  <p className="text-slate-300/85 text-xs leading-relaxed font-medium">
+                    Fetch sent emails by date range, inspect campaign logs, and launch mass mail dispatches directly without manual Excel handling.
                   </p>
                 </div>
 
-                <div className="mt-3.5 flex items-center gap-2 text-pink-400 font-mono text-[10px] font-bold group-hover:text-cyan-300 transition-colors">
-                  <span>ANALYZE HISTORY</span>
-                  <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1.5 transition-transform duration-300" />
+                <div className="mt-4 flex items-center gap-2 text-pink-400 font-mono text-xs font-bold group-hover:text-cyan-300 transition-colors">
+                  <span>ANALYZE HISTORY & LAUNCH CAMPAIGN</span>
+                  <ArrowRight className="w-4 h-4 group-hover:translate-x-1.5 transition-transform duration-300" />
                 </div>
               </div>
             </Link>

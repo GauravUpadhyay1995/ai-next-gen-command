@@ -2,6 +2,7 @@
 
 import { Suspense, useState, useEffect, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
+import DateRangePicker from "../components/DateRangePicker";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 import {
@@ -82,6 +83,8 @@ function SentEmailsContent() {
     isFinished: false,
   });
 
+  const [isConnected, setIsConnected] = useState(false);
+
   useEffect(() => {
     checkGmailConnection();
   }, []);
@@ -90,12 +93,17 @@ function SentEmailsContent() {
     try {
       const res = await fetch("/api/gmail/status", { cache: "no-store" });
       const data = await res.json();
-      if (data.connected && data.email) {
+      const connectedStatus = Boolean(data.connected);
+      setIsConnected(connectedStatus);
+      if (connectedStatus && data.email) {
         setConnectedEmail(data.email);
+      } else {
+        setConnectedEmail("");
       }
       setOwnerConnected(Boolean(data.ownerConnected));
       setOwnerEmail(data.ownerEmail || "");
     } catch {
+      setIsConnected(false);
       setConnectedEmail("");
       setOwnerConnected(null);
       setOwnerEmail("");
@@ -270,12 +278,23 @@ function SentEmailsContent() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2 text-xs font-mono w-full sm:w-auto">
-            <button
-              onClick={connectGmail}
-              className="flex-1 sm:flex-none px-3.5 py-1.5 bg-purple-600/30 hover:bg-purple-600/50 border border-purple-500/40 text-purple-200 rounded-lg font-bold transition-all text-center"
-            >
-              Connect Gmail
-            </button>
+            {(() => {
+              const isGmailConnected = isConnected || Boolean(connected === "true" && connectedEmail);
+              return (
+                <button
+                  onClick={connectGmail}
+                  disabled={isGmailConnected}
+                  className={`flex-1 sm:flex-none px-3.5 py-1.5 border font-bold transition-all text-center rounded-lg flex items-center justify-center gap-1.5 ${
+                    isGmailConnected
+                      ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400 opacity-70 cursor-not-allowed"
+                      : "bg-purple-600/30 hover:bg-purple-600/50 border-purple-500/40 text-purple-200"
+                  }`}
+                >
+                  {isGmailConnected && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />}
+                  <span>{isGmailConnected ? "Gmail Connected" : "Connect Gmail"}</span>
+                </button>
+              );
+            })()}
             <button
               onClick={fetchSentEmails}
               disabled={loading}
@@ -316,39 +335,15 @@ function SentEmailsContent() {
 
             {/* Date Filters & Instant Search */}
             <div className="flex flex-wrap items-center gap-2 text-xs font-mono w-full md:w-auto md:flex-1 justify-start md:justify-end">
-              <div className="flex items-center gap-1 bg-slate-950/80 px-2.5 py-1 rounded-xl border border-white/10 flex-1 sm:flex-none">
-                <span className="text-purple-300 font-bold text-[10px]">START:</span>
-                <input
-                  type="date"
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                  className="bg-transparent text-white text-xs font-mono focus:outline-none w-full"
-                  style={{ colorScheme: "dark" }}
-                />
-              </div>
-
-              <div className="flex items-center gap-1 bg-slate-950/80 px-2.5 py-1 rounded-xl border border-white/10 flex-1 sm:flex-none">
-                <span className="text-pink-300 font-bold text-[10px]">END:</span>
-                <input
-                  type="date"
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                  className="bg-transparent text-white text-xs font-mono focus:outline-none w-full"
-                  style={{ colorScheme: "dark" }}
-                />
-              </div>
-
-              {(startDate || endDate) && (
-                <button
-                  onClick={() => {
-                    setStartDate("");
-                    setEndDate("");
-                  }}
-                  className="p-1 text-slate-400 hover:text-rose-400"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              )}
+              <DateRangePicker
+                startDate={startDate}
+                endDate={endDate}
+                onChange={(start, end) => {
+                  setStartDate(start);
+                  setEndDate(end);
+                }}
+                placeholder="Select Date Range (e.g. 1 - 20)"
+              />
 
               {/* Search Bar */}
               <div className="relative w-full sm:w-auto sm:min-w-[200px]">
