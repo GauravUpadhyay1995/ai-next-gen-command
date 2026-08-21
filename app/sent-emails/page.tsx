@@ -1,7 +1,7 @@
 "use client";
 
 import { Suspense, useState, useEffect, useMemo } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import DateRangePicker from "../components/DateRangePicker";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
@@ -44,6 +44,8 @@ import {
   LogOut
 } from "lucide-react";
 import Link from "next/link";
+import { useLanguage } from "../context/LanguageContext";
+import LanguageSelector from "../components/LanguageSelector";
 
 type SentEmail = {
   serialNo: number;
@@ -58,6 +60,8 @@ type SentEmail = {
 };
 
 function SentEmailsContent() {
+  const { t } = useLanguage();
+  const router = useRouter();
   const searchParams = useSearchParams();
   const connected = searchParams.get("connected");
   const [emails, setEmails] = useState<SentEmail[]>([]);
@@ -291,6 +295,7 @@ function SentEmailsContent() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2 text-xs font-mono w-full sm:w-auto">
+            <LanguageSelector />
             {(() => {
               const isGmailConnected = isConnected || Boolean(connected === "true" && connectedEmail);
               const isDateRangeSelected = Boolean(startDate && endDate);
@@ -301,16 +306,16 @@ function SentEmailsContent() {
                     <div className="flex items-center gap-1.5 flex-wrap">
                       <div className="px-3.5 py-1.5 border font-bold text-center rounded-lg flex items-center gap-1.5 bg-emerald-500/10 border-emerald-500/30 text-emerald-400">
                         <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                        <span>Your Account Is Connected</span>
+                        <span>{t("account_connected")}</span>
                       </div>
                       <button
                         onClick={handleLogout}
                         disabled={loading}
                         className="px-3 py-1.5 bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 text-rose-300 rounded-lg text-xs font-mono font-bold flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
-                        title={loading ? "Cannot logout while fetching logs" : "Log out account"}
+                        title={loading ? "Cannot logout while fetching logs" : t("logout")}
                       >
                         <LogOut className="w-3.5 h-3.5 text-rose-400" />
-                        <span>Log Out</span>
+                        <span>{t("logout")}</span>
                       </button>
                     </div>
                   ) : (
@@ -318,7 +323,7 @@ function SentEmailsContent() {
                       onClick={connectGmail}
                       className="flex-1 sm:flex-none px-3.5 py-1.5 border font-bold transition-all text-center rounded-lg flex items-center justify-center gap-1.5 bg-purple-600/30 hover:bg-purple-600/50 border-purple-500/40 text-purple-200"
                     >
-                      <span>Click To Connect Your Account</span>
+                      <span>{t("connect_account")}</span>
                     </button>
                   )}
                   <button
@@ -327,14 +332,14 @@ function SentEmailsContent() {
                     className="flex-1 sm:flex-none px-3.5 py-1.5 bg-gradient-to-r from-cyan-500 to-purple-600 text-white rounded-lg font-bold disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-1.5 genz-shimmer-btn"
                     title={
                       !isGmailConnected
-                        ? "Please connect your account first"
+                        ? t("please_connect_first")
                         : !isDateRangeSelected
-                        ? "Please select a date range first"
-                        : "Fetch sent logs"
+                        ? t("please_select_range_first")
+                        : t("fetch_contacts")
                     }
                   >
                     {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
-                    <span>Fetch Sent Logs</span>
+                    <span>{t("fetch_sent_logs")}</span>
                   </button>
                 </>
               );
@@ -345,7 +350,7 @@ function SentEmailsContent() {
               className="flex-1 sm:flex-none px-3.5 py-1.5 bg-gradient-to-r from-pink-500 via-purple-600 to-cyan-500 text-white rounded-lg font-bold disabled:opacity-40 transition-all genz-shimmer-btn flex items-center justify-center gap-1.5 shadow-lg shadow-pink-500/20"
             >
               <Rocket className="w-3.5 h-3.5" />
-              <span>Launch Campaign ({emails.length})</span>
+              <span>{t("launch_campaign")} ({emails.length})</span>
             </button>
           </div>
         </div>
@@ -458,7 +463,7 @@ function SentEmailsContent() {
                   <Inbox className="w-8 h-8 text-purple-400" />
                 </div>
                 <p className="text-slate-300 font-mono text-xs">
-                  {emails.length === 0 ? "NO SENT MESSAGES FETCHED YET. CLICK 'FETCH SENT LOGS' ABOVE." : "NO MESSAGES MATCH YOUR QUERY SEARCH."}
+                  {emails.length === 0 ? t("no_sent_logs") : "NO MESSAGES MATCH YOUR QUERY SEARCH."}
                 </p>
               </div>
             ) : (

@@ -13,69 +13,72 @@ import {
   Info
 } from "lucide-react";
 
+import { useLanguage } from "../context/LanguageContext";
+
 export default function HelpGuideWidget() {
+  const { t } = useLanguage();
   const [isOpen, setIsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<"steps" | "flow" | "faq">("steps");
 
   const steps = [
     {
       num: "01",
-      title: "Account Connect Kijiye",
-      badge: "OAuth 2.0 Secure",
+      title: t("guide_step1_title"),
+      badge: t("guide_step1_badge"),
       icon: ShieldCheck,
       color: "from-cyan-500 to-blue-500",
       textColor: "text-cyan-400",
-      desc: "'Click To Connect Your Account' (ya 'AUTHORIZE YOUR ACCOUNT NOW') button par click karke apna Gmail/Google account safely connect kijiye. Connect hone par green badge 'Your Account Is Connected' dikhega.",
+      desc: t("guide_step1_desc"),
     },
     {
       num: "02",
-      title: "Calendar Date Range Select Kijiye",
-      badge: "Max 7 Days Limit",
+      title: t("guide_step2_title"),
+      badge: t("guide_step2_badge"),
       icon: Calendar,
       color: "from-purple-500 to-pink-500",
       textColor: "text-purple-400",
-      desc: "Calendar Date Range picker par click kijiye. Pehle Start Day (jaise 1st) aur phir End Day (jaise 7th) select kijiye. Aane waali future dates blocked hain aur ek query me maximum 7-day range hi select ho sakti hai.",
+      desc: t("guide_step2_desc"),
     },
     {
       num: "03",
-      title: "Sent Mail Logs Fetch Kijiye",
-      badge: "Auto Deduplication",
+      title: t("guide_step3_title"),
+      badge: t("guide_step3_badge"),
       icon: RefreshCw,
       color: "from-pink-500 to-rose-500",
       textColor: "text-pink-400",
-      desc: "Account connect hone AUR Date Range select hone par 'Fetch Sent Logs' button enable ho jayega! Is par click karte hi aapke sent folder se recipient contacts automatic parse aur load ho jaate hain.",
+      desc: t("guide_step3_desc"),
     },
     {
       num: "04",
-      title: "Campaign Launch & Bulk Dispatch",
-      badge: "8x Fast Speed",
+      title: t("guide_step4_title"),
+      badge: t("guide_step4_badge"),
       icon: Rocket,
       color: "from-emerald-500 to-teal-500",
       textColor: "text-emerald-400",
-      desc: "'🚀 Launch Campaign' button dabakar contacts ko campaign editor me load kijiye. Apni PDF Resume attach kijiye, template variables ({{name}}, {{company}}) likhiye aur bulk dispatch start kijiye!",
+      desc: t("guide_step4_desc"),
     },
   ];
 
   const faqs = [
     {
-      q: "'Fetch Sent Logs' ya 'FETCH & AUTO-LOAD' button disabled kyun hai?",
-      a: "Ye button tabhi enable hoga jab 2 cheezein hongi: (1) Aapka Mail Account connected ho, AUR (2) Aapne Calendar se Date Range choose kar li ho. Ispar mouse le jaane par tooltip bhi batayegi.",
+      q: t("faq1_q"),
+      a: t("faq1_a"),
     },
     {
-      q: "Ek baar me maximum kitne din ke mails fetch kar sakte hain?",
-      a: "Aap ek baar me maximum 7 days ke mails fetch kar sakte hain taaki API limit exceed na ho aur fetching super-fast ho.",
+      q: t("faq2_q"),
+      a: t("faq2_a"),
     },
     {
-      q: "Kya calendar me aane waali (future) dates select kar sakte hain?",
-      a: "Nahi, aane waali future dates strict disable hain.",
+      q: t("faq3_q"),
+      a: t("faq3_a"),
     },
     {
-      q: "Kya manual Excel file download ya upload karne ki zaroorat hai?",
-      a: "Bilkul nahi! Excel downloading aur uploading ki bilkul zaroorat nahi hai. Sent logs se saare email contacts automatic auto-load ho jaate hain.",
+      q: t("faq4_q"),
+      a: t("faq4_a"),
     },
     {
-      q: "Duplicate email addresses ka kya hoga?",
-      a: "Humara system automatically duplicate email addresses ko remove kar deta hai, taaki ek recipient ko ek se zyada baar mail na jaye.",
+      q: t("faq5_q"),
+      a: t("faq5_a"),
     },
   ];
 
@@ -86,18 +89,18 @@ export default function HelpGuideWidget() {
         <button
           onClick={() => setIsOpen(true)}
           className="group relative flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-cyan-500 via-purple-600 to-pink-600 text-white rounded-full font-bold text-xs shadow-2xl shadow-cyan-500/30 hover:scale-105 active:scale-95 transition-all duration-300 genz-shimmer-btn"
-          title="Help Chahiye? Poori Guide & Process Dekhein"
+          title={t("how_it_works_tooltip")}
         >
           <span className="relative flex h-3 w-3 shrink-0">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
             <span className="relative inline-flex rounded-full h-3 w-3 bg-cyan-300"></span>
           </span>
           <HelpCircle className="w-4 h-4 text-white group-hover:rotate-12 transition-transform" />
-          <span className="font-bold tracking-wider hidden sm:inline">Help Chahiye?</span>
+          <span className="font-bold tracking-wider hidden sm:inline">{t("how_it_works")}</span>
 
           {/* Hover Tooltip */}
           <span className="absolute right-0 bottom-full mb-2 hidden group-hover:block whitespace-nowrap bg-slate-900 text-cyan-300 text-[10px] font-mono px-3 py-1.5 rounded-xl border border-cyan-500/30 shadow-xl pointer-events-none animate-fade-up">
-            💡 Kaise Kaam Karta Hai? Poori Guide Dekhein
+            {t("how_it_works_tooltip")}
           </span>
         </button>
       </div>
@@ -115,9 +118,9 @@ export default function HelpGuideWidget() {
                   </div>
                   <div>
                     <h2 className="text-base sm:text-lg font-black text-white tracking-tight flex items-center gap-2">
-                      FETCHMAIL <span className="genz-glow-cyan text-xs font-mono">[ HELP & GUIDE ]</span>
+                      {t("guide_title")} <span className="genz-glow-cyan text-xs font-mono">{t("guide_badge")}</span>
                     </h2>
-                    <p className="text-slate-400 text-[11px]">System Kaise Kaam Karta Hai? Poora Process Samjhein</p>
+                    <p className="text-slate-400 text-[11px]">{t("guide_subtitle")}</p>
                   </div>
                 </div>
 
@@ -139,7 +142,7 @@ export default function HelpGuideWidget() {
                     }`}
                 >
                   <Zap className="w-3.5 h-3.5" />
-                  <span>4-Step Guide</span>
+                  <span>{t("tab_4step")}</span>
                 </button>
                 <button
                   onClick={() => setActiveTab("flow")}
@@ -149,7 +152,7 @@ export default function HelpGuideWidget() {
                     }`}
                 >
                   <Rocket className="w-3.5 h-3.5" />
-                  <span>Process Map</span>
+                  <span>{t("tab_pipeline")}</span>
                 </button>
                 <button
                   onClick={() => setActiveTab("faq")}
@@ -159,7 +162,7 @@ export default function HelpGuideWidget() {
                     }`}
                 >
                   <Info className="w-3.5 h-3.5" />
-                  <span>Sawaal & Jawaab</span>
+                  <span>{t("tab_faq")}</span>
                 </button>
               </div>
             </div>
@@ -198,38 +201,38 @@ export default function HelpGuideWidget() {
                 </div>
               )}
 
-              {/* TAB 2: VISUAL PIPELINE IN HINGLISH */}
+              {/* TAB 2: VISUAL PIPELINE */}
               {activeTab === "flow" && (
                 <div className="p-4 bg-slate-950/90 rounded-2xl border border-cyan-500/30 space-y-4 text-center">
                   <div className="text-xs font-bold text-cyan-300 uppercase tracking-widest mb-1">
-                    ⚡ AUTOMATED CAMPAIGN KA POORA PROCESS MAP
+                    ⚡ {t("flow_header")}
                   </div>
 
                   <div className="grid gap-2 sm:grid-cols-5 text-left text-[11px]">
                     <div className="p-2.5 bg-slate-900 rounded-xl border border-cyan-500/30 text-cyan-300">
                       <div className="font-bold text-[10px] text-slate-400">STEP 1</div>
-                      <div className="font-bold text-white mt-0.5">Account Connect</div>
+                      <div className="font-bold text-white mt-0.5">{t("flow_step1")}</div>
                     </div>
                     <div className="p-2.5 bg-slate-900 rounded-xl border border-purple-500/30 text-purple-300">
                       <div className="font-bold text-[10px] text-slate-400">STEP 2</div>
-                      <div className="font-bold text-white mt-0.5">1-7 Days Range</div>
+                      <div className="font-bold text-white mt-0.5">{t("flow_step2")}</div>
                     </div>
                     <div className="p-2.5 bg-slate-900 rounded-xl border border-pink-500/30 text-pink-300">
                       <div className="font-bold text-[10px] text-slate-400">STEP 3</div>
-                      <div className="font-bold text-white mt-0.5">Log Contacts Fetch</div>
+                      <div className="font-bold text-white mt-0.5">{t("flow_step3")}</div>
                     </div>
                     <div className="p-2.5 bg-slate-900 rounded-xl border border-emerald-500/30 text-emerald-300">
                       <div className="font-bold text-[10px] text-slate-400">STEP 4</div>
-                      <div className="font-bold text-white mt-0.5">Resume & Template</div>
+                      <div className="font-bold text-white mt-0.5">{t("flow_step4")}</div>
                     </div>
                     <div className="p-2.5 bg-slate-900 rounded-xl border border-amber-500/30 text-amber-300">
                       <div className="font-bold text-[10px] text-slate-400">STEP 5</div>
-                      <div className="font-bold text-white mt-0.5">8x Parallel Sending</div>
+                      <div className="font-bold text-white mt-0.5">{t("flow_step5")}</div>
                     </div>
                   </div>
 
                   <div className="p-3 bg-cyan-500/10 border border-cyan-500/30 rounded-xl text-[11px] text-cyan-200 text-left leading-relaxed">
-                    💡 <strong>Excel Handling Ki Zaroorat Nahi:</strong> Mail addresses aapke connected account se direct parse hoke 1 click me dispatch queue me load ho jaate hain!
+                    💡 <strong>{t("flow_note_bold")}</strong> {t("flow_note_text")}
                   </div>
                 </div>
               )}
@@ -258,7 +261,7 @@ export default function HelpGuideWidget() {
                 onClick={() => setIsOpen(false)}
                 className="px-4 py-1.5 bg-gradient-to-r from-cyan-500 to-purple-600 text-white font-bold rounded-xl shadow-md hover:scale-105 transition-all"
               >
-                Samajh Gaya, Band Kijiye
+                {t("got_it_close")}
               </button>
             </div>
           </div>

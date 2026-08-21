@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import { Calendar, ChevronLeft, ChevronRight, X, Check, Info } from "lucide-react";
+import { useLanguage } from "../context/LanguageContext";
 
 interface DateRangePickerProps {
   startDate: string; // YYYY-MM-DD
@@ -15,9 +16,11 @@ export default function DateRangePicker({
   startDate,
   endDate,
   onChange,
-  placeholder = "Select Date Range",
+  placeholder,
   align = "left",
 }: DateRangePickerProps) {
+  const { t } = useLanguage();
+  const displayPlaceholder = placeholder || t("pick_range_placeholder");
   const [isOpen, setIsOpen] = useState(false);
 
   const initialDate = startDate ? new Date(startDate) : new Date();
@@ -187,7 +190,7 @@ export default function DateRangePicker({
       ? `${formatDisplayStr(tempStart)} → ${formatDisplayStr(tempEnd)}`
       : tempStart
         ? `${formatDisplayStr(tempStart)} → Select End Day`
-        : placeholder;
+        : displayPlaceholder;
 
   return (
     <div className="relative inline-block text-left" ref={popoverRef}>
@@ -241,17 +244,17 @@ export default function DateRangePicker({
           {/* 7-Day Max Limit Notice Banner */}
           <div className="mb-2.5 px-2.5 py-1 bg-cyan-500/10 border border-cyan-500/30 rounded-lg text-[10px] text-cyan-300 font-bold flex items-center gap-1.5">
             <Info className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
-            <span>At a time, maximum 7 days are allowed.</span>
+            <span>{t("max_7_days_banner")}</span>
           </div>
 
           {/* Selection Hint */}
           <div className="text-[10px] text-cyan-300/80 mb-2 font-bold flex items-center justify-between">
             <span>
               {!tempStart
-                ? "CLICK START DAY (NO FUTURE DATES)"
+                ? t("click_start_day")
                 : !tempEnd
-                  ? "CLICK END DAY (MAX 7 DAYS)"
-                  : "7-DAY RANGE APPLIED"}
+                  ? t("click_end_day")
+                  : t("range_applied")}
             </span>
             {tempStart && tempEnd && (
               <span className="text-emerald-400 flex items-center gap-1">

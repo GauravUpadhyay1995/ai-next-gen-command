@@ -19,14 +19,17 @@ import {
   Activity,
   CheckCircle2,
   Layers,
-  Terminal,
   Send,
   RefreshCw,
   PlayCircle,
-  LogOut
+  LogOut,
+  Terminal
 } from "lucide-react";
+import { useLanguage } from "./context/LanguageContext";
+import LanguageSelector from "./components/LanguageSelector";
 
 export default function Home() {
+  const { t } = useLanguage();
   const [checkingConnection, setCheckingConnection] = useState(true);
   const [isConnected, setIsConnected] = useState(false);
   const [connectedEmail, setConnectedEmail] = useState("");
@@ -92,55 +95,49 @@ export default function Home() {
       </div>
 
       <div className="relative z-10 mx-auto max-w-6xl w-full flex flex-col space-y-6">
-        {/* Kinetic Ticker Marquee Header Banner */}
-        <div className="w-full overflow-hidden genz-glass-panel rounded-full py-1.5 px-4 border border-cyan-500/30 text-[10px] font-mono tracking-widest text-cyan-300 shadow-lg shadow-cyan-950/40 animate-fade-up">
-          <div className="flex whitespace-nowrap animate-marquee items-center gap-8">
-            <span className="flex items-center gap-2">
-              <Zap className="w-3 h-3 text-cyan-400" /> 8x PARALLEL DISPATCH ENGINE
-            </span>
-            <span className="text-pink-400">•</span>
-            <span className="flex items-center gap-2 text-pink-300">
-              <ShieldCheck className="w-3 h-3 text-pink-400" /> GOOGLE OAUTH SECURED
-            </span>
-            <span className="text-purple-400">•</span>
-            <span className="flex items-center gap-2 text-purple-300">
-              <Activity className="w-3 h-3 text-purple-400" /> ZERO DUPLICATE PRECHECK
-            </span>
-            <span className="text-cyan-400">•</span>
-            <span className="flex items-center gap-2 text-emerald-300">
-              <Flame className="w-3 h-3 text-emerald-400" /> REALTIME TELEMETRY VAULT
-            </span>
-            <span className="text-pink-400">•</span>
-            {/* Duplicated set for seamless loop */}
-            <span className="flex items-center gap-2">
-              <Zap className="w-3 h-3 text-cyan-400" /> 8x PARALLEL DISPATCH ENGINE
-            </span>
-            <span className="text-pink-400">•</span>
-            <span className="flex items-center gap-2 text-pink-300">
-              <ShieldCheck className="w-3 h-3 text-pink-400" /> GOOGLE OAUTH SECURED
-            </span>
+        {/* Kinetic Ticker Marquee Header Banner with LanguageSelector */}
+        <div className="w-full flex items-center justify-between gap-3 font-mono">
+          <div className="overflow-hidden genz-glass-panel rounded-full py-1.5 px-4 border border-cyan-500/30 text-[10px] tracking-widest text-cyan-300 shadow-lg shadow-cyan-950/40 animate-fade-up flex-1">
+            <div className="flex whitespace-nowrap animate-marquee items-center gap-8">
+              <span className="flex items-center gap-2">
+                <Zap className="w-3 h-3 text-cyan-400" /> {t("ticker_1")}
+              </span>
+              <span className="text-pink-400">•</span>
+              <span className="flex items-center gap-2 text-pink-300">
+                <ShieldCheck className="w-3 h-3 text-pink-400" /> {t("ticker_2")}
+              </span>
+              <span className="text-purple-400">•</span>
+              <span className="flex items-center gap-2 text-purple-300">
+                <Activity className="w-3 h-3 text-purple-400" /> {t("ticker_3")}
+              </span>
+              <span className="text-cyan-400">•</span>
+              <span className="flex items-center gap-2 text-emerald-300">
+                <Flame className="w-3 h-3 text-emerald-400" /> {t("ticker_4")}
+              </span>
+            </div>
           </div>
+          <LanguageSelector className="shrink-0" />
         </div>
 
         {/* Oversized Kinetic Hero Title Section */}
         <div className="text-center animate-fade-up pt-1">
           <div className="inline-flex items-center gap-2 px-3 py-1 mb-2.5 genz-glass-panel rounded-full border border-pink-500/40 text-[10px] font-mono font-bold text-pink-300 uppercase shadow-md">
             <Sparkles className="w-3 h-3 text-pink-400 animate-spin" style={{ animationDuration: "6s" }} />
-            <span>NEXT-GEN CAMPAIGN AUTOMATION</span>
+            <span>{t("home_badge")}</span>
             <Sparkles className="w-3 h-3 text-cyan-400" />
           </div>
 
           <h1 className="text-3xl sm:text-5xl md:text-6xl font-black tracking-tight leading-none mb-2">
             <span className="bg-gradient-to-r from-white via-slate-100 to-slate-300 bg-clip-text text-transparent">
-              HYPER MAILING
+              {t("home_title_1")}
             </span>{" "}
             <span className="genz-text-gradient font-mono tracking-tighter whitespace-nowrap inline-block animate-holo">
-              [ NEXT-GEN COMMAND ]
+              [{t("home_title_2")}]
             </span>
           </h1>
 
           <p className="text-xs sm:text-sm md:text-base text-slate-300/90 max-w-xl mx-auto font-medium leading-relaxed px-2">
-            Personalize thousands of emails in seconds. Parallel batch speed, zero duplicate drops, and live telemetry tracking.
+            {t("home_desc")}
           </p>
         </div>
 
@@ -153,7 +150,7 @@ export default function Home() {
               <div className="text-[10px] font-mono font-bold text-cyan-400 uppercase tracking-widest mb-2 flex items-center justify-between">
                 <span className="flex items-center gap-1.5">
                   <Activity className="w-3.5 h-3.5 text-cyan-400 animate-pulse" />
-                  SYSTEM ROUTE STATUS
+                  {t("system_route_status")}
                 </span>
                 <span className="px-2 py-0.5 bg-cyan-500/15 border border-cyan-500/30 rounded-full text-[9px] text-cyan-300 font-mono">
                   LIVE V3.0
@@ -163,7 +160,7 @@ export default function Home() {
               {checkingConnection ? (
                 <div className="flex items-center gap-2 text-slate-300 text-xs font-mono py-1">
                   <Loader2 className="w-4 h-4 text-cyan-400 animate-spin" />
-                  <span>CALIBRATING AUTHENTICATION NODE...</span>
+                  <span>{t("calibrating_auth")}</span>
                 </div>
               ) : (
                 <div className="space-y-2">
@@ -174,28 +171,28 @@ export default function Home() {
                           <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                           <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
                         </span>
-                        <span className="truncate">AUTH NODE: {connectedEmail}</span>
+                        <span className="truncate">{t("auth_node")}: {connectedEmail}</span>
                       </div>
                       <button
                         onClick={handleLogout}
                         className="px-2.5 py-1 bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 text-rose-300 rounded-lg text-xs font-mono font-bold flex items-center gap-1 shrink-0 transition-all"
-                        title="Log out / Disconnect account"
+                        title={t("logout")}
                       >
                         <LogOut className="w-3.5 h-3.5 text-rose-400" />
-                        <span>Log Out</span>
+                        <span>{t("logout")}</span>
                       </button>
                     </div>
                   ) : (
                     <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 bg-rose-500/10 p-2.5 rounded-xl border border-rose-500/30">
                       <div className="flex items-center gap-2 text-rose-300 text-xs font-mono font-bold">
                         <AlertCircle className="w-3.5 h-3.5 text-rose-400 shrink-0" />
-                        <span>MAIL ROUTE INACTIVE</span>
+                        <span>{t("mail_route_inactive")}</span>
                       </div>
                       <button
                         onClick={connectGmail}
                         className="w-full sm:w-auto px-3.5 py-1.5 bg-gradient-to-r from-cyan-500 via-purple-600 to-pink-600 rounded-lg text-white text-[11px] font-mono font-bold genz-shimmer-btn shadow-lg text-center"
                       >
-                        AUTHORIZE YOUR ACCOUNT NOW
+                        {t("authorize_now")}
                       </button>
                     </div>
                   )}
@@ -213,20 +210,20 @@ export default function Home() {
             {/* Floating Telemetry Stats Grid (2x2) */}
             <div className="grid grid-cols-2 gap-2 text-xs font-mono">
               <div className="p-2.5 sm:p-3 genz-glass-panel rounded-xl border border-cyan-500/30 text-cyan-300">
-                <div className="text-slate-400 text-[9px]">BATCH ENGINE</div>
-                <div className="font-bold text-xs text-white mt-0.5">8x PARALLEL</div>
+                <div className="text-slate-400 text-[9px]">{t("batch_engine")}</div>
+                <div className="font-bold text-xs text-white mt-0.5">{t("parallel_batch")}</div>
               </div>
               <div className="p-2.5 sm:p-3 genz-glass-panel rounded-xl border border-purple-500/30 text-purple-300">
-                <div className="text-slate-400 text-[9px]">AUTH VAULT</div>
+                <div className="text-slate-400 text-[9px]">{t("auth_vault")}</div>
                 <div className="font-bold text-xs text-white mt-0.5">GOOGLE OAUTH</div>
               </div>
               <div className="p-2.5 sm:p-3 genz-glass-panel rounded-xl border border-pink-500/30 text-pink-300">
-                <div className="text-slate-400 text-[9px]">PRECHECK MATRIX</div>
-                <div className="font-bold text-xs text-white mt-0.5">100% ACCURACY</div>
+                <div className="text-slate-400 text-[9px]">{t("precheck_matrix")}</div>
+                <div className="font-bold text-xs text-white mt-0.5">{t("accuracy_100")}</div>
               </div>
               <div className="p-2.5 sm:p-3 genz-glass-panel rounded-xl border border-emerald-500/30 text-emerald-300">
-                <div className="text-slate-400 text-[9px]">DATABASE STORE</div>
-                <div className="font-bold text-xs text-white mt-0.5">ENCRYPTED MONGO</div>
+                <div className="text-slate-400 text-[9px]">{t("database_store")}</div>
+                <div className="font-bold text-xs text-white mt-0.5">{t("encrypted_mongo")}</div>
               </div>
             </div>
           </div>
@@ -247,15 +244,15 @@ export default function Home() {
                   </div>
 
                   <h3 className="text-lg sm:text-xl font-bold text-white mb-1.5 group-hover:text-pink-300 transition-colors">
-                    Sent Campaign Tracker & Auto Mailer
+                    {t("card_tracker_title")}
                   </h3>
                   <p className="text-slate-300/85 text-xs leading-relaxed font-medium">
-                    Fetch Mails by date range, inspect campaign logs, and launch mass mail dispatches directly without manual Excel handling.
+                    {t("card_tracker_desc")}
                   </p>
                 </div>
 
                 <div className="mt-4 flex items-center gap-2 text-pink-400 font-mono text-xs font-bold group-hover:text-cyan-300 transition-colors">
-                  <span>ANALYZE HISTORY & LAUNCH CAMPAIGN</span>
+                  <span>{t("analyze_and_launch")}</span>
                   <ArrowRight className="w-4 h-4 group-hover:translate-x-1.5 transition-transform duration-300" />
                 </div>
               </div>
@@ -283,7 +280,7 @@ export default function Home() {
                 {/* Video Floating Badge */}
                 <div className="absolute top-2.5 left-2.5 px-2.5 py-0.5 bg-black/85 backdrop-blur-md rounded-full border border-cyan-500/40 text-[9px] font-mono text-cyan-300 font-bold flex items-center gap-1 z-10 shadow-lg truncate max-w-[90%]">
                   <PlayCircle className="w-3 h-3 text-cyan-400 animate-pulse shrink-0" />
-                  <span className="truncate">MOBILE CONVERSION DISPATCH</span>
+                  <span className="truncate">{t("mobile_dispatch_badge")}</span>
                 </div>
               </div>
             </div>
@@ -292,32 +289,32 @@ export default function Home() {
             <div className="lg:col-span-8 space-y-4">
               <div className="inline-flex items-center gap-2 px-3 py-1 bg-cyan-500/15 border border-cyan-500/30 rounded-full text-[10px] font-mono font-bold text-cyan-300 uppercase">
                 <Zap className="w-3 h-3 text-cyan-400" />
-                <span>CONVERSION-CENTERED DISPATCH ENGINE</span>
+                <span>{t("mobile_dispatch_engine")}</span>
               </div>
 
               <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight leading-tight">
-                HIGH-CONVERSION MOBILE & DESKTOP <span className="genz-glow-cyan">EMAIL DISPATCH</span>
+                {t("mobile_dispatch_title_1")} <span className="genz-glow-cyan">{t("mobile_dispatch_title_2")}</span>
               </h2>
 
               <p className="text-slate-300/90 text-xs sm:text-sm font-medium leading-relaxed">
-                Empower your outbound campaigns with mobile-first, high-conversion email layouts. Reach your targets on any device with responsive variable templates, automatic sent-folder validation, and zero spam drops.
+                {t("mobile_dispatch_desc")}
               </p>
 
               {/* High-Impact Stat Pills */}
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-2 font-mono text-xs">
                 <div className="p-3 bg-slate-950/80 border border-cyan-500/30 rounded-xl">
-                  <div className="text-[10px] text-cyan-400 font-bold">DELIVERABILITY</div>
-                  <div className="text-base font-black text-white mt-0.5">99.8% INBOX</div>
+                  <div className="text-[10px] text-cyan-400 font-bold">{t("stat_deliverability_label")}</div>
+                  <div className="text-base font-black text-white mt-0.5">{t("stat_deliverability_val")}</div>
                 </div>
 
                 <div className="p-3 bg-slate-950/80 border border-purple-500/30 rounded-xl">
-                  <div className="text-[10px] text-purple-400 font-bold">BATCH SPEED</div>
-                  <div className="text-base font-black text-white mt-0.5">8x PARALLEL</div>
+                  <div className="text-[10px] text-purple-400 font-bold">{t("stat_speed_label")}</div>
+                  <div className="text-base font-black text-white mt-0.5">{t("stat_speed_val")}</div>
                 </div>
 
                 <div className="p-3 bg-slate-950/80 border border-pink-500/30 rounded-xl col-span-2 sm:col-span-1">
-                  <div className="text-[10px] text-pink-400 font-bold">DEDUPLICATION</div>
-                  <div className="text-base font-black text-white mt-0.5">100% ACCURACY</div>
+                  <div className="text-[10px] text-pink-400 font-bold">{t("stat_duplicates_label")}</div>
+                  <div className="text-base font-black text-white mt-0.5">{t("stat_duplicates_val")}</div>
                 </div>
               </div>
             </div>
@@ -329,14 +326,14 @@ export default function Home() {
           <div className="flex items-center justify-between text-[10px] font-mono text-slate-400 border-b border-white/10 pb-1.5">
             <span className="flex items-center gap-2 text-cyan-300 font-bold uppercase tracking-widest">
               <Terminal className="w-3.5 h-3.5 text-cyan-400 animate-pulse" />
-              CINEMATIC LIVE QUANTUM DISPATCH & FETCH STREAM
+              {t("stream_title")}
             </span>
             <span className="flex items-center gap-1.5 text-emerald-400 font-bold">
               <span className="relative flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
               </span>
-              INFINITE LOOP ACTIVE
+              {t("stream_active")}
             </span>
           </div>
 
@@ -344,7 +341,7 @@ export default function Home() {
           <div className="w-full overflow-hidden bg-slate-950/80 rounded-xl py-1.5 px-3 border border-cyan-500/20 text-[10px] font-mono text-cyan-300">
             <div className="flex items-center gap-2">
               <span className="px-2 py-0.5 bg-cyan-500/20 text-cyan-300 rounded font-bold text-[9px] shrink-0 flex items-center gap-1">
-                <Send className="w-2.5 h-2.5 text-cyan-400 animate-bounce" /> SENDING STREAM
+                <Send className="w-2.5 h-2.5 text-cyan-400 animate-bounce" /> {t("sending_stream")}
               </span>
               <div className="overflow-hidden w-full">
                 <div className="flex whitespace-nowrap animate-marquee items-center gap-6 text-slate-300">
@@ -369,7 +366,7 @@ export default function Home() {
           <div className="w-full overflow-hidden bg-slate-950/80 rounded-xl py-1.5 px-3 border border-pink-500/20 text-[10px] font-mono text-pink-300">
             <div className="flex items-center gap-2">
               <span className="px-2 py-0.5 bg-pink-500/20 text-pink-300 rounded font-bold text-[9px] shrink-0 flex items-center gap-1">
-                <RefreshCw className="w-2.5 h-2.5 text-pink-400 animate-spin" /> FETCHING STREAM
+                <RefreshCw className="w-2.5 h-2.5 text-pink-400 animate-spin" /> {t("fetching_stream")}
               </span>
               <div className="overflow-hidden w-full">
                 <div className="flex whitespace-nowrap animate-marquee-reverse items-center gap-6 text-slate-300">

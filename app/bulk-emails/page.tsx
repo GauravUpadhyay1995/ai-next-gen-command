@@ -38,10 +38,13 @@ import {
   Rocket,
   LogOut
 } from "lucide-react";
+import { useLanguage } from "../context/LanguageContext";
+import LanguageSelector from "../components/LanguageSelector";
 
 const BATCH_SIZE = 8; // Parallel send batching size
 
 export default function BulkEmailsPage() {
+  const { t } = useLanguage();
   const [rows, setRows] = useState<Record<string, any>[]>([]);
   const [resume, setResume] = useState<File | null>(null);
   const [subject, setSubject] = useState("");
@@ -344,20 +347,21 @@ export default function BulkEmailsPage() {
 
           {/* Quick Header Actions */}
           <div className="flex flex-wrap items-center gap-2 text-xs font-mono w-full sm:w-auto">
+            <LanguageSelector />
             {isConnected ? (
               <div className="flex items-center gap-1.5 flex-wrap">
                 <span className="text-emerald-400 font-bold px-3 py-1 bg-emerald-500/10 border border-emerald-500/30 rounded-lg flex items-center gap-1.5 truncate max-w-[220px] sm:max-w-none">
                   <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                  <span className="truncate">{connectedEmail ? `AUTH: ${connectedEmail}` : "CONNECTED"}</span>
+                  <span className="truncate">{connectedEmail ? `${t("auth_node")}: ${connectedEmail}` : t("account_connected")}</span>
                 </span>
                 <button
                   onClick={handleLogout}
                   disabled={loading || inPageFetching}
                   className="px-3 py-1 bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 text-rose-300 rounded-lg text-xs font-mono font-bold flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
-                  title={loading || inPageFetching ? "Cannot logout while fetching or sending mail" : "Log out account"}
+                  title={loading || inPageFetching ? "Cannot logout while fetching or sending mail" : t("logout")}
                 >
                   <LogOut className="w-3.5 h-3.5 text-rose-400" />
-                  <span>Log Out</span>
+                  <span>{t("logout")}</span>
                 </button>
               </div>
             ) : (
@@ -365,7 +369,7 @@ export default function BulkEmailsPage() {
                 onClick={connectGmail}
                 className="px-3.5 py-1 bg-gradient-to-r from-cyan-500 via-purple-600 to-pink-600 text-white rounded-lg font-bold shadow-md genz-shimmer-btn"
               >
-                Connect Your Account
+                {t("connect_account")}
               </button>
             )}
 
@@ -375,7 +379,7 @@ export default function BulkEmailsPage() {
               className="px-3.5 py-1 genz-glass-panel text-emerald-300 border border-emerald-500/40 rounded-lg font-bold flex items-center gap-1.5 hover:bg-emerald-500/20"
             >
               <Download className="w-3.5 h-3.5 text-emerald-400" />
-              <span>SAMPLE MATRIX</span>
+              <span>{t("sample_matrix")}</span>
             </a>
           </div>
         </div>
@@ -390,10 +394,10 @@ export default function BulkEmailsPage() {
         {/* Gen Z Stepper Navigation Rail */}
         <div className="flex gap-2 overflow-x-auto items-center pb-1.5 custom-scrollbar w-full">
           {[
-            { id: "upload", icon: Users, label: "01. LOAD CONTACTS" },
-            { id: "resume", icon: Paperclip, label: "02. ATTACHMENT VAULT" },
-            { id: "content", icon: Edit3, label: "03. TEMPLATE SYNTAX" },
-            { id: "preview", icon: Eye, label: "04. DISPATCH PREVIEW" },
+            { id: "upload", icon: Users, label: t("tab_1_title") },
+            { id: "resume", icon: Paperclip, label: t("tab_2_title") },
+            { id: "content", icon: Edit3, label: t("tab_3_title") },
+            { id: "preview", icon: Eye, label: t("tab_4_title") },
           ].map((tab) => (
             <button
               key={tab.id}
@@ -420,7 +424,7 @@ export default function BulkEmailsPage() {
                     <Sparkles className="w-5 h-5 text-cyan-300 animate-pulse shrink-0" />
                     <div>
                       <div className="text-white font-bold flex items-center gap-2">
-                        <span>⚡ {rows.length} RECIPIENT CONTACTS AUTO-LOADED FROM LOGS</span>
+                        <span>⚡ {rows.length} {t("auto_loaded_banner")}</span>
                       </div>
                       <div className="text-cyan-300/80 text-[11px]">Ready for template composition & campaign execution</div>
                     </div>
@@ -455,7 +459,7 @@ export default function BulkEmailsPage() {
                     }`}
                 >
                   <RefreshCw className="w-3.5 h-3.5 text-cyan-400" />
-                  <span>Fetch Direct from Mail Logs</span>
+                  <span>{t("subtab_fetch_mail")}</span>
                 </button>
                 <button
                   disabled
@@ -463,7 +467,7 @@ export default function BulkEmailsPage() {
                   title="Upload Custom Excel File (Disabled)"
                 >
                   <FileSpreadsheet className="w-3.5 h-3.5 text-slate-600" />
-                  <span>Upload Custom Excel File</span>
+                  <span>{t("subtab_upload_excel")}</span>
                 </button>
               </div>
 
@@ -474,15 +478,15 @@ export default function BulkEmailsPage() {
                       <Calendar className="w-5 h-5" />
                     </div>
                     <div>
-                      <h2 className="text-base sm:text-lg font-bold text-white">Fetch by Date Range</h2>
-                      <p className="text-slate-400 text-xs font-mono">Pulls Mails</p>
+                      <h2 className="text-base sm:text-lg font-bold text-white">{t("fetch_by_range")}</h2>
+                      <p className="text-slate-400 text-xs font-mono">{t("fetch_by_range_desc")}</p>
                     </div>
                   </div>
 
                   <div className="space-y-2 font-mono text-xs">
                     <label className="text-cyan-300 font-bold text-[11px] flex items-center justify-between">
-                      <span>SELECT CALENDAR DATE RANGE</span>
-                      <span className="text-[10px] text-amber-300 font-medium">⚠️ Max 7 days can be fetched per query</span>
+                      <span>{t("select_date_range")}</span>
+                      <span className="text-[10px] text-amber-300 font-medium">⚠️ {t("max_7_days_notice")}</span>
                     </label>
                     <DateRangePicker
                       startDate={inPageStartDate}
@@ -491,7 +495,7 @@ export default function BulkEmailsPage() {
                         setInPageStartDate(start);
                         setInPageEndDate(end);
                       }}
-                      placeholder="Click to pick range (e.g. 1 - 20)"
+                      placeholder={t("pick_range_placeholder")}
                     />
                   </div>
 
@@ -508,21 +512,21 @@ export default function BulkEmailsPage() {
                           className="px-4 py-2 bg-gradient-to-r from-cyan-500 via-purple-600 to-pink-600 text-white rounded-xl font-bold font-mono text-xs flex items-center gap-2 shadow-md shadow-cyan-500/20 disabled:opacity-40 disabled:cursor-not-allowed hover:scale-105 transition-all genz-shimmer-btn"
                           title={
                             !isAccountConnected
-                              ? "Please connect your account first"
+                              ? t("please_connect_first")
                               : !isDateRangeSelected
-                              ? "Please select a date range first"
-                              : "Fetch contacts"
+                              ? t("please_select_range_first")
+                              : t("fetch_contacts")
                           }
                         >
                           {inPageFetching ? (
                             <>
                               <RefreshCw className="w-3.5 h-3.5 animate-spin text-cyan-200" />
-                              <span>FETCHING MAIL CONTACTS...</span>
+                              <span>{t("fetching_contacts")}</span>
                             </>
                           ) : (
                             <>
                               <Rocket className="w-3.5 h-3.5 text-cyan-200" />
-                              <span>FETCH & AUTO-LOAD CONTACTS</span>
+                              <span>{t("fetch_autoload_btn")}</span>
                             </>
                           )}
                         </button>
@@ -597,14 +601,14 @@ export default function BulkEmailsPage() {
                   <Paperclip className="w-5 sm:w-6 h-5 sm:h-6" />
                 </div>
                 <div>
-                  <h2 className="text-lg sm:text-xl font-bold text-white">Attachment Vault (PDF Resume)</h2>
-                  <p className="text-slate-400 text-xs font-mono">PDF will be attached to every outgoing email</p>
+                  <h2 className="text-lg sm:text-xl font-bold text-white">{t("step_2_title")}</h2>
+                  <p className="text-slate-400 text-xs font-mono">{t("step_2_desc")}</p>
                 </div>
               </div>
 
               <label className="relative flex flex-col items-center justify-center w-full p-6 sm:p-8 border-2 border-dashed border-purple-500/40 rounded-2xl cursor-pointer hover:border-purple-400 hover:bg-purple-500/5 transition-all bg-slate-950/70 group">
                 <FileText className="w-7 sm:w-8 h-7 sm:h-8 text-purple-400 mb-2 group-hover:scale-110 transition-transform" />
-                <span className="text-white font-bold text-xs sm:text-sm mb-1 font-mono text-center">UPLOAD RESUME PDF ATTACHMENT</span>
+                <span className="text-white font-bold text-xs sm:text-sm mb-1 font-mono text-center">{t("upload_pdf_btn")}</span>
                 <input
                   type="file"
                   accept="application/pdf"
@@ -639,19 +643,19 @@ export default function BulkEmailsPage() {
                   <Edit3 className="w-5 sm:w-6 h-5 sm:h-6" />
                 </div>
                 <div>
-                  <h2 className="text-lg sm:text-xl font-bold text-white">Email Subject & Dynamic Template</h2>
-                  <p className="text-slate-400 text-xs font-mono">Use variable chips to auto-fill column values from Excel</p>
+                  <h2 className="text-lg sm:text-xl font-bold text-white">{t("step_3_title")}</h2>
+                  <p className="text-slate-400 text-xs font-mono">{t("step_3_desc")}</p>
                 </div>
               </div>
 
               <div className="space-y-3">
                 <div>
-                  <label className="block text-xs font-mono font-bold text-slate-300 mb-1">SUBJECT LINE</label>
+                  <label className="block text-xs font-mono font-bold text-slate-300 mb-1">{t("subject_label")}</label>
                   <input
                     type="text"
                     value={subject}
                     onChange={(e) => setSubject(e.target.value)}
-                    placeholder="e.g. Application for {{role}} position at {{company}}"
+                    placeholder={t("subject_placeholder")}
                     className="w-full px-3.5 py-2.5 genz-input rounded-xl text-white text-xs font-mono"
                   />
                 </div>
@@ -677,12 +681,12 @@ export default function BulkEmailsPage() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-mono font-bold text-slate-300 mb-1">BODY TEMPLATE</label>
+                  <label className="block text-xs font-mono font-bold text-slate-300 mb-1">{t("body_label")}</label>
                   <textarea
                     rows={5}
                     value={body}
                     onChange={(e) => setBody(e.target.value)}
-                    placeholder="Hi {{name}}, I am excited to apply for the {{role}} opening at {{company}}..."
+                    placeholder={t("body_placeholder")}
                     className="w-full px-3.5 py-2.5 genz-input rounded-xl text-white text-xs font-mono leading-relaxed resize-none"
                   ></textarea>
                 </div>
@@ -702,8 +706,8 @@ export default function BulkEmailsPage() {
             <div className="space-y-4 animate-fade-up">
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-white/10 pb-3">
                 <div>
-                  <h2 className="text-lg sm:text-xl font-bold text-white font-mono">Dispatch Preview & Execution</h2>
-                  <p className="text-slate-400 text-xs font-mono">Verify campaign configuration before sending</p>
+                  <h2 className="text-lg sm:text-xl font-bold text-white font-mono">{t("step_4_title")}</h2>
+                  <p className="text-slate-400 text-xs font-mono">{t("step_4_desc")}</p>
                 </div>
 
                 {(() => {
@@ -714,22 +718,24 @@ export default function BulkEmailsPage() {
                     <button
                       onClick={handleSubmit}
                       disabled={isBtnDisabled}
-                      className="w-full sm:w-auto px-6 py-2.5 bg-gradient-to-r from-emerald-500 via-cyan-500 to-purple-600 text-white rounded-xl text-xs font-mono font-bold uppercase tracking-wider shadow-lg disabled:opacity-40 disabled:cursor-not-allowed genz-shimmer-btn flex items-center justify-center gap-2"
+                      className="px-5 py-2.5 bg-gradient-to-r from-cyan-500 via-purple-600 to-pink-600 text-white font-mono text-xs font-bold rounded-xl shadow-lg shadow-cyan-500/25 flex items-center gap-2 hover:scale-105 active:scale-95 transition-all duration-300 disabled:opacity-40 disabled:cursor-not-allowed genz-shimmer-btn shrink-0"
                     >
                       {loading ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin text-cyan-200" />
+                          <span>{t("dispatching_campaign")} ({sendProgress.sent}/{sendProgress.total})</span>
+                        </>
                       ) : isCompleted ? (
-                        <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                        <>
+                          <CheckCircle2 className="w-4 h-4 text-emerald-300" />
+                          <span>{t("dispatch_completed")}</span>
+                        </>
                       ) : (
-                        <Play className="w-4 h-4" />
+                        <>
+                          <Send className="w-4 h-4 text-cyan-200" />
+                          <span>{t("start_bulk_dispatch")}</span>
+                        </>
                       )}
-                      <span>
-                        {loading
-                          ? "DISPATCHING CAMPAIGN..."
-                          : isCompleted
-                            ? "DISPATCH COMPLETED"
-                            : "START BULK DISPATCH"}
-                      </span>
                     </button>
                   );
                 })()}
