@@ -167,7 +167,7 @@ export default function Home() {
                     <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 bg-rose-500/10 p-2.5 rounded-xl border border-rose-500/30">
                       <div className="flex items-center gap-2 text-rose-300 text-xs font-mono font-bold">
                         <AlertCircle className="w-3.5 h-3.5 text-rose-400 shrink-0" />
-                        <span>GMAIL ROUTE INACTIVE</span>
+                        <span>MAIL ROUTE INACTIVE</span>
                       </div>
                       <button
                         onClick={connectGmail}
@@ -228,7 +228,7 @@ export default function Home() {
                     Sent Campaign Tracker & Auto Mailer
                   </h3>
                   <p className="text-slate-300/85 text-xs leading-relaxed font-medium">
-                    Fetch sent emails by date range, inspect campaign logs, and launch mass mail dispatches directly without manual Excel handling.
+                    Fetch Mails by date range, inspect campaign logs, and launch mass mail dispatches directly without manual Excel handling.
                   </p>
                 </div>
 
@@ -278,7 +278,7 @@ export default function Home() {
               </h2>
 
               <p className="text-slate-300/90 text-xs sm:text-sm font-medium leading-relaxed">
-                Empower your outbound campaigns with mobile-first, high-conversion email layouts. Reach your targets on any device with responsive variable templates, automatic Gmail sent-folder validation, and zero spam drops.
+                Empower your outbound campaigns with mobile-first, high-conversion email layouts. Reach your targets on any device with responsive variable templates, automatic sent-folder validation, and zero spam drops.
               </p>
 
               {/* High-Impact Stat Pills */}
@@ -353,7 +353,7 @@ export default function Home() {
                 <div className="flex whitespace-nowrap animate-marquee-reverse items-center gap-6 text-slate-300">
                   <span>[FETCHING] sent_folder -&gt; <strong className="text-white">100 records synced</strong> <span className="text-cyan-400 font-bold">[RATE RETRY OK]</span></span>
                   <span className="text-slate-600">•</span>
-                  <span>[FETCHING] gmail_api -&gt; <strong className="text-white">deduplication index updated</strong> <span className="text-purple-400 font-bold">[VALIDATED]</span></span>
+                  <span>[FETCHING] mail_api -&gt; <strong className="text-white">deduplication index updated</strong> <span className="text-purple-400 font-bold">[VALIDATED]</span></span>
                   <span className="text-slate-600">•</span>
                   <span>[FETCHING] oauth_refresh -&gt; <strong className="text-white">token active</strong> <span className="text-emerald-400 font-bold">[0ms DELAY]</span></span>
                   <span className="text-slate-600">•</span>

@@ -1,13 +1,14 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
-import { Calendar, ChevronLeft, ChevronRight, X, Check } from "lucide-react";
+import { Calendar, ChevronLeft, ChevronRight, X, Check, Info } from "lucide-react";
 
 interface DateRangePickerProps {
   startDate: string; // YYYY-MM-DD
   endDate: string;   // YYYY-MM-DD
   onChange: (start: string, end: string) => void;
   placeholder?: string;
+  align?: "left" | "right";
 }
 
 export default function DateRangePicker({
@@ -15,6 +16,7 @@ export default function DateRangePicker({
   endDate,
   onChange,
   placeholder = "Select Date Range",
+  align = "left",
 }: DateRangePickerProps) {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -85,7 +87,24 @@ export default function DateRangePicker({
     return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
   };
 
+  const isFutureDate = (d: Date) => {
+    const today = new Date();
+    const cleanD = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+    const cleanToday = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
+    return cleanD > cleanToday;
+  };
+
+  const isBeyondMaxRange = (d: Date) => {
+    if (!tempStart || tempEnd) return false;
+    const startTime = new Date(tempStart.getFullYear(), tempStart.getMonth(), tempStart.getDate()).getTime();
+    const dateTime = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+    const maxMs = 6 * 24 * 60 * 60 * 1000; // 6 days difference = 7 days total range
+    return dateTime - startTime > maxMs || dateTime < startTime;
+  };
+
   const handleDayClick = (dayDate: Date) => {
+    if (isFutureDate(dayDate)) return;
+
     if (!tempStart || (tempStart && tempEnd)) {
       // First click: set start date
       setTempStart(dayDate);
@@ -96,6 +115,17 @@ export default function DateRangePicker({
         setTempStart(dayDate);
         setTempEnd(null);
       } else {
+        const diffTime = new Date(dayDate.getFullYear(), dayDate.getMonth(), dayDate.getDate()).getTime() -
+          new Date(tempStart.getFullYear(), tempStart.getMonth(), tempStart.getDate()).getTime();
+        const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24)) + 1;
+
+        if (diffDays > 7) {
+          // If selected range exceeds 7 days, restart with this day as new start
+          setTempStart(dayDate);
+          setTempEnd(null);
+          return;
+        }
+
         setTempEnd(dayDate);
         onChange(formatDateStr(tempStart), formatDateStr(dayDate));
         setIsOpen(false);
@@ -156,8 +186,8 @@ export default function DateRangePicker({
     tempStart && tempEnd
       ? `${formatDisplayStr(tempStart)} → ${formatDisplayStr(tempEnd)}`
       : tempStart
-      ? `${formatDisplayStr(tempStart)} → Select End Day`
-      : placeholder;
+        ? `${formatDisplayStr(tempStart)} → Select End Day`
+        : placeholder;
 
   return (
     <div className="relative inline-block text-left" ref={popoverRef}>
@@ -165,11 +195,10 @@ export default function DateRangePicker({
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border font-mono text-xs transition-all duration-300 ${
-          isOpen || tempStart
+        className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border font-mono text-xs transition-all duration-300 ${isOpen || tempStart
             ? "bg-slate-950/90 border-cyan-500/50 text-cyan-300 shadow-md shadow-cyan-950/50"
             : "bg-slate-950/70 border-white/10 text-slate-300 hover:border-cyan-500/40"
-        }`}
+          }`}
       >
         <Calendar className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
         <span className="font-bold truncate max-w-[200px] sm:max-w-[240px]">
@@ -189,7 +218,7 @@ export default function DateRangePicker({
 
       {/* Interactive Month Calendar Popover */}
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-[310px] sm:w-[330px] p-4 bg-[#080d1a] border border-cyan-500/40 rounded-2xl shadow-2xl z-50 animate-fade-up font-mono">
+        <div className={`absolute ${align === "right" ? "right-0" : "left-0"} mt-2 w-[310px] sm:w-[330px] p-4 bg-[#080d1a] border border-cyan-500/40 rounded-2xl shadow-2xl z-[999] animate-fade-up font-mono`}>
           {/* Header Month Navigation */}
           <div className="flex items-center justify-between mb-3 border-b border-white/10 pb-2.5">
             <button
@@ -209,14 +238,20 @@ export default function DateRangePicker({
             </button>
           </div>
 
+          {/* 7-Day Max Limit Notice Banner */}
+          <div className="mb-2.5 px-2.5 py-1 bg-cyan-500/10 border border-cyan-500/30 rounded-lg text-[10px] text-cyan-300 font-bold flex items-center gap-1.5">
+            <Info className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+            <span>At a time, maximum 7 days are allowed.</span>
+          </div>
+
           {/* Selection Hint */}
           <div className="text-[10px] text-cyan-300/80 mb-2 font-bold flex items-center justify-between">
             <span>
               {!tempStart
-                ? "CLICK START DAY (E.G. 1)"
+                ? "CLICK START DAY (NO FUTURE DATES)"
                 : !tempEnd
-                ? "CLICK END DAY (E.G. 20)"
-                : "RANGE SELECTED"}
+                  ? "CLICK END DAY (MAX 7 DAYS)"
+                  : "7-DAY RANGE APPLIED"}
             </span>
             {tempStart && tempEnd && (
               <span className="text-emerald-400 flex items-center gap-1">
@@ -247,9 +282,14 @@ export default function DateRangePicker({
               const isEnd = isSameDay(dayDate, tempEnd);
               const inRange = isBetween(dayDate, tempStart, tempEnd);
               const inHover = isHoverBetween(dayDate);
+              const isFuture = isFutureDate(dayDate);
+              const isBeyond7Days = isBeyondMaxRange(dayDate);
+              const isDisabled = isFuture || isBeyond7Days;
 
               let cellStyle = "text-slate-200 hover:bg-cyan-500/20 hover:text-white";
-              if (isStart || isEnd) {
+              if (isDisabled) {
+                cellStyle = "text-slate-600 opacity-20 cursor-not-allowed pointer-events-none";
+              } else if (isStart || isEnd) {
                 cellStyle = "bg-gradient-to-r from-cyan-500 to-pink-500 text-white font-black shadow-md scale-105 rounded-lg z-10";
               } else if (inRange) {
                 cellStyle = "bg-cyan-500/25 text-cyan-200 font-bold border-y border-cyan-500/30";
@@ -262,6 +302,7 @@ export default function DateRangePicker({
                   key={idx}
                   onClick={() => handleDayClick(dayDate)}
                   onMouseEnter={() => setHoverDate(dayDate)}
+                  disabled={isDisabled}
                   className={`h-8 w-full rounded-lg text-xs font-mono flex items-center justify-center transition-all duration-150 ${cellStyle}`}
                 >
                   {dayDate.getDate()}

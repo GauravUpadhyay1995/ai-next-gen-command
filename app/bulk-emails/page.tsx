@@ -129,7 +129,7 @@ export default function BulkEmailsPage() {
         const res = await fetch(url, { cache: "no-store" });
         const data = await res.json();
 
-        if (!res.ok) throw new Error(data.message || "Failed to fetch contacts from Gmail");
+        if (!res.ok) throw new Error(data.message || "Failed to fetch contacts from mail logs");
 
         const newEmails = data.emails || [];
         allFetched = [...allFetched, ...newEmails];
@@ -152,7 +152,7 @@ export default function BulkEmailsPage() {
         }));
 
       if (normalized.length === 0) {
-        setError("No recipient contacts found in Gmail logs for selected date range.");
+        setError("No recipient contacts found in mail logs for selected date range.");
         return;
       }
 
@@ -161,7 +161,7 @@ export default function BulkEmailsPage() {
       sessionStorage.setItem("auto_loaded_contacts", JSON.stringify(normalized));
       setActiveTab("resume");
     } catch (err: any) {
-      setError(err.message || "Failed to fetch contacts from Gmail");
+      setError(err.message || "Failed to fetch contacts from mail logs");
     } finally {
       setInPageFetching(false);
     }
@@ -341,7 +341,7 @@ export default function BulkEmailsPage() {
                 onClick={connectGmail}
                 className="px-3.5 py-1 bg-gradient-to-r from-cyan-500 via-purple-600 to-pink-600 text-white rounded-lg font-bold shadow-md genz-shimmer-btn"
               >
-                Connect Gmail
+                Connect Your Account
               </button>
             )}
 
@@ -396,7 +396,7 @@ export default function BulkEmailsPage() {
                     <Sparkles className="w-5 h-5 text-cyan-300 animate-pulse shrink-0" />
                     <div>
                       <div className="text-white font-bold flex items-center gap-2">
-                        <span>⚡ {rows.length} RECIPIENT CONTACTS AUTO-LOADED FROM GMAIL</span>
+                        <span>⚡ {rows.length} RECIPIENT CONTACTS AUTO-LOADED FROM LOGS</span>
                       </div>
                       <div className="text-cyan-300/80 text-[11px]">Ready for template composition & campaign execution</div>
                     </div>
@@ -431,34 +431,35 @@ export default function BulkEmailsPage() {
                     }`}
                 >
                   <RefreshCw className="w-3.5 h-3.5 text-cyan-400" />
-                  <span>Fetch Direct from Gmail</span>
+                  <span>Fetch Direct from Mail Logs</span>
                 </button>
                 <button
-                  onClick={() => setIngestMode("excel")}
-                  className={`px-3.5 py-1.5 rounded-lg font-bold transition-all flex items-center gap-1.5 ${ingestMode === "excel"
-                    ? "bg-purple-500/20 text-purple-300 border border-purple-500/40 shadow-sm"
-                    : "text-slate-400 hover:text-white"
-                    }`}
+                  disabled
+                  className="px-3.5 py-1.5 rounded-lg font-bold flex items-center gap-1.5 text-slate-600 opacity-40 cursor-not-allowed bg-slate-900/50"
+                  title="Upload Custom Excel File (Disabled)"
                 >
-                  <FileSpreadsheet className="w-3.5 h-3.5 text-purple-400" />
+                  <FileSpreadsheet className="w-3.5 h-3.5 text-slate-600" />
                   <span>Upload Custom Excel File</span>
                 </button>
               </div>
 
               {ingestMode === "gmail" ? (
-                <div className="p-5 genz-glass-panel rounded-2xl border border-cyan-500/30 space-y-4">
+                <div className="p-5 genz-glass-panel rounded-2xl border border-cyan-500/30 space-y-4 overflow-visible relative">
                   <div className="flex items-center gap-3">
                     <div className="p-2.5 bg-cyan-500/15 border border-cyan-500/30 rounded-xl text-cyan-400">
                       <Calendar className="w-5 h-5" />
                     </div>
                     <div>
-                      <h2 className="text-base sm:text-lg font-bold text-white">Fetch Gmail Recipients by Date Range</h2>
-                      <p className="text-slate-400 text-xs font-mono">Pulls email contacts directly from your sent Gmail log</p>
+                      <h2 className="text-base sm:text-lg font-bold text-white">Fetch by Date Range</h2>
+                      <p className="text-slate-400 text-xs font-mono">Pulls Mails</p>
                     </div>
                   </div>
 
                   <div className="space-y-2 font-mono text-xs">
-                    <label className="text-cyan-300 font-bold text-[11px] block">SELECT CALENDAR DATE RANGE</label>
+                    <label className="text-cyan-300 font-bold text-[11px] flex items-center justify-between">
+                      <span>SELECT CALENDAR DATE RANGE</span>
+                      <span className="text-[10px] text-amber-300 font-medium">⚠️ Max 7 days can be fetched per query</span>
+                    </label>
                     <DateRangePicker
                       startDate={inPageStartDate}
                       endDate={inPageEndDate}
@@ -470,23 +471,27 @@ export default function BulkEmailsPage() {
                     />
                   </div>
 
-                  <button
-                    onClick={fetchContactsInPage}
-                    disabled={inPageFetching}
-                    className="w-full py-2.5 bg-gradient-to-r from-cyan-500 via-purple-600 to-pink-600 text-white rounded-xl font-bold font-mono text-xs flex items-center justify-center gap-2 shadow-lg shadow-cyan-500/20 disabled:opacity-40 genz-shimmer-btn"
-                  >
-                    {inPageFetching ? (
-                      <>
-                        <RefreshCw className="w-4 h-4 animate-spin text-cyan-200" />
-                        <span>FETCHING GMAIL CONTACTS...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Rocket className="w-4 h-4 text-cyan-200" />
-                        <span>FETCH & AUTO-LOAD CONTACTS</span>
-                      </>
-                    )}
-                  </button>
+                  {/* Compact Right-Aligned Action Button */}
+                  <div className="flex justify-end pt-1">
+                    <button
+                      onClick={fetchContactsInPage}
+                      disabled={inPageFetching || !isConnected}
+                      className="px-4 py-2 bg-gradient-to-r from-cyan-500 via-purple-600 to-pink-600 text-white rounded-xl font-bold font-mono text-xs flex items-center gap-2 shadow-md shadow-cyan-500/20 disabled:opacity-40 disabled:cursor-not-allowed hover:scale-105 transition-all genz-shimmer-btn"
+                      title={!isConnected ? "Please connect your account first" : "Fetch contacts"}
+                    >
+                      {inPageFetching ? (
+                        <>
+                          <RefreshCw className="w-3.5 h-3.5 animate-spin text-cyan-200" />
+                          <span>FETCHING MAIL CONTACTS...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Rocket className="w-3.5 h-3.5 text-cyan-200" />
+                          <span>FETCH & AUTO-LOAD CONTACTS</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -685,8 +690,8 @@ export default function BulkEmailsPage() {
                         {loading
                           ? "DISPATCHING CAMPAIGN..."
                           : isCompleted
-                          ? "DISPATCH COMPLETED"
-                          : "START BULK DISPATCH"}
+                            ? "DISPATCH COMPLETED"
+                            : "START BULK DISPATCH"}
                       </span>
                     </button>
                   );

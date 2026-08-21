@@ -281,28 +281,30 @@ function SentEmailsContent() {
             {(() => {
               const isGmailConnected = isConnected || Boolean(connected === "true" && connectedEmail);
               return (
-                <button
-                  onClick={connectGmail}
-                  disabled={isGmailConnected}
-                  className={`flex-1 sm:flex-none px-3.5 py-1.5 border font-bold transition-all text-center rounded-lg flex items-center justify-center gap-1.5 ${
-                    isGmailConnected
+                <>
+                  <button
+                    onClick={connectGmail}
+                    disabled={isGmailConnected}
+                    className={`flex-1 sm:flex-none px-3.5 py-1.5 border font-bold transition-all text-center rounded-lg flex items-center justify-center gap-1.5 ${isGmailConnected
                       ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400 opacity-70 cursor-not-allowed"
                       : "bg-purple-600/30 hover:bg-purple-600/50 border-purple-500/40 text-purple-200"
-                  }`}
-                >
-                  {isGmailConnected && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />}
-                  <span>{isGmailConnected ? "Gmail Connected" : "Connect Gmail"}</span>
-                </button>
+                      }`}
+                  >
+                    {isGmailConnected && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />}
+                    <span>{isGmailConnected ? "Your Account Is Connected" : "Click To Connect Your Account"}</span>
+                  </button>
+                  <button
+                    onClick={fetchSentEmails}
+                    disabled={loading || !isGmailConnected}
+                    className="flex-1 sm:flex-none px-3.5 py-1.5 bg-gradient-to-r from-cyan-500 to-purple-600 text-white rounded-lg font-bold disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-1.5 genz-shimmer-btn"
+                    title={!isGmailConnected ? "Please connect your account first" : "Fetch sent logs"}
+                  >
+                    {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+                    <span>Fetch Sent Logs</span>
+                  </button>
+                </>
               );
             })()}
-            <button
-              onClick={fetchSentEmails}
-              disabled={loading}
-              className="flex-1 sm:flex-none px-3.5 py-1.5 bg-gradient-to-r from-cyan-500 to-purple-600 text-white rounded-lg font-bold disabled:opacity-40 transition-all flex items-center justify-center gap-1.5 genz-shimmer-btn"
-            >
-              {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
-              <span>Fetch Sent Logs</span>
-            </button>
             <button
               onClick={launchCampaignWithContacts}
               disabled={emails.length === 0}
@@ -343,6 +345,7 @@ function SentEmailsContent() {
                   setEndDate(end);
                 }}
                 placeholder="Select Date Range (e.g. 1 - 20)"
+                align="right"
               />
 
               {/* Search Bar */}
