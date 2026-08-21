@@ -22,7 +22,8 @@ import {
   Terminal,
   Send,
   RefreshCw,
-  PlayCircle
+  PlayCircle,
+  LogOut
 } from "lucide-react";
 
 export default function Home() {
@@ -57,6 +58,17 @@ export default function Home() {
 
   const connectGmail = () => {
     window.location.href = "/api/auth/google";
+  };
+
+  const handleLogout = async () => {
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+      setIsConnected(false);
+      setConnectedEmail("");
+      window.location.href = "/";
+    } catch (e) {
+      console.error("Logout failed:", e);
+    }
   };
 
   return (
@@ -156,12 +168,22 @@ export default function Home() {
               ) : (
                 <div className="space-y-2">
                   {isConnected ? (
-                    <div className="flex items-center gap-2.5 text-emerald-300 font-mono text-xs font-bold bg-emerald-500/10 p-2.5 rounded-xl border border-emerald-500/30">
-                      <span className="relative flex h-2.5 w-2.5 shrink-0">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                        <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
-                      </span>
-                      <span className="truncate">AUTH NODE: {connectedEmail}</span>
+                    <div className="flex items-center justify-between gap-2 bg-emerald-500/10 p-2.5 rounded-xl border border-emerald-500/30">
+                      <div className="flex items-center gap-2 text-emerald-300 font-mono text-xs font-bold truncate">
+                        <span className="relative flex h-2.5 w-2.5 shrink-0">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                        </span>
+                        <span className="truncate">AUTH NODE: {connectedEmail}</span>
+                      </div>
+                      <button
+                        onClick={handleLogout}
+                        className="px-2.5 py-1 bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 text-rose-300 rounded-lg text-xs font-mono font-bold flex items-center gap-1 shrink-0 transition-all"
+                        title="Log out / Disconnect account"
+                      >
+                        <LogOut className="w-3.5 h-3.5 text-rose-400" />
+                        <span>Log Out</span>
+                      </button>
                     </div>
                   ) : (
                     <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 bg-rose-500/10 p-2.5 rounded-xl border border-rose-500/30">
@@ -173,7 +195,7 @@ export default function Home() {
                         onClick={connectGmail}
                         className="w-full sm:w-auto px-3.5 py-1.5 bg-gradient-to-r from-cyan-500 via-purple-600 to-pink-600 rounded-lg text-white text-[11px] font-mono font-bold genz-shimmer-btn shadow-lg text-center"
                       >
-                        AUTHORIZE NOW
+                        AUTHORIZE YOUR ACCOUNT NOW
                       </button>
                     </div>
                   )}

@@ -35,7 +35,8 @@ import {
   Play,
   RefreshCw,
   Calendar,
-  Rocket
+  Rocket,
+  LogOut
 } from "lucide-react";
 
 const BATCH_SIZE = 8; // Parallel send batching size
@@ -175,6 +176,18 @@ export default function BulkEmailsPage() {
 
   const connectGmail = () => {
     window.location.href = "/api/auth/google";
+  };
+
+  const handleLogout = async () => {
+    if (loading || inPageFetching) return;
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+      setIsConnected(false);
+      setConnectedEmail("");
+      window.location.href = "/bulk-emails";
+    } catch (e) {
+      console.error("Logout failed:", e);
+    }
   };
 
   const handleExcelUpload = (file: File | null) => {
@@ -332,10 +345,21 @@ export default function BulkEmailsPage() {
           {/* Quick Header Actions */}
           <div className="flex flex-wrap items-center gap-2 text-xs font-mono w-full sm:w-auto">
             {isConnected ? (
-              <span className="text-emerald-400 font-bold px-3 py-1 bg-emerald-500/10 border border-emerald-500/30 rounded-lg flex items-center gap-1.5 truncate max-w-[220px] sm:max-w-none">
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                <span className="truncate">{connectedEmail ? `AUTH: ${connectedEmail}` : "CONNECTED"}</span>
-              </span>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <span className="text-emerald-400 font-bold px-3 py-1 bg-emerald-500/10 border border-emerald-500/30 rounded-lg flex items-center gap-1.5 truncate max-w-[220px] sm:max-w-none">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                  <span className="truncate">{connectedEmail ? `AUTH: ${connectedEmail}` : "CONNECTED"}</span>
+                </span>
+                <button
+                  onClick={handleLogout}
+                  disabled={loading || inPageFetching}
+                  className="px-3 py-1 bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 text-rose-300 rounded-lg text-xs font-mono font-bold flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                  title={loading || inPageFetching ? "Cannot logout while fetching or sending mail" : "Log out account"}
+                >
+                  <LogOut className="w-3.5 h-3.5 text-rose-400" />
+                  <span>Log Out</span>
+                </button>
+              </div>
             ) : (
               <button
                 onClick={connectGmail}

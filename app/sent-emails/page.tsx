@@ -40,7 +40,8 @@ import {
   Check,
   Activity,
   Terminal,
-  Search
+  Search,
+  LogOut
 } from "lucide-react";
 import Link from "next/link";
 
@@ -112,6 +113,18 @@ function SentEmailsContent() {
 
   const connectGmail = () => {
     window.location.href = "/api/auth/google";
+  };
+
+  const handleLogout = async () => {
+    if (loading) return;
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+      setIsConnected(false);
+      setConnectedEmail("");
+      window.location.href = "/sent-emails";
+    } catch (e) {
+      console.error("Logout failed:", e);
+    }
   };
 
   const copyToClipboard = (text: string, id: string) => {
@@ -284,17 +297,30 @@ function SentEmailsContent() {
               const canFetch = isGmailConnected && isDateRangeSelected;
               return (
                 <>
-                  <button
-                    onClick={connectGmail}
-                    disabled={isGmailConnected}
-                    className={`flex-1 sm:flex-none px-3.5 py-1.5 border font-bold transition-all text-center rounded-lg flex items-center justify-center gap-1.5 ${isGmailConnected
-                      ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400 opacity-70 cursor-not-allowed"
-                      : "bg-purple-600/30 hover:bg-purple-600/50 border-purple-500/40 text-purple-200"
-                      }`}
-                  >
-                    {isGmailConnected && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />}
-                    <span>{isGmailConnected ? "Your Account Is Connected" : "Click To Connect Your Account"}</span>
-                  </button>
+                  {isGmailConnected ? (
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <div className="px-3.5 py-1.5 border font-bold text-center rounded-lg flex items-center gap-1.5 bg-emerald-500/10 border-emerald-500/30 text-emerald-400">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                        <span>Your Account Is Connected</span>
+                      </div>
+                      <button
+                        onClick={handleLogout}
+                        disabled={loading}
+                        className="px-3 py-1.5 bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 text-rose-300 rounded-lg text-xs font-mono font-bold flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                        title={loading ? "Cannot logout while fetching logs" : "Log out account"}
+                      >
+                        <LogOut className="w-3.5 h-3.5 text-rose-400" />
+                        <span>Log Out</span>
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={connectGmail}
+                      className="flex-1 sm:flex-none px-3.5 py-1.5 border font-bold transition-all text-center rounded-lg flex items-center justify-center gap-1.5 bg-purple-600/30 hover:bg-purple-600/50 border-purple-500/40 text-purple-200"
+                    >
+                      <span>Click To Connect Your Account</span>
+                    </button>
+                  )}
                   <button
                     onClick={fetchSentEmails}
                     disabled={loading || !canFetch}
