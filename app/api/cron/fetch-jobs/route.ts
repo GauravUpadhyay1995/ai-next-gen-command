@@ -18,8 +18,16 @@ async function handleFetchJobs(req: NextRequest) {
     const authHeader = req.headers.get("authorization");
     const cronSecret = process.env.CRON_SECRET;
     const url = new URL(req.url);
-    const forceRole = url.searchParams.get("role") || undefined;
-    const forceLocation = url.searchParams.get("location") || undefined;
+    let forceRole = url.searchParams.get("role") || undefined;
+    let forceLocation = url.searchParams.get("location") || undefined;
+
+    if (req.method === "POST") {
+      try {
+        const body = await req.json();
+        if (body?.forceRole) forceRole = String(body.forceRole).trim();
+        if (body?.forceLocation) forceLocation = String(body.forceLocation).trim();
+      } catch {}
+    }
 
     // Optional secret check if CRON_SECRET is configured in environment
     if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {

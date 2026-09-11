@@ -222,16 +222,26 @@ export async function executeNightJobScraper(options?: {
     const uniqueLeads = Array.from(uniqueMap.values());
     logs.push(`[${new Date().toLocaleTimeString()}] Total unique formatted leads: ${uniqueLeads.length}`);
 
-    // Verify MX Records in parallel
+    // Verify MX Records in fast parallel batches
+    const candidatePool = uniqueLeads.slice(0, 50);
+    const mxCheckResults = await Promise.allSettled(
+      candidatePool.map(async (lead) => {
+        const mxCheck = await verifyEmailMx(lead.email);
+        if (mxCheck.valid) {
+          return {
+            ...lead,
+            mxValid: true,
+            mxDetails: mxCheck.mxRecords?.[0] || "Active MX Host",
+          };
+        }
+        return null;
+      })
+    );
+
     const mxValidLeads: DiscoveredLead[] = [];
-    for (const lead of uniqueLeads) {
-      const mxCheck = await verifyEmailMx(lead.email);
-      if (mxCheck.valid) {
-        mxValidLeads.push({
-          ...lead,
-          mxValid: true,
-          mxDetails: mxCheck.mxRecords?.[0] || "Active MX Host",
-        });
+    for (const res of mxCheckResults) {
+      if (res.status === "fulfilled" && res.value) {
+        mxValidLeads.push(res.value);
       }
     }
 

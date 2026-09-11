@@ -435,12 +435,19 @@ export default function AdminDashboardPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ forceRole: customScrapeRole || undefined }),
       });
-      const data = await res.json();
-      setLogs2am(data.data?.logs || data.logs || []);
-      if (data.success) {
-        setSuccessMsg(`✅ Scraper Queued ${data.data?.insertedCount || 0} fresh jobs!`);
-        fetchQueue();
+      const text = await res.text();
+      let data: any = {};
+      try {
+        data = JSON.parse(text);
+      } catch {
+        throw new Error(text || `Server error (${res.status})`);
       }
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || "Scraper execution failed");
+      }
+      setLogs2am(data.data?.logs || data.logs || []);
+      setSuccessMsg(`✅ Scraper Queued ${data.data?.insertedCount || 0} fresh jobs!`);
+      fetchQueue();
     } catch (err: any) {
       setLogs2am((prev) => [...prev, `[ERROR] ${err.message}`]);
     } finally {
@@ -460,12 +467,19 @@ export default function AdminDashboardPage() {
           simulateOnly: simulateOnly9am,
         }),
       });
-      const data = await res.json();
-      setLogs9am(data.data?.logs || data.logs || []);
-      if (data.success) {
-        setSuccessMsg(`✅ Batch Finished! Dispatched: ${data.data?.totalEmailsDispatched || 0}`);
-        loadAllData();
+      const text = await res.text();
+      let data: any = {};
+      try {
+        data = JSON.parse(text);
+      } catch {
+        throw new Error(text || `Server error (${res.status})`);
       }
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || "Email dispatch failed");
+      }
+      setLogs9am(data.data?.logs || data.logs || []);
+      setSuccessMsg(`✅ Batch Finished! Dispatched: ${data.data?.totalEmailsDispatched || 0}`);
+      loadAllData();
     } catch (err: any) {
       setLogs9am((prev) => [...prev, `[ERROR] ${err.message}`]);
     } finally {
