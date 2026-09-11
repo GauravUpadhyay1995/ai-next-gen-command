@@ -534,119 +534,150 @@ export async function executeMorningEmailDispatcher(options?: {
       const jobsToProcess = eligibleJobs.slice(0, dailyLimit);
       logs.push(` -> Matched ${eligibleJobs.length} eligible jobs. Processing batch of ${jobsToProcess.length} (Daily Limit: ${dailyLimit}).`);
 
-      // Dispatch outreach emails
-      for (const job of jobsToProcess) {
-        try {
-          // Generate AI Pitch
-          const pitchRes = await generateAIPersonalizedPitch({
-            company: job.company || "your team",
-            role: customer.role || job.role || "Software Engineer",
-            snippet: job.snippet || "",
-            location: customer.location || job.location,
-          });
+      // Dispatch outreach emails in concurrent pools of 4
+      const CONCURRENCY_CHUNK = 4;
+      for (let i = 0; i < jobsToProcess.length; i += CONCURRENCY_CHUNK) {
+        const chunk = jobsToProcess.slice(i, i + CONCURRENCY_CHUNK);
+        const chunkResults = await Promise.allSettled(
+          chunk.map(async (job) => {
+            try {
+              // Generate AI Pitch
+              const pitchRes = await generateAIPersonalizedPitch({
+                company: job.company || "your team",
+                role: customer.role || job.role || "Software Engineer",
+                snippet: job.snippet || "",
+                location: customer.location || job.location,
+              });
 
-          // Compose Email Subject & Body
-          const subject = `Application for ${job.role || customer.role} - ${customer.name} (${customer.experience})`;
-          const body = [
-            `Hi ${job.company} Hiring Team,`,
-            ``,
-            `I am writing to express my strong interest in the ${job.role || customer.role} position at ${job.company}.`,
-            ``,
-            pitchRes.pitch,
-            ``,
-            `With ${customer.experience} of practical experience, I am confident in my ability to hit the ground running and create immediate impact.`,
-            ``,
-            `I have attached my updated resume for your review. I would welcome the opportunity to discuss how my skill set aligns with your goals.`,
-            ``,
-            `Best regards,`,
-            `${customer.name}`,
-            `${customer.email}`,
-          ].join("\n");
+              // Compose Email Subject & Body
+              const subject = `Application for ${job.role || customer.role} - ${customer.name} (${customer.experience})`;
+              const body = [
+                `Hi ${job.company} Hiring Team,`,
+                ``,
+                `I am writing to express my strong interest in the ${job.role || customer.role} position at ${job.company}.`,
+                ``,
+                pitchRes.pitch,
+                ``,
+                `With ${customer.experience} of practical experience, I am confident in my ability to hit the ground running and create immediate impact.`,
+                ``,
+                `I have attached my updated resume for your review. I would welcome the opportunity to discuss how my skill set aligns with your goals.`,
+                ``,
+                `Best regards,`,
+                `${customer.name}`,
+                `${customer.email}`,
+              ].join("\n");
 
-          if (options?.simulateOnly) {
-            logs.push(` -> [SIMULATION] Would send to ${job.email} (${job.company}) | Pitch: "${pitchRes.pitch.slice(0, 50)}..."`);
-            customerReport.dispatched++;
-            grandTotalDispatched++;
-            continue;
-          }
+              if (options?.simulateOnly) {
+                return {
+                  success: true,
+                  simulated: true,
+                  email: job.email,
+                  company: job.company,
+                  pitch: pitchRes.pitch,
+                };
+              }
 
-          if (sendMethod === "smtp") {
-            // Direct Google SMTP sending using App Password
-            const smtpRes = await sendGmailSmtp({
-              fromEmail: customer.email,
-              fromName: customer.name,
-              appPassword: decryptedAppPassword,
-              toEmail: job.email,
-              subject,
-              body,
-              attachmentName: customer.resumeName || "resume.pdf",
-              attachmentMimeType: customer.resumeMimeType || "application/pdf",
-              attachmentBase64: customer.resumeBase64,
-            });
+              if (sendMethod === "smtp") {
+                // Direct Google SMTP sending using App Password
+                const smtpRes = await sendGmailSmtp({
+                  fromEmail: customer.email,
+                  fromName: customer.name,
+                  appPassword: decryptedAppPassword,
+                  toEmail: job.email,
+                  subject,
+                  body,
+                  attachmentName: customer.resumeName || "resume.pdf",
+                  attachmentMimeType: customer.resumeMimeType || "application/pdf",
+                  attachmentBase64: customer.resumeBase64,
+                });
 
-            if (!smtpRes.success) {
-              throw new Error(smtpRes.error || "SMTP email delivery failed");
+                if (!smtpRes.success) {
+                  throw new Error(smtpRes.error || "SMTP email delivery failed");
+                }
+              } else {
+                // Build MIME raw email with attached resume if present
+                const raw = createRawMimeEmail({
+                  to: job.email,
+                  fromName: customer.name,
+                  fromEmail: customer.email,
+                  subject,
+                  body,
+                  attachmentName: customer.resumeName || "resume.pdf",
+                  attachmentMimeType: customer.resumeMimeType || "application/pdf",
+                  attachmentBase64: customer.resumeBase64,
+                });
+
+                // Send via Gmail OAuth API
+                await gmail.users.messages.send({
+                  userId: "me",
+                  requestBody: { raw },
+                });
+              }
+
+              // Update daily_jobs_queue to prevent duplicates
+              await queueCollection.updateOne(
+                { _id: job._id },
+                { $addToSet: { dispatchedTo: customer.email } }
+              );
+
+              // Update customer sent stats
+              await customerCollection.updateOne(
+                { email: customer.email },
+                {
+                  $inc: { totalSentCount: 1 },
+                  $set: { lastActiveAt: new Date() },
+                }
+              );
+
+              // Record dispatch log
+              await dispatchLogsCollection.insertOne({
+                customerEmail: customer.email,
+                customerName: customer.name,
+                recipientEmail: job.email,
+                company: job.company,
+                role: job.role,
+                subject,
+                aiPitch: pitchRes.pitch,
+                dispatchedAt: new Date(),
+                dateString,
+                status: "sent",
+              });
+
+              return {
+                success: true,
+                simulated: false,
+                email: job.email,
+                company: job.company,
+                pitch: pitchRes.pitch,
+              };
+            } catch (err: any) {
+              return {
+                success: false,
+                email: job.email,
+                error: err.message,
+              };
             }
-          } else {
-            // Build MIME raw email with attached resume if present
-            const raw = createRawMimeEmail({
-              to: job.email,
-              fromName: customer.name,
-              fromEmail: customer.email,
-              subject,
-              body,
-              attachmentName: customer.resumeName || "resume.pdf",
-              attachmentMimeType: customer.resumeMimeType || "application/pdf",
-              attachmentBase64: customer.resumeBase64,
-            });
+          })
+        );
 
-            // Send via Gmail OAuth API
-            await gmail.users.messages.send({
-              userId: "me",
-              requestBody: { raw },
-            });
-          }
-
-          logs.push(` -> ✅ Dispatched to ${job.email} (${job.company}) [via ${sendMethod.toUpperCase()}]`);
-          customerReport.dispatched++;
-          grandTotalDispatched++;
-
-          // Update daily_jobs_queue to prevent duplicates
-          await queueCollection.updateOne(
-            { _id: job._id },
-            { $addToSet: { dispatchedTo: customer.email } }
-          );
-
-          // Update customer sent stats
-          await customerCollection.updateOne(
-            { email: customer.email },
-            {
-              $inc: { totalSentCount: 1 },
-              $set: { lastActiveAt: new Date() },
+        for (const r of chunkResults) {
+          if (r.status === "fulfilled") {
+            const res = r.value;
+            if (res.success) {
+              if (res.simulated) {
+                logs.push(` -> [SIMULATION] Would send to ${res.email} (${res.company}) | Pitch: "${res.pitch?.slice(0, 50)}..."`);
+              } else {
+                logs.push(` -> ✅ Dispatched to ${res.email} (${res.company}) [via ${sendMethod.toUpperCase()}]`);
+              }
+              customerReport.dispatched++;
+              grandTotalDispatched++;
+            } else {
+              logs.push(` -> ❌ Error dispatching to ${res.email}: ${res.error}`);
+              customerReport.errors.push(`${res.email}: ${res.error}`);
+              customerReport.skipped++;
+              grandTotalSkipped++;
             }
-          );
-
-          // Record dispatch log
-          await dispatchLogsCollection.insertOne({
-            customerEmail: customer.email,
-            customerName: customer.name,
-            recipientEmail: job.email,
-            company: job.company,
-            role: job.role,
-            subject,
-            aiPitch: pitchRes.pitch,
-            dispatchedAt: new Date(),
-            dateString,
-            status: "sent",
-          });
-
-          // Short safe delay between live requests
-          await new Promise((resolve) => setTimeout(resolve, 200));
-        } catch (err: any) {
-          logs.push(` -> ❌ Error dispatching to ${job.email}: ${err.message}`);
-          customerReport.errors.push(`${job.email}: ${err.message}`);
-          customerReport.skipped++;
-          grandTotalSkipped++;
+          }
         }
       }
 
