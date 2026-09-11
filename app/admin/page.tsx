@@ -357,10 +357,11 @@ export default function AdminDashboardPage() {
         throw new Error(data.message || "Failed to create candidate profile");
       }
 
+      const candidateName = data.customer?.name || data.profile?.name || formName || "Candidate";
       setSuccessMsg(
         formAppPassword.trim()
-          ? `🎉 Candidate "${data.customer.name}" created and ACTIVATED with Google App Password!`
-          : `🎉 Candidate profile registered! Share the 1-time connect link to activate.`
+          ? `🎉 Candidate "${candidateName}" created and ACTIVATED with Google App Password!`
+          : `🎉 Candidate profile "${candidateName}" registered! Share the 1-time connect link to activate.`
       );
 
       // Reset Form

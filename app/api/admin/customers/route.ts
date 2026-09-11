@@ -99,6 +99,7 @@ export async function POST(req: NextRequest) {
         ? `Candidate profile created & activated with Google App Password! Autopilot email dispatch is ready.`
         : `Candidate profile created for ${email}. Share the 1-time onboarding link to activate Gmail sending.`,
       profile: result.profile,
+      customer: result.profile,
     });
   } catch (error: any) {
     console.error("[Customers API] POST error:", error);
