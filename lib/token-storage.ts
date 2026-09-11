@@ -33,11 +33,11 @@ export async function storeOwnerRefreshToken(email: string, refreshToken: string
 }
 
 export async function loadOwnerToken(): Promise<{ email: string; refreshToken: string } | null> {
-  // 1. Check if configured in environment variables (either encrypted or plaintext)
+  // 1. comment Check if configured in environment variables (either encrypted or plaintext)
   if (process.env.OWNER_REFRESH_TOKEN && process.env.OWNER_EMAIL) {
     const token = process.env.OWNER_REFRESH_TOKEN;
     const email = process.env.OWNER_EMAIL.toLowerCase();
-    
+
     // Try decrypting. If it fails, fallback to plaintext
     try {
       const decrypted = decrypt(token);
