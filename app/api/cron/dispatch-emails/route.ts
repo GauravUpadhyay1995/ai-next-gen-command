@@ -16,9 +16,18 @@ export async function POST(req: NextRequest) {
 async function handleDispatch(req: NextRequest) {
   try {
     const url = new URL(req.url);
-    const targetDate = url.searchParams.get("date") || undefined;
-    const customerEmail = url.searchParams.get("customer") || undefined;
-    const simulateOnly = url.searchParams.get("simulate") === "true";
+    let targetDate = url.searchParams.get("date") || undefined;
+    let customerEmail = url.searchParams.get("customer") || undefined;
+    let simulateOnly = url.searchParams.get("simulate") === "true";
+
+    if (req.method === "POST") {
+      try {
+        const body = await req.json();
+        if (body?.targetDate) targetDate = String(body.targetDate).trim();
+        if (body?.customerEmail) customerEmail = String(body.customerEmail).trim();
+        if (typeof body?.simulateOnly === "boolean") simulateOnly = body.simulateOnly;
+      } catch {}
+    }
 
     const result = await executeMorningEmailDispatcher({
       targetDate,

@@ -456,7 +456,7 @@ export async function executeMorningEmailDispatcher(options?: {
       }
 
       // Match jobs for this customer
-      const candidateRoleWords = (customer.role || "").toLowerCase().split(/\s+/).filter((w) => w.length > 2);
+      const candidateRoleWords = (customer.role || "").toLowerCase().split(/\s+/).filter((w) => w.length > 1);
       
       let eligibleJobs: any[] = jobs.filter((job) => {
         // Must not have been dispatched to this customer before
@@ -471,41 +471,58 @@ export async function executeMorningEmailDispatcher(options?: {
 
       const dailyLimit = customer.dailyLimit || 20;
 
-      // If eligible jobs in queue are fewer than daily limit, auto-fetch live jobs on the fly
+      // If strict role matches are fewer than dailyLimit, pull from remaining un-dispatched queue jobs
+      if (eligibleJobs.length < dailyLimit) {
+        const remainingJobs = jobs.filter((job) => {
+          const alreadyDispatched = Array.isArray(job.dispatchedTo) && job.dispatchedTo.includes(customer.email);
+          const alreadyIncluded = eligibleJobs.some((ej) => ej.email === job.email);
+          return !alreadyDispatched && !alreadyIncluded;
+        });
+        eligibleJobs = eligibleJobs.concat(remainingJobs.slice(0, dailyLimit - eligibleJobs.length));
+      }
+
+      // If still fewer than dailyLimit, auto-fetch live jobs on the fly in parallel
       if (eligibleJobs.length < dailyLimit && customer.role) {
-        logs.push(` -> 🔍 Queue has ${eligibleJobs.length}/${dailyLimit} jobs. Auto-fetching fresh jobs for "${customer.role}" across multi-portals (Naukri, Indeed, LinkedIn, etc.)...`);
+        logs.push(` -> 🔍 Queue has ${eligibleJobs.length}/${dailyLimit} jobs. Auto-fetching fresh jobs for "${customer.role}" across multi-portals...`);
         try {
           const freshLeads = await searchPublicJobFeeds(customer.role, customer.location || "Remote");
+          const candidateLeads = freshLeads.slice(0, 25);
+          
+          const verifiedLeads = await Promise.allSettled(
+            candidateLeads.map(async (item) => {
+              const cleanEmail = item.email?.trim().toLowerCase();
+              if (!cleanEmail || !isValidEmailFormat(cleanEmail) || isDisposableDomain(cleanEmail)) return null;
+              const mxCheck = await verifyEmailMx(cleanEmail);
+              if (!mxCheck.valid) return null;
+              return { item, cleanEmail, mxCheck };
+            })
+          );
+
           let newlyAdded = 0;
-          for (const item of freshLeads) {
-            const cleanEmail = item.email?.trim().toLowerCase();
-            if (cleanEmail && isValidEmailFormat(cleanEmail) && !isDisposableDomain(cleanEmail)) {
-              // Check if already in queue or dispatched
-              const existingInQueue = await queueCollection.findOne({ email: cleanEmail });
-              if (!existingInQueue || !existingInQueue.dispatchedTo?.includes(customer.email)) {
-                const mxCheck = await verifyEmailMx(cleanEmail);
-                if (mxCheck.valid) {
-                  const newJobDoc: DailyJobQueueItem = {
-                    dateString,
-                    email: cleanEmail,
-                    company: item.company || "Hiring Team",
-                    role: item.role || customer.role,
-                    location: item.location || customer.location || "Remote",
-                    snippet: item.snippet || "",
-                    sourceUrl: item.sourceUrl || "",
-                    sourceType: item.sourceType || "live_stream",
-                    mxValid: true,
-                    mxDetails: mxCheck.mxRecords?.[0] || "Active MX Host",
-                    dispatchedTo: [],
-                    fetchedAt: new Date(),
-                  };
-                  const insertRes = await queueCollection.insertOne(newJobDoc);
-                  newJobDoc._id = insertRes.insertedId;
-                  eligibleJobs.push(newJobDoc);
-                  newlyAdded++;
-                  if (eligibleJobs.length >= dailyLimit) break;
-                }
-              }
+          for (const r of verifiedLeads) {
+            if (r.status === "fulfilled" && r.value) {
+              const { item, cleanEmail, mxCheck } = r.value;
+              const newJobDoc: DailyJobQueueItem = {
+                dateString,
+                email: cleanEmail,
+                company: item.company || "Hiring Team",
+                role: item.role || customer.role,
+                location: item.location || customer.location || "Remote",
+                snippet: item.snippet || "",
+                sourceUrl: item.sourceUrl || "",
+                sourceType: item.sourceType || "live_stream",
+                mxValid: true,
+                mxDetails: mxCheck.mxRecords?.[0] || "Active MX Host",
+                dispatchedTo: [],
+                fetchedAt: new Date(),
+              };
+              try {
+                const insertRes = await queueCollection.insertOne(newJobDoc);
+                newJobDoc._id = insertRes.insertedId;
+                eligibleJobs.push(newJobDoc);
+                newlyAdded++;
+                if (eligibleJobs.length >= dailyLimit) break;
+              } catch {}
             }
           }
           logs.push(` -> ⚡ Discovered and queued ${newlyAdded} new live leads for "${customer.role}". Total ready: ${eligibleJobs.length}`);
@@ -547,7 +564,7 @@ export async function executeMorningEmailDispatcher(options?: {
           ].join("\n");
 
           if (options?.simulateOnly) {
-            logs.push(` -> [SIMULATION] Would send email to ${job.email} (${job.company}) with pitch: "${pitchRes.pitch.slice(0, 60)}..."`);
+            logs.push(` -> [SIMULATION] Would send to ${job.email} (${job.company}) | Pitch: "${pitchRes.pitch.slice(0, 50)}..."`);
             customerReport.dispatched++;
             grandTotalDispatched++;
             continue;
@@ -623,8 +640,8 @@ export async function executeMorningEmailDispatcher(options?: {
             status: "sent",
           });
 
-          // Human-like delay between requests (500ms - 1.5s)
-          await new Promise((resolve) => setTimeout(resolve, 800));
+          // Short safe delay between live requests
+          await new Promise((resolve) => setTimeout(resolve, 200));
         } catch (err: any) {
           logs.push(` -> ❌ Error dispatching to ${job.email}: ${err.message}`);
           customerReport.errors.push(`${job.email}: ${err.message}`);
