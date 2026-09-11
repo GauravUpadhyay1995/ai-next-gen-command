@@ -60,3 +60,64 @@ export async function getOwnerToken(): Promise<{ email: string; encryptedRefresh
     return null;
   }
 }
+
+export async function saveLeads(leads: any[]): Promise<{ savedCount: number }> {
+  if (!leads || leads.length === 0) return { savedCount: 0 };
+  try {
+    const { db } = await connectToDatabase();
+    const collection = db.collection("leads");
+
+    let count = 0;
+    for (const lead of leads) {
+      if (!lead.email) continue;
+      await collection.updateOne(
+        { email: lead.email.toLowerCase() },
+        {
+          $set: {
+            ...lead,
+            email: lead.email.toLowerCase(),
+            updatedAt: new Date(),
+          },
+          $setOnInsert: {
+            createdAt: new Date(),
+            status: lead.status || "discovered",
+          },
+        },
+        { upsert: true }
+      );
+      count++;
+    }
+
+    return { savedCount: count };
+  } catch (error) {
+    console.error("Failed to save leads to MongoDB:", error);
+    return { savedCount: 0 };
+  }
+}
+
+export async function getSavedLeads(limit = 100): Promise<any[]> {
+  try {
+    const { db } = await connectToDatabase();
+    const collection = db.collection("leads");
+    return await collection.find({}).sort({ updatedAt: -1 }).limit(limit).toArray();
+  } catch (error) {
+    console.error("Failed to get saved leads from MongoDB:", error);
+    return [];
+  }
+}
+
+export async function updateLeadStatus(email: string, status: string): Promise<boolean> {
+  try {
+    const { db } = await connectToDatabase();
+    const collection = db.collection("leads");
+    await collection.updateOne(
+      { email: email.toLowerCase() },
+      { $set: { status, lastContactedAt: new Date() } }
+    );
+    return true;
+  } catch (error) {
+    console.error("Failed to update lead status:", error);
+    return false;
+  }
+}
+

@@ -36,10 +36,17 @@ import {
   RefreshCw,
   Calendar,
   Rocket,
-  LogOut
+  LogOut,
+  Bookmark,
+  Save,
+  Bot,
+  Lock,
+  ShieldAlert,
+  LogIn
 } from "lucide-react";
 import { useLanguage } from "../context/LanguageContext";
 import LanguageSelector from "../components/LanguageSelector";
+import { BUILTIN_TEMPLATES, EmailTemplate } from "@/lib/template-presets";
 
 const BATCH_SIZE = 8; // Parallel send batching size
 
@@ -51,6 +58,8 @@ export default function BulkEmailsPage() {
   const [body, setBody] = useState("");
 
   const [loading, setLoading] = useState(false);
+  const [includeComplianceFooter, setIncludeComplianceFooter] = useState(true);
+  const [batchDelaySeconds, setBatchDelaySeconds] = useState(5);
   const [sendProgress, setSendProgress] = useState<{
     sent: number;
     total: number;
@@ -78,8 +87,16 @@ export default function BulkEmailsPage() {
     "upload" | "resume" | "content" | "preview"
   >("upload");
 
+  // Template states
+  const [templates, setTemplates] = useState<EmailTemplate[]>(BUILTIN_TEMPLATES);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>("");
+  const [customTemplateName, setCustomTemplateName] = useState<string>("");
+  const [savingTemplate, setSavingTemplate] = useState<boolean>(false);
+  const [saveMessage, setSaveMessage] = useState<string>("");
+
   useEffect(() => {
     checkGmailConnection();
+    fetchTemplates();
 
     // Auto-load contacts from sessionStorage if passed from sent-emails page
     try {
@@ -111,6 +128,68 @@ export default function BulkEmailsPage() {
       setOwnerConnected(null);
     } finally {
       setCheckingConnection(false);
+    }
+  };
+
+  const fetchTemplates = async () => {
+    try {
+      const res = await fetch("/api/templates", { cache: "no-store" });
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data.templates) && data.templates.length > 0) {
+          setTemplates(data.templates);
+        }
+      }
+    } catch (e) {
+      console.warn("Using built-in templates fallback:", e);
+    }
+  };
+
+  const handleSelectTemplate = (templateId: string) => {
+    setSelectedTemplateId(templateId);
+    const chosen = templates.find((t) => t.id === templateId);
+    if (chosen) {
+      setSubject(chosen.subject);
+      setBody(chosen.body);
+    }
+  };
+
+  const handleSaveTemplate = async () => {
+    if (!customTemplateName.trim()) {
+      setError("Please provide a name for your custom template.");
+      return;
+    }
+    if (!subject.trim() || !body.trim()) {
+      setError("Subject and body cannot be empty when saving template.");
+      return;
+    }
+
+    try {
+      setSavingTemplate(true);
+      setError("");
+      setSaveMessage("");
+
+      const res = await fetch("/api/templates", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: customTemplateName.trim(),
+          subject: subject.trim(),
+          body: body.trim(),
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Failed to save template");
+
+      setSaveMessage("Template saved successfully!");
+      setCustomTemplateName("");
+      fetchTemplates();
+      setTimeout(() => setSaveMessage(""), 3000);
+    } catch (err: any) {
+      setError(err.message || "Failed to save template");
+    } finally {
+      setSavingTemplate(false);
     }
   };
 
@@ -273,7 +352,16 @@ export default function BulkEmailsPage() {
       setLoading(true);
       const totalBatches = Math.ceil(rows.length / BATCH_SIZE);
 
+      const finalBodyToSend = includeComplianceFooter
+        ? `${body.trim()}\n\n---\nNote: If this position is already closed or you are not the right point of contact, please feel free to disregard this message.`
+        : body.trim();
+
       for (let batchIndex = 0; batchIndex < totalBatches; batchIndex++) {
+        if (batchIndex > 0 && batchDelaySeconds > 0) {
+          // Controlled safe pacing delay between batches
+          await new Promise((r) => setTimeout(r, batchDelaySeconds * 1000));
+        }
+
         const start = batchIndex * BATCH_SIZE;
         const batchRows = rows.slice(start, start + BATCH_SIZE);
 
@@ -281,7 +369,7 @@ export default function BulkEmailsPage() {
         formData.append("resume", resume);
         formData.append("rows", JSON.stringify(batchRows));
         formData.append("subject", subject);
-        formData.append("body", body);
+        formData.append("body", finalBodyToSend);
 
         const res = await fetch("/api/gmail/send-bulk", {
           method: "POST",
@@ -306,6 +394,64 @@ export default function BulkEmailsPage() {
       setLoading(false);
     }
   };
+
+  if (checkingConnection) {
+    return (
+      <div className="min-h-screen bg-[#03050c] text-slate-100 flex flex-col items-center justify-center p-4">
+        <Loader2 className="w-8 h-8 text-cyan-400 animate-spin mb-3" />
+        <p className="font-mono text-xs text-slate-400">Authenticating connection telemetry...</p>
+      </div>
+    );
+  }
+
+  if (!isConnected) {
+    return (
+      <div className="min-h-screen bg-[#03050c] text-slate-100 flex flex-col justify-between p-4 sm:p-8 relative overflow-hidden font-mono">
+        <div className="absolute inset-0 pointer-events-none overflow-hidden">
+          <div className="absolute top-10 left-10 w-[30rem] h-[30rem] bg-cyan-500/10 rounded-full filter blur-[140px] animate-aura-1"></div>
+          <div className="absolute bottom-10 right-10 w-[36rem] h-[36rem] bg-purple-600/15 rounded-full filter blur-[150px] animate-aura-2"></div>
+        </div>
+
+        <div className="relative z-10 max-w-xl mx-auto w-full my-auto space-y-5 animate-fade-up">
+          <div className="genz-glass-panel rounded-3xl p-6 sm:p-8 border border-rose-500/30 text-center space-y-4 shadow-2xl relative overflow-hidden">
+            <div className="w-16 h-16 bg-rose-500/10 border border-rose-500/40 rounded-2xl flex items-center justify-center mx-auto shadow-lg shadow-rose-500/20">
+              <Lock className="w-8 h-8 text-rose-400" />
+            </div>
+
+            <div>
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-rose-500/15 border border-rose-500/30 rounded-full text-rose-300 text-[10px] font-bold tracking-widest uppercase mb-2">
+                <ShieldAlert className="w-3 h-3 text-rose-400" />
+                <span>ACCESS RESTRICTED • AUTH REQUIRED</span>
+              </div>
+              <h2 className="text-xl sm:text-2xl font-black tracking-tight text-white">
+                MASS MAIL DISPATCHER LOCKED
+              </h2>
+              <p className="text-slate-300 text-xs sm:text-sm mt-2 leading-relaxed">
+                Authentication is required to launch bulk email outreach campaigns and access dispatch workflows.
+              </p>
+            </div>
+
+            <div className="pt-2 flex flex-col sm:flex-row gap-3">
+              <button
+                onClick={() => (window.location.href = "/api/auth/google")}
+                className="flex-1 py-3 bg-gradient-to-r from-cyan-400 via-purple-500 to-pink-500 hover:from-cyan-300 hover:to-pink-400 text-white font-bold text-xs rounded-xl shadow-lg shadow-purple-500/20 genz-shimmer-btn flex items-center justify-center gap-2 transition-all cursor-pointer"
+              >
+                <LogIn className="w-4 h-4" />
+                <span>AUTHORIZE YOUR ACCOUNT NOW</span>
+              </button>
+              <Link
+                href="/"
+                className="px-5 py-3 genz-glass-panel text-slate-300 hover:text-white rounded-xl border border-white/10 text-xs font-bold flex items-center justify-center gap-1.5"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                <span>Return</span>
+              </Link>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen md:h-screen md:max-h-screen relative overflow-x-hidden md:overflow-hidden bg-[#03050c] text-slate-100 flex flex-col justify-between p-3 sm:p-5">
@@ -367,7 +513,7 @@ export default function BulkEmailsPage() {
             ) : (
               <button
                 onClick={connectGmail}
-                className="px-3.5 py-1 bg-gradient-to-r from-cyan-500 via-purple-600 to-pink-600 text-white rounded-lg font-bold shadow-md genz-shimmer-btn"
+                className="px-4 py-1.5 bg-gradient-to-r from-cyan-400 via-purple-500 to-pink-500 text-white rounded-lg font-bold shadow-md genz-shimmer-btn animate-blink-attention cursor-pointer"
               >
                 {t("connect_account")}
               </button>
@@ -648,6 +794,29 @@ export default function BulkEmailsPage() {
                 </div>
               </div>
 
+              {/* Template Presets Selector */}
+              <div className="p-3 bg-slate-950/80 rounded-xl border border-purple-500/30 font-mono text-xs space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-purple-300 font-bold flex items-center gap-1.5">
+                    <Bookmark className="w-3.5 h-3.5 text-purple-400" />
+                    <span>PRE-SAVED TEMPLATE PRESETS</span>
+                  </label>
+                  <span className="text-[10px] text-slate-400">1-CLICK HIGH-CONVERTING TEMPLATES</span>
+                </div>
+                <select
+                  value={selectedTemplateId}
+                  onChange={(e) => handleSelectTemplate(e.target.value)}
+                  className="w-full px-3 py-2 genz-input rounded-xl text-white text-xs font-mono bg-slate-900 border border-purple-500/40"
+                >
+                  <option value="">-- Choose a Battle-Tested Template --</option>
+                  {templates.map((tpl) => (
+                    <option key={tpl.id} value={tpl.id}>
+                      {tpl.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
               <div className="space-y-3">
                 <div>
                   <label className="block text-xs font-mono font-bold text-slate-300 mb-1">{t("subject_label")}</label>
@@ -677,18 +846,53 @@ export default function BulkEmailsPage() {
                         +{`{{${tag}}}`}
                       </button>
                     ))}
+                    <button
+                      type="button"
+                      onClick={() => insertVariable("ai_pitch")}
+                      className="px-3 py-1.5 bg-gradient-to-r from-pink-500/30 via-purple-600/30 to-cyan-500/30 hover:bg-pink-500/40 border border-pink-500/60 text-pink-300 rounded-xl font-mono text-xs font-bold transition-all shadow-md flex items-center gap-1.5 animate-pulse"
+                      title="Injects AI-tailored pitch customized to the recipient company & job description"
+                    >
+                      <Sparkles className="w-3.5 h-3.5 text-pink-400" />
+                      <span>+{`{{ai_pitch}}`} (AI Tailored Line)</span>
+                    </button>
                   </div>
                 </div>
 
                 <div>
                   <label className="block text-xs font-mono font-bold text-slate-300 mb-1">{t("body_label")}</label>
                   <textarea
-                    rows={5}
+                    rows={7}
                     value={body}
                     onChange={(e) => setBody(e.target.value)}
                     placeholder={t("body_placeholder")}
                     className="w-full px-3.5 py-2.5 genz-input rounded-xl text-white text-xs font-mono leading-relaxed resize-none"
                   ></textarea>
+                </div>
+
+                {/* Save Custom Template Strip */}
+                <div className="p-3 bg-slate-950/60 rounded-xl border border-white/10 flex flex-wrap items-center justify-between gap-2 font-mono text-xs">
+                  <div className="flex items-center gap-2 flex-1 min-w-[240px]">
+                    <Save className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                    <input
+                      type="text"
+                      placeholder="Custom template name..."
+                      value={customTemplateName}
+                      onChange={(e) => setCustomTemplateName(e.target.value)}
+                      className="px-3 py-1 bg-slate-900 border border-white/10 rounded-lg text-white text-xs w-full"
+                    />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={handleSaveTemplate}
+                      disabled={savingTemplate || !customTemplateName.trim()}
+                      className="px-3 py-1 bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 text-emerald-300 rounded-lg font-bold text-xs flex items-center gap-1 disabled:opacity-40"
+                    >
+                      {savingTemplate ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
+                      <span>Save Template</span>
+                    </button>
+                    {saveMessage && <span className="text-emerald-400 font-bold">{saveMessage}</span>}
+                  </div>
                 </div>
 
                 <button
@@ -704,6 +908,36 @@ export default function BulkEmailsPage() {
 
           {activeTab === "preview" && (
             <div className="space-y-4 animate-fade-up">
+              {/* Compliance & Safe Outreach Options */}
+              <div className="p-3.5 genz-glass-panel rounded-xl border border-emerald-500/30 flex flex-wrap items-center justify-between gap-3 text-xs font-mono">
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={includeComplianceFooter}
+                    onChange={(e) => setIncludeComplianceFooter(e.target.checked)}
+                    className="rounded border-emerald-500 text-emerald-500 focus:ring-0"
+                  />
+                  <span className="text-emerald-300 font-bold flex items-center gap-1.5">
+                    <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                    Auto-append Polite Compliance / Opt-Out Disclaimer
+                  </span>
+                </label>
+
+                <div className="flex items-center gap-2 text-slate-300">
+                  <span className="text-[11px] text-slate-400">Batch Interval Delay:</span>
+                  <select
+                    value={batchDelaySeconds}
+                    onChange={(e) => setBatchDelaySeconds(Number(e.target.value))}
+                    className="px-2 py-1 bg-slate-950 border border-white/10 rounded-lg text-white font-mono text-xs"
+                  >
+                    <option value={0}>0s (Fast)</option>
+                    <option value={5}>5s (Recommended)</option>
+                    <option value={15}>15s (Safe)</option>
+                    <option value={30}>30s (Ultra Safe)</option>
+                  </select>
+                </div>
+              </div>
+
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-white/10 pb-3">
                 <div>
                   <h2 className="text-lg sm:text-xl font-bold text-white font-mono">{t("step_4_title")}</h2>

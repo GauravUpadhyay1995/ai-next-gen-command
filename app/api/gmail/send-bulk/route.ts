@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { google } from "googleapis";
 import { createOAuthClient } from "@/lib/google";
+import { generateSmartHeuristicPitch } from "@/lib/ai-personalizer";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -24,6 +25,14 @@ type SendResult = {
 function replaceVariables(template: string, row: ExcelRow) {
   return template.replace(/{{\s*([^}]+)\s*}}/g, (_, key) => {
     const cleanKey = String(key).trim().toLowerCase();
+    if (cleanKey === "ai_pitch") {
+      if (row.ai_pitch) return String(row.ai_pitch);
+      return generateSmartHeuristicPitch({
+        company: row.company || row.name || "your team",
+        role: row.role || "Software Engineer",
+        snippet: row.snippet || "",
+      });
+    }
     return row[cleanKey] ? String(row[cleanKey]) : "";
   });
 }

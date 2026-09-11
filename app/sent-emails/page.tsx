@@ -41,41 +41,48 @@ import {
   Activity,
   Terminal,
   Search,
-  LogOut
+  LogOut,
+  Lock,
+  ShieldAlert,
+  LogIn
 } from "lucide-react";
 import Link from "next/link";
 import { useLanguage } from "../context/LanguageContext";
 import LanguageSelector from "../components/LanguageSelector";
 
 type SentEmail = {
-  serialNo: number;
   id: string;
-  threadId: string;
+  threadId?: string;
   to: string;
-  from: string;
   subject: string;
   date: string;
-  rawDate: string;
-  snippet: string;
+  rawDate?: string;
+  snippet?: string;
 };
 
 function SentEmailsContent() {
   const { t } = useLanguage();
-  const router = useRouter();
   const searchParams = useSearchParams();
+  const router = useRouter();
+
   const connected = searchParams.get("connected");
+
   const [emails, setEmails] = useState<SentEmail[]>([]);
   const [loading, setLoading] = useState(false);
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
-  const [downloading, setDownloading] = useState(false);
   const [error, setError] = useState("");
+  const [exporting, setExporting] = useState(false);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedEmail, setSelectedEmail] = useState<SentEmail | null>(null);
-  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+
   const [connectedEmail, setConnectedEmail] = useState("");
   const [ownerConnected, setOwnerConnected] = useState<boolean | null>(null);
   const [ownerEmail, setOwnerEmail] = useState("");
+
+  // Pagination & Fetch Progress States
   const [fetchProgress, setFetchProgress] = useState<{
     currentPage: number;
     fetchedCount: number;
@@ -89,6 +96,7 @@ function SentEmailsContent() {
   });
 
   const [isConnected, setIsConnected] = useState(false);
+  const [checkingAuth, setCheckingAuth] = useState(true);
 
   useEffect(() => {
     checkGmailConnection();
@@ -96,6 +104,7 @@ function SentEmailsContent() {
 
   const checkGmailConnection = async () => {
     try {
+      setCheckingAuth(true);
       const res = await fetch("/api/gmail/status", { cache: "no-store" });
       const data = await res.json();
       const connectedStatus = Boolean(data.connected);
@@ -112,6 +121,8 @@ function SentEmailsContent() {
       setConnectedEmail("");
       setOwnerConnected(null);
       setOwnerEmail("");
+    } finally {
+      setCheckingAuth(false);
     }
   };
 
@@ -256,6 +267,79 @@ function SentEmailsContent() {
     };
   }, [emails]);
 
+  if (checkingAuth) {
+    return (
+      <div className="min-h-screen bg-[#03050c] text-slate-100 flex flex-col items-center justify-center p-5 relative overflow-hidden font-mono">
+        <div className="p-4 genz-glass-panel rounded-2xl border border-purple-500/30 flex flex-col items-center gap-3 animate-pulse">
+          <Loader2 className="w-8 h-8 text-purple-400 animate-spin" />
+          <p className="text-xs text-purple-300 font-bold tracking-wider">
+            VERIFYING COMMAND STATION AUTHENTICATION...
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isConnected) {
+    return (
+      <div className="min-h-screen bg-[#03050c] text-slate-100 flex flex-col justify-between p-4 sm:p-8 relative overflow-hidden font-mono">
+        {/* Background Aura */}
+        <div className="absolute inset-0 pointer-events-none overflow-hidden">
+          <div className="absolute top-10 left-10 w-[30rem] h-[30rem] bg-rose-500/10 rounded-full filter blur-[140px] animate-aura-1"></div>
+          <div className="absolute bottom-10 right-10 w-[36rem] h-[36rem] bg-purple-600/15 rounded-full filter blur-[150px] animate-aura-2"></div>
+        </div>
+
+        <div className="relative z-10 max-w-xl mx-auto w-full my-auto space-y-5 animate-fade-up">
+          <div className="genz-glass-panel rounded-3xl p-6 sm:p-8 border border-rose-500/30 text-center space-y-4 shadow-2xl relative overflow-hidden">
+            <div className="w-16 h-16 bg-rose-500/10 border border-rose-500/40 rounded-2xl flex items-center justify-center mx-auto shadow-lg shadow-rose-500/20">
+              <Lock className="w-8 h-8 text-rose-400" />
+            </div>
+
+            <div>
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-rose-500/15 border border-rose-500/30 rounded-full text-rose-300 text-[10px] font-bold tracking-widest uppercase mb-2">
+                <ShieldAlert className="w-3 h-3 text-rose-400" />
+                <span>ACCESS RESTRICTED • AUTH REQUIRED</span>
+              </div>
+              <h2 className="text-xl sm:text-2xl font-black tracking-tight text-white">
+                SENT TRACKER LOCKED
+              </h2>
+              <p className="text-slate-300 text-xs sm:text-sm mt-2 leading-relaxed">
+                Google OAuth 2.0 authentication is required to access sent telemetry, audit message logs, and track outreach status.
+              </p>
+            </div>
+
+            <div className="p-3 bg-white/5 rounded-xl border border-white/10 text-left text-xs space-y-1.5 text-slate-400">
+              <div className="flex items-center gap-2 text-slate-200 font-bold">
+                <CheckCircle2 className="w-3.5 h-3.5 text-purple-400" />
+                <span>What you get after connecting:</span>
+              </div>
+              <p className="text-[11px] pl-5">• Real-time Gmail Sent Logs & Telemetry Audit</p>
+              <p className="text-[11px] pl-5">• Recipient Engagement & Outreach Analytics</p>
+              <p className="text-[11px] pl-5">• 1-Click Re-target Campaign Launcher</p>
+            </div>
+
+            <div className="pt-2 flex flex-col sm:flex-row gap-3">
+              <button
+                onClick={() => (window.location.href = "/api/auth/google")}
+                className="flex-1 py-3 bg-gradient-to-r from-cyan-400 via-purple-500 to-pink-500 hover:from-cyan-300 hover:to-pink-400 text-white font-bold text-xs rounded-xl shadow-lg shadow-purple-500/20 genz-shimmer-btn flex items-center justify-center gap-2 transition-all"
+              >
+                <LogIn className="w-4 h-4" />
+                <span>AUTHORIZE YOUR ACCOUNT NOW</span>
+              </button>
+              <Link
+                href="/"
+                className="px-5 py-3 genz-glass-panel text-slate-300 hover:text-white rounded-xl border border-white/10 text-xs font-bold flex items-center justify-center gap-1.5"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                <span>Return</span>
+              </Link>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen md:h-screen md:max-h-screen relative overflow-x-hidden md:overflow-hidden bg-[#03050c] text-slate-100 flex flex-col justify-between p-3 sm:p-5">
       {/* Dynamic Background Cyber Mesh */}
@@ -321,7 +405,7 @@ function SentEmailsContent() {
                   ) : (
                     <button
                       onClick={connectGmail}
-                      className="flex-1 sm:flex-none px-3.5 py-1.5 border font-bold transition-all text-center rounded-lg flex items-center justify-center gap-1.5 bg-purple-600/30 hover:bg-purple-600/50 border-purple-500/40 text-purple-200"
+                      className="flex-1 sm:flex-none px-4 py-1.5 border font-bold transition-all text-center rounded-lg flex items-center justify-center gap-1.5 bg-gradient-to-r from-cyan-400 via-purple-500 to-pink-500 text-white animate-blink-attention shadow-lg cursor-pointer"
                     >
                       <span>{t("connect_account")}</span>
                     </button>
