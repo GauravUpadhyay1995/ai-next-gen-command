@@ -448,7 +448,7 @@ export async function executeMorningEmailDispatcher(options?: {
       // Match jobs for this customer
       const candidateRoleWords = (customer.role || "").toLowerCase().split(/\s+/).filter((w) => w.length > 2);
       
-      let eligibleJobs = jobs.filter((job) => {
+      let eligibleJobs: any[] = jobs.filter((job) => {
         // Must not have been dispatched to this customer before
         const alreadyDispatched = Array.isArray(job.dispatchedTo) && job.dispatchedTo.includes(customer.email);
         if (alreadyDispatched) return false;

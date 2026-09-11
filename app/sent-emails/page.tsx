@@ -142,10 +142,13 @@ function SentEmailsContent() {
     }
   };
 
-  const copyToClipboard = (text: string, id: string) => {
+  const copyToClipboard = (text?: string, id?: string) => {
+    if (!text) return;
     navigator.clipboard.writeText(text);
-    setCopiedId(id);
-    setTimeout(() => setCopiedId(null), 2000);
+    if (id) {
+      setCopiedId(id);
+      setTimeout(() => setCopiedId(null), 2000);
+    }
   };
 
   const fetchSentEmails = async () => {
