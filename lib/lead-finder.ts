@@ -189,6 +189,28 @@ function parseRssFeed(xml: string): Array<{ title: string; link: string; descrip
 }
 
 /**
+ * Robust fetch wrapper with strict timeout to prevent cloud serverless stalls / timeouts.
+ */
+async function fetchWithTimeout(url: string, init: RequestInit = {}, timeoutMs: number = 3200): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => {
+    try {
+      controller.abort();
+    } catch {}
+  }, timeoutMs);
+
+  try {
+    const res = await fetch(url, {
+      ...init,
+      signal: controller.signal,
+    });
+    return res;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/**
  * Searches 15+ public open job feeds and RSS streams in parallel for active hiring posts.
  */
 export async function searchPublicJobFeeds(
@@ -285,7 +307,7 @@ export async function searchPublicJobFeeds(
         const url = `https://remotive.com/api/remote-jobs?limit=50${
           cleanKeyword ? `&search=${encodeURIComponent(cleanKeyword)}` : ""
         }`;
-        const res = await fetch(url, {
+        const res = await fetchWithTimeout(url, {
           headers: { "User-Agent": "Fetchmail-LeadFinder/1.0" },
           cache: "no-store",
         });
@@ -315,7 +337,7 @@ export async function searchPublicJobFeeds(
         const url = `https://himalayas.app/jobs/api?limit=50${
           cleanKeyword ? `&search=${encodeURIComponent(cleanKeyword)}` : ""
         }`;
-        const res = await fetch(url, {
+        const res = await fetchWithTimeout(url, {
           headers: { "User-Agent": "Fetchmail-LeadFinder/1.0" },
           cache: "no-store",
         });
@@ -342,7 +364,7 @@ export async function searchPublicJobFeeds(
     // 3. Arbeitnow API
     (async () => {
       try {
-        const res = await fetch("https://www.arbeitnow.com/api/job-board-api", {
+        const res = await fetchWithTimeout("https://www.arbeitnow.com/api/job-board-api", {
           headers: { "User-Agent": "Fetchmail-LeadFinder/1.0" },
           cache: "no-store",
         });
@@ -372,7 +394,7 @@ export async function searchPublicJobFeeds(
         const url = `https://jobicy.com/api/v2/remote-jobs?count=50${
           cleanKeyword ? `&tag=${encodeURIComponent(cleanKeyword)}` : ""
         }`;
-        const res = await fetch(url, {
+        const res = await fetchWithTimeout(url, {
           headers: { "User-Agent": "Fetchmail-LeadFinder/1.0" },
           cache: "no-store",
         });
@@ -399,7 +421,7 @@ export async function searchPublicJobFeeds(
     // 5. RemoteOK API
     (async () => {
       try {
-        const res = await fetch("https://remoteok.com/api", {
+        const res = await fetchWithTimeout("https://remoteok.com/api", {
           headers: { "User-Agent": "Fetchmail-LeadFinder/1.0 (Job Outreach Tool)" },
           cache: "no-store",
         });
@@ -429,7 +451,7 @@ export async function searchPublicJobFeeds(
     // 6. We Work Remotely - Programming RSS
     (async () => {
       try {
-        const res = await fetch("https://weworkremotely.com/categories/remote-programming-jobs.rss", {
+        const res = await fetchWithTimeout("https://weworkremotely.com/categories/remote-programming-jobs.rss", {
           headers: { "User-Agent": "Fetchmail-LeadFinder/1.0" },
           cache: "no-store",
         });
@@ -455,7 +477,7 @@ export async function searchPublicJobFeeds(
     // 7. We Work Remotely - DevOps & Sysadmin RSS
     (async () => {
       try {
-        const res = await fetch("https://weworkremotely.com/categories/remote-devops-sysadmin-jobs.rss", {
+        const res = await fetchWithTimeout("https://weworkremotely.com/categories/remote-devops-sysadmin-jobs.rss", {
           headers: { "User-Agent": "Fetchmail-LeadFinder/1.0" },
           cache: "no-store",
         });
@@ -481,7 +503,7 @@ export async function searchPublicJobFeeds(
     // 8. We Work Remotely - Design Jobs RSS
     (async () => {
       try {
-        const res = await fetch("https://weworkremotely.com/categories/remote-design-jobs.rss", {
+        const res = await fetchWithTimeout("https://weworkremotely.com/categories/remote-design-jobs.rss", {
           headers: { "User-Agent": "Fetchmail-LeadFinder/1.0" },
           cache: "no-store",
         });
@@ -507,7 +529,7 @@ export async function searchPublicJobFeeds(
     // 9. We Work Remotely - Product Jobs RSS
     (async () => {
       try {
-        const res = await fetch("https://weworkremotely.com/categories/remote-product-jobs.rss", {
+        const res = await fetchWithTimeout("https://weworkremotely.com/categories/remote-product-jobs.rss", {
           headers: { "User-Agent": "Fetchmail-LeadFinder/1.0" },
           cache: "no-store",
         });
@@ -537,7 +559,7 @@ export async function searchPublicJobFeeds(
         const url = `https://hn.algolia.com/api/v1/search_by_date?tags=comment&query=${encodeURIComponent(
           queryTerm
         )}&hitsPerPage=40`;
-        const res = await fetch(url, {
+        const res = await fetchWithTimeout(url, {
           headers: { "User-Agent": "Fetchmail-LeadFinder/1.0" },
           cache: "no-store",
         });
@@ -581,7 +603,7 @@ export async function searchPublicJobFeeds(
     // 11. Python.org Official Jobs RSS Feed
     (async () => {
       try {
-        const res = await fetch("https://www.python.org/jobs/feed/rss/", {
+        const res = await fetchWithTimeout("https://www.python.org/jobs/feed/rss/", {
           headers: { "User-Agent": "Fetchmail-LeadFinder/1.0" },
           cache: "no-store",
         });
@@ -600,7 +622,7 @@ export async function searchPublicJobFeeds(
     // 12. GolangProjects Jobs RSS Feed
     (async () => {
       try {
-        const res = await fetch("https://golangprojects.com/golang-jobs-rss.xml", {
+        const res = await fetchWithTimeout("https://golangprojects.com/golang-jobs-rss.xml", {
           headers: { "User-Agent": "Fetchmail-LeadFinder/1.0" },
           cache: "no-store",
         });
@@ -619,7 +641,7 @@ export async function searchPublicJobFeeds(
     // 13. CryptocurrencyJobs / Web3 RSS Feed
     (async () => {
       try {
-        const res = await fetch("https://cryptocurrencyjobs.co/index.xml", {
+        const res = await fetchWithTimeout("https://cryptocurrencyjobs.co/index.xml", {
           headers: { "User-Agent": "Fetchmail-LeadFinder/1.0" },
           cache: "no-store",
         });
@@ -638,7 +660,7 @@ export async function searchPublicJobFeeds(
     // 14. Nodesk Curated Remote Jobs RSS
     (async () => {
       try {
-        const res = await fetch("https://nodesk.co/remote-jobs/index.xml", {
+        const res = await fetchWithTimeout("https://nodesk.co/remote-jobs/index.xml", {
           headers: { "User-Agent": "Fetchmail-LeadFinder/1.0" },
           cache: "no-store",
         });
@@ -657,7 +679,7 @@ export async function searchPublicJobFeeds(
     // 15. DevITJobs International Tech Feed
     (async () => {
       try {
-        const res = await fetch("https://devitjobs.com/feed", {
+        const res = await fetchWithTimeout("https://devitjobs.com/feed", {
           headers: { "User-Agent": "Fetchmail-LeadFinder/1.0" },
           cache: "no-store",
         });
@@ -676,7 +698,7 @@ export async function searchPublicJobFeeds(
     // 16. Working Nomads Global RSS Feed
     (async () => {
       try {
-        const res = await fetch("https://www.workingnomads.com/jobs.rss", {
+        const res = await fetchWithTimeout("https://www.workingnomads.com/jobs.rss", {
           headers: { "User-Agent": "Fetchmail-LeadFinder/1.0" },
           cache: "no-store",
         });
@@ -700,7 +722,7 @@ export async function searchPublicJobFeeds(
           cleanKeyword || "software developer"
         )}&location=${encodeURIComponent(linkedinLoc)}&start=0`;
 
-        const res = await fetch(linkedinUrl, {
+        const res = await fetchWithTimeout(linkedinUrl, {
           headers: {
             "User-Agent":
               "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
@@ -753,7 +775,7 @@ export async function searchPublicJobFeeds(
         const citySlug = city.toLowerCase().replace(/[^a-z0-9]/g, "-");
         const workIndiaUrl = `https://www.workindia.in/jobs-in-${citySlug}/?q=${encodeURIComponent(cleanKeyword || "developer")}`;
 
-        const res = await fetch(workIndiaUrl, {
+        const res = await fetchWithTimeout(workIndiaUrl, {
           headers: {
             "User-Agent":
               "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
@@ -795,7 +817,7 @@ export async function searchPublicJobFeeds(
           cleanKeyword || "developer"
         )}&location=${encodeURIComponent(naukriLoc)}&sortType=r`;
 
-        const res = await fetch(naukriUrl, {
+        const res = await fetchWithTimeout(naukriUrl, {
           headers: {
             "User-Agent":
               "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
@@ -836,7 +858,7 @@ export async function searchPublicJobFeeds(
           // Fallback HTML parser if JSON API is protected
           const slugKeyword = (cleanKeyword || "developer").toLowerCase().replace(/[^a-z0-9]/g, "-");
           const webUrl = `https://www.naukri.com/${slugKeyword}-jobs-in-${naukriLoc.toLowerCase().replace(/[^a-z0-9]/g, "-")}`;
-          const webRes = await fetch(webUrl, {
+          const webRes = await fetchWithTimeout(webUrl, {
             headers: {
               "User-Agent":
                 "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
@@ -872,7 +894,7 @@ export async function searchPublicJobFeeds(
         const indeedLoc = cleanLocation && cleanLocation !== "all" ? cleanLocation : (isIndia ? "India" : "Remote");
         const indeedRssUrl = `${indeedBase}/rss?q=${encodeURIComponent(cleanKeyword || "developer")}&l=${encodeURIComponent(indeedLoc)}&sort=date`;
 
-        const res = await fetch(indeedRssUrl, {
+        const res = await fetchWithTimeout(indeedRssUrl, {
           headers: {
             "User-Agent":
               "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
@@ -949,7 +971,7 @@ export async function searchGoogleHiringPosts(
   const seenEmails = new Set<string>();
 
   try {
-    const res = await fetch(url);
+    const res = await fetchWithTimeout(url, {}, 3500);
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
       if (res.status === 403) {
@@ -1075,7 +1097,7 @@ export async function scanCompanyCareerSection(
     // 1. Greenhouse ATS Board API
     (async () => {
       try {
-        const res = await fetch(`https://boards-api.greenhouse.io/v1/boards/${slug}/jobs?content=true`, {
+        const res = await fetchWithTimeout(`https://boards-api.greenhouse.io/v1/boards/${slug}/jobs?content=true`, {
           headers: { "User-Agent": "Fetchmail-LeadFinder/1.0" },
           cache: "no-store",
         });
@@ -1113,7 +1135,7 @@ export async function scanCompanyCareerSection(
     // 2. Lever ATS Postings API
     (async () => {
       try {
-        const res = await fetch(`https://api.lever.co/v0/postings/${slug}?mode=json`, {
+        const res = await fetchWithTimeout(`https://api.lever.co/v0/postings/${slug}?mode=json`, {
           headers: { "User-Agent": "Fetchmail-LeadFinder/1.0" },
           cache: "no-store",
         });
@@ -1152,7 +1174,7 @@ export async function scanCompanyCareerSection(
     // 3. Ashby ATS Postings API
     (async () => {
       try {
-        const res = await fetch(`https://api.ashbyhq.com/posting-api/job-board/${slug}`, {
+        const res = await fetchWithTimeout(`https://api.ashbyhq.com/posting-api/job-board/${slug}`, {
           headers: { "User-Agent": "Fetchmail-LeadFinder/1.0" },
           cache: "no-store",
         });
@@ -1193,7 +1215,7 @@ export async function scanCompanyCareerSection(
         const urlsToProbe = [`https://${domain}/careers`, `https://${domain}/jobs`, `https://www.${domain}/careers`];
         for (const careerUrl of urlsToProbe) {
           try {
-            const res = await fetch(careerUrl, {
+            const res = await fetchWithTimeout(careerUrl, {
               headers: {
                 "User-Agent":
                   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",

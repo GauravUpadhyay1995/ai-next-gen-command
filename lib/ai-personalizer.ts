@@ -115,6 +115,7 @@ Instructions:
             maxOutputTokens: 100,
           },
         }),
+        signal: AbortSignal.timeout(3500),
       }
     );
 

@@ -57,7 +57,11 @@ export async function verifyEmailMx(email: string): Promise<{
   }
 
   try {
-    const records = await dns.promises.resolveMx(domain);
+    const dnsPromise = dns.promises.resolveMx(domain);
+    const timeoutPromise = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error("DNS resolution timed out")), 1500)
+    );
+    const records = await Promise.race([dnsPromise, timeoutPromise]);
     if (records && records.length > 0) {
       // Sort by priority
       records.sort((a, b) => a.priority - b.priority);
