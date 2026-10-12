@@ -17,15 +17,15 @@ export type SystemSettings = {
 };
 
 export function getSuperAdminEmail(): string {
-  return (process.env.OWNER_EMAIL || "rupamsi007@gmail.com").toLowerCase().trim();
+  return (process.env.OWNER_EMAIL || "singhtanvi0231@gmail.com").toLowerCase().trim();
 }
 
 export function isSuperAdmin(email: string): boolean {
   if (!email) return false;
   const clean = email.toLowerCase().trim();
-  const ownerEnv = (process.env.OWNER_EMAIL || "rupamsi007@gmail.com,singhtanvi0231@gmail.com").toLowerCase().trim();
+  const ownerEnv = (process.env.OWNER_EMAIL || "singhtanvi0231@gmail.com").toLowerCase().trim();
   const owners = ownerEnv.split(",").map((e) => e.trim());
-  return owners.includes(clean) || clean === "rupamsi007@gmail.com" || clean === "singhtanvi0231@gmail.com";
+  return owners.includes(clean) || clean === "singhtanvi0231@gmail.com";
 }
 
 /**

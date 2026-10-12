@@ -181,20 +181,15 @@ export async function GET(req: NextRequest) {
             const snippetText = msg.data.snippet || "";
             const subjectText = getHeader(headers, "Subject") || "No Subject";
 
-            const replaceOwnerEmail = (text: string) => {
-              if (!text) return "";
-              return text.replace(/rupamsi007@gmail.com/gi, "Store Room");
-            };
-
             return {
               serialNo: globalIndex + 1,
               id: msg.data.id || "",
               threadId: msg.data.threadId || "",
-              to: replaceOwnerEmail(toEmail),
-              subject: replaceOwnerEmail(subjectText),
+              to: toEmail,
+              subject: subjectText,
               date: formatDate(rawDate),
               rawDate,
-              snippet: replaceOwnerEmail(snippetText),
+              snippet: snippetText,
             };
           } catch (err) {
             console.error(`Error getting metadata for message ${message.id}:`, err);

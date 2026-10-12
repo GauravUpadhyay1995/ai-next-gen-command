@@ -6,7 +6,7 @@ import { decrypt } from "./crypto";
 import { createOAuthClient } from "./google";
 import { google } from "googleapis";
 import { generateAIPersonalizedPitch, generateSmartHeuristicPitch } from "./ai-personalizer";
-import { sendGmailSmtp } from "./smtp-mailer";
+import { sendGmailSmtp, createRawMimeEmailBase64 } from "./smtp-mailer";
 
 export type DailyJobQueueItem = {
   _id?: any;
@@ -41,87 +41,8 @@ function getTodayString(): string {
   return `${year}-${month}-${day}`;
 }
 
-function sanitizeHeader(value: string) {
-  return String(value || "").replace(/(\r\n|\n|\r)/gm, " ").trim();
-}
+const sleep = (ms: number) => new Promise((res) => setTimeout(res, ms));
 
-function chunkBase64(base64: string) {
-  return base64.match(/.{1,76}/g)?.join("\r\n") || base64;
-}
-
-function base64UrlEncode(input: Buffer | string) {
-  return Buffer.from(input)
-    .toString("base64")
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_")
-    .replace(/=+$/, "");
-}
-
-function createRawMimeEmail({
-  to,
-  fromEmail,
-  fromName,
-  subject,
-  body,
-  attachmentName,
-  attachmentMimeType,
-  attachmentBase64,
-}: {
-  to: string;
-  fromEmail?: string;
-  fromName?: string;
-  subject: string;
-  body: string;
-  attachmentName?: string;
-  attachmentMimeType?: string;
-  attachmentBase64?: string;
-}) {
-  const boundary = `boundary_${Date.now()}_${Math.random().toString(36).slice(2)}`;
-  const safeSubject = sanitizeHeader(subject);
-  const fromHeader = fromName && fromEmail ? `${fromName} <${fromEmail}>` : fromEmail || "";
-
-  const headers = [
-    `To: ${to}`,
-    fromHeader ? `From: ${fromHeader}` : "",
-    `Subject: ${safeSubject}`,
-    `MIME-Version: 1.0`,
-  ].filter(Boolean);
-
-  if (attachmentBase64 && attachmentName) {
-    const safeAttachmentName = sanitizeHeader(attachmentName);
-    const mimeType = attachmentMimeType || "application/pdf";
-
-    const messageParts = [
-      ...headers,
-      `Content-Type: multipart/mixed; boundary="${boundary}"`,
-      ``,
-      `--${boundary}`,
-      `Content-Type: text/plain; charset="UTF-8"`,
-      `Content-Transfer-Encoding: 7bit`,
-      ``,
-      body,
-      ``,
-      `--${boundary}`,
-      `Content-Type: ${mimeType}; name="${safeAttachmentName}"`,
-      `Content-Disposition: attachment; filename="${safeAttachmentName}"`,
-      `Content-Transfer-Encoding: base64`,
-      ``,
-      chunkBase64(attachmentBase64),
-      ``,
-      `--${boundary}--`,
-    ];
-    return base64UrlEncode(messageParts.join("\r\n"));
-  } else {
-    const messageParts = [
-      ...headers,
-      `Content-Type: text/plain; charset="UTF-8"`,
-      `Content-Transfer-Encoding: 7bit`,
-      ``,
-      body,
-    ];
-    return base64UrlEncode(messageParts.join("\r\n"));
-  }
-}
 
 /**
  * PHASE 1: Night 2:00 AM Cron Execution
@@ -578,7 +499,7 @@ export async function executeMorningEmailDispatcher(options?: {
               }
 
               if (sendMethod === "smtp") {
-                // Direct Google SMTP sending using App Password
+                // Direct Google SMTP sending using App Password with pre-flight MX check
                 const smtpRes = await sendGmailSmtp({
                   fromEmail: customer.email,
                   fromName: customer.name,
@@ -595,9 +516,9 @@ export async function executeMorningEmailDispatcher(options?: {
                   throw new Error(smtpRes.error || "SMTP email delivery failed");
                 }
               } else {
-                // Build MIME raw email with attached resume if present
-                const raw = createRawMimeEmail({
-                  to: job.email,
+                // Build RFC-5322 MIME raw email with attached resume if present
+                const raw = createRawMimeEmailBase64({
+                  toEmail: job.email,
                   fromName: customer.name,
                   fromEmail: customer.email,
                   subject,
@@ -678,6 +599,11 @@ export async function executeMorningEmailDispatcher(options?: {
               grandTotalSkipped++;
             }
           }
+        }
+
+        // Anti-bot throttling delay between chunks
+        if (i + CONCURRENCY_CHUNK < jobsToProcess.length && !options?.simulateOnly) {
+          await sleep(2000 + Math.random() * 2500);
         }
       }
 

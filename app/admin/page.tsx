@@ -43,8 +43,11 @@ import {
   Activity,
   FileSpreadsheet,
   Mail,
-  X
+  X,
+  Target,
+  Layers
 } from "lucide-react";
+import DbLeadsSection from "./components/DbLeadsSection";
 
 type CustomerProfile = {
   _id?: string;
@@ -103,7 +106,7 @@ type QueuedJob = {
 
 export default function AdminDashboardPage() {
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"customers" | "crons" | "analytics" | "queue" | "settings">("customers");
+  const [activeTab, setActiveTab] = useState<"customers" | "dbleads" | "crons" | "analytics" | "queue" | "settings">("customers");
   const [error, setError] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
@@ -573,7 +576,7 @@ export default function AdminDashboardPage() {
                 <Lock className="w-3.5 h-3.5 text-amber-400" />
                 <span>Superadmin Access Only:</span>
               </div>
-              <p className="text-[11px] pl-5 text-slate-400">• Registered owner email: <strong className="text-white">rupamsi007@gmail.com / OWNER_EMAIL</strong></p>
+              <p className="text-[11px] pl-5 text-slate-400">• Registered owner email: <strong className="text-white">singhtanvi0231@gmail.com / OWNER_EMAIL</strong></p>
               <p className="text-[11px] pl-5 text-slate-400">• Customer and guest logins are strictly disabled without authorization</p>
             </div>
 
@@ -729,6 +732,18 @@ export default function AdminDashboardPage() {
           </button>
 
           <button
+            onClick={() => setActiveTab("dbleads")}
+            className={`px-4 py-2 rounded-xl text-xs font-mono font-bold flex items-center gap-2 transition-all shrink-0 ${
+              activeTab === "dbleads"
+                ? "bg-gradient-to-r from-purple-600/40 via-pink-600/40 to-cyan-600/40 border border-cyan-400/60 text-white shadow-lg shadow-cyan-950/40"
+                : "text-cyan-300 hover:text-white hover:bg-cyan-950/30 border border-cyan-500/20"
+            }`}
+          >
+            <Target className="w-4 h-4 text-cyan-400" />
+            <span>🎯 2. DB Leads & Targeted Outreach (NEW)</span>
+          </button>
+
+          <button
             onClick={() => setActiveTab("crons")}
             className={`px-4 py-2 rounded-xl text-xs font-mono font-bold flex items-center gap-2 transition-all shrink-0 ${
               activeTab === "crons"
@@ -737,7 +752,7 @@ export default function AdminDashboardPage() {
             }`}
           >
             <Play className="w-4 h-4 text-amber-400" />
-            <span>2. Master Auto-Pilot & Batch Engines</span>
+            <span>3. Master Auto-Pilot & Batch Engines</span>
           </button>
 
           <button
@@ -749,7 +764,7 @@ export default function AdminDashboardPage() {
             }`}
           >
             <BarChart3 className="w-4 h-4 text-emerald-400" />
-            <span>3. Sent History & Analytics ({sentHistory.length})</span>
+            <span>4. Sent History & Analytics ({sentHistory.length})</span>
           </button>
 
           <button
@@ -761,7 +776,7 @@ export default function AdminDashboardPage() {
             }`}
           >
             <Database className="w-4 h-4 text-cyan-400" />
-            <span>4. Multi-Portal Live Job Radar ({queuedJobs.length})</span>
+            <span>5. Multi-Portal Live Job Radar ({queuedJobs.length})</span>
           </button>
 
           <button
@@ -773,9 +788,20 @@ export default function AdminDashboardPage() {
             }`}
           >
             <Lock className="w-4 h-4 text-pink-400" />
-            <span>5. System Settings & Access Control</span>
+            <span>6. System Settings & Access Control</span>
           </button>
         </div>
+
+        {/* TAB: DB LEADS & TARGETED OUTREACH */}
+        {activeTab === "dbleads" && (
+          <DbLeadsSection
+            customers={customers}
+            onOutreachComplete={() => {
+              fetchSentHistory();
+              loadAllData();
+            }}
+          />
+        )}
 
         {/* TAB 1: CANDIDATES & 1-CLICK LAUNCHERS */}
         {activeTab === "customers" && (

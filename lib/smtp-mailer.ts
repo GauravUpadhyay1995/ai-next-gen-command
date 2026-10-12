@@ -1,22 +1,24 @@
 import tls from "tls";
+import { verifyEmailMx, isValidEmailFormat } from "./email-verifier";
 
 export interface SmtpSendOptions {
   fromEmail: string;
   fromName?: string;
-  appPassword: string; // 16-character Google App Password (spaces will be stripped)
+  appPassword?: string; // 16-character Google App Password (spaces will be stripped)
   toEmail: string;
   subject: string;
   body: string;
   attachmentName?: string;
   attachmentMimeType?: string;
   attachmentBase64?: string;
+  skipMxCheck?: boolean;
 }
 
-function sanitizeHeader(val: string): string {
-  return (val || "").replace(/[\r\n]+/g, " ").trim();
+export function sanitizeHeader(val: string): string {
+  return (val || "").replace(/[\r\n\t]+/g, " ").trim();
 }
 
-function chunkBase64(base64Str: string, chunkSize = 76): string {
+export function chunkBase64(base64Str: string, chunkSize = 76): string {
   const clean = base64Str.replace(/[\r\n]+/g, "");
   const chunks: string[] = [];
   for (let i = 0; i < clean.length; i += chunkSize) {
@@ -25,20 +27,53 @@ function chunkBase64(base64Str: string, chunkSize = 76): string {
   return chunks.join("\r\n");
 }
 
-function createRawMimeMessage(options: SmtpSendOptions): string {
-  const boundary = `boundary_${Date.now()}_${Math.random().toString(36).slice(2)}`;
-  const safeSubject = sanitizeHeader(options.subject);
-  const fromHeader = options.fromName && options.fromEmail 
-    ? `"${sanitizeHeader(options.fromName)}" <${options.fromEmail}>` 
-    : options.fromEmail;
+export function base64UrlEncode(input: Buffer | string): string {
+  return Buffer.from(input)
+    .toString("base64")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/, "");
+}
 
-  const headers = [
+/**
+ * Extracts sender domain for valid RFC-5322 Message-ID and EHLO handshake.
+ */
+export function getDomainFromEmail(email: string): string {
+  try {
+    const parts = (email || "").trim().split("@");
+    if (parts.length === 2 && parts[1].includes(".")) {
+      return parts[1].toLowerCase().trim();
+    }
+  } catch {
+    // fallback
+  }
+  return "gmail.com";
+}
+
+/**
+ * Creates RFC-5322 compliant raw MIME message string.
+ */
+export function createRawMimeMessage(options: SmtpSendOptions): string {
+  const boundary = `====_fetchmail_${Date.now()}_${Math.random().toString(36).slice(2, 9)}====`;
+  const safeSubject = sanitizeHeader(options.subject);
+  const senderDomain = getDomainFromEmail(options.fromEmail);
+  const fromHeader = options.fromName && options.fromEmail 
+    ? `"${sanitizeHeader(options.fromName)}" <${options.fromEmail.trim()}>` 
+    : options.fromEmail.trim();
+
+  const messageId = `<${Date.now()}.${Math.random().toString(36).slice(2, 10)}@${senderDomain}>`;
+  const dateHeader = new Date().toUTCString();
+
+  const standardHeaders = [
     `From: ${fromHeader}`,
-    `To: ${options.toEmail}`,
+    `To: ${options.toEmail.trim()}`,
+    `Reply-To: ${fromHeader}`,
     `Subject: ${safeSubject}`,
+    `Date: ${dateHeader}`,
+    `Message-ID: ${messageId}`,
     `MIME-Version: 1.0`,
-    `Date: ${new Date().toUTCString()}`,
-    `Message-ID: <${Date.now()}.${Math.random().toString(36).slice(2)}@fetchmail>`,
+    `X-Mailer: FetchMail Outreach Engine/2.0`,
+    `X-Priority: 3`,
   ];
 
   if (options.attachmentBase64 && options.attachmentName) {
@@ -46,12 +81,12 @@ function createRawMimeMessage(options: SmtpSendOptions): string {
     const mimeType = options.attachmentMimeType || "application/pdf";
 
     const parts = [
-      ...headers,
+      ...standardHeaders,
       `Content-Type: multipart/mixed; boundary="${boundary}"`,
       ``,
       `--${boundary}`,
       `Content-Type: text/plain; charset="UTF-8"`,
-      `Content-Transfer-Encoding: 7bit`,
+      `Content-Transfer-Encoding: 8bit`,
       ``,
       options.body,
       ``,
@@ -67,9 +102,9 @@ function createRawMimeMessage(options: SmtpSendOptions): string {
     return parts.join("\r\n");
   } else {
     const parts = [
-      ...headers,
+      ...standardHeaders,
       `Content-Type: text/plain; charset="UTF-8"`,
-      `Content-Transfer-Encoding: 7bit`,
+      `Content-Transfer-Encoding: 8bit`,
       ``,
       options.body,
     ];
@@ -78,21 +113,52 @@ function createRawMimeMessage(options: SmtpSendOptions): string {
 }
 
 /**
+ * Creates Base64URL-encoded raw MIME string for Gmail OAuth users.messages.send API.
+ */
+export function createRawMimeEmailBase64(options: SmtpSendOptions): string {
+  const mimeText = createRawMimeMessage(options);
+  return base64UrlEncode(mimeText);
+}
+
+/**
  * Sends an email directly through Google Gmail SMTP (smtp.gmail.com:465 SSL)
  * using the candidate's Email + 16-digit Google App Password.
- * Zero external dependencies, 100% native Node.js TLS.
+ * Zero external dependencies, 100% native Node.js TLS with RFC-5322 compliance.
  */
 export async function sendGmailSmtp(
   options: SmtpSendOptions
 ): Promise<{ success: boolean; messageId?: string; error?: string }> {
-  return new Promise((resolve) => {
-    const cleanPass = (options.appPassword || "").replace(/\s+/g, "");
-    const cleanUser = (options.fromEmail || "").toLowerCase().trim();
+  // 1. Format & Input Sanity Check
+  const cleanUser = (options.fromEmail || "").toLowerCase().trim();
+  const cleanPass = (options.appPassword || "").replace(/\s+/g, "");
+  const targetEmail = (options.toEmail || "").toLowerCase().trim();
 
-    if (!cleanUser || !cleanPass) {
-      return resolve({ success: false, error: "Missing Gmail username or App Password." });
+  if (!cleanUser || !cleanPass) {
+    return { success: false, error: "Missing Gmail username or 16-character App Password." };
+  }
+
+  if (!isValidEmailFormat(targetEmail)) {
+    return { success: false, error: `Invalid recipient email format: "${targetEmail}"` };
+  }
+
+  // 2. Pre-flight MX Verification (Bounce Protection)
+  if (!options.skipMxCheck) {
+    try {
+      const mxResult = await verifyEmailMx(targetEmail);
+      if (!mxResult.valid) {
+        return {
+          success: false,
+          error: `Delivery blocked: Recipient domain has no active MX records (${mxResult.reason || "unreachable domain"}).`,
+        };
+      }
+    } catch {
+      // If DNS resolution fails due to network sandbox, continue gracefully
     }
+  }
 
+  // 3. RFC-Compliant SMTP TLS Session
+  return new Promise((resolve) => {
+    const senderDomain = getDomainFromEmail(cleanUser);
     const socket = tls.connect({
       host: "smtp.gmail.com",
       port: 465,
@@ -107,9 +173,9 @@ export async function sendGmailSmtp(
     };
 
     socket.setEncoding("utf-8");
-    socket.setTimeout(7000, () => {
+    socket.setTimeout(9000, () => {
       socket.destroy();
-      resolve({ success: false, error: "Gmail SMTP connection timed out (7s)." });
+      resolve({ success: false, error: "Gmail SMTP connection timed out (9s)." });
     });
 
     socket.on("data", (data: string) => {
@@ -123,8 +189,12 @@ export async function sendGmailSmtp(
 
         // Check for SMTP errors (4xx or 5xx)
         if (code >= 400) {
-          socket.write("QUIT\r\n");
-          socket.end();
+          try {
+            socket.write("QUIT\r\n");
+            socket.end();
+          } catch {
+            // socket closed
+          }
           return resolve({
             success: false,
             error: `Gmail SMTP Error (${code}): ${line.slice(4) || "Authentication or delivery failure"}`,
@@ -138,7 +208,7 @@ export async function sendGmailSmtp(
           case 0: // Connected, waiting for 220 greeting
             if (code === 220) {
               stage = 1;
-              sendCmd("EHLO fetchmail");
+              sendCmd(`EHLO ${senderDomain}`);
             }
             break;
 
@@ -173,7 +243,7 @@ export async function sendGmailSmtp(
           case 5: // Sender OK (250)
             if (code === 250) {
               stage = 6;
-              sendCmd(`RCPT TO:<${options.toEmail.trim()}>`);
+              sendCmd(`RCPT TO:<${targetEmail}>`);
             }
             break;
 
@@ -216,3 +286,4 @@ export async function sendGmailSmtp(
     });
   });
 }
+

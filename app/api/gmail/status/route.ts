@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { google } from "googleapis";
 import { createOAuthClient } from "@/lib/google";
 import { loadOwnerToken } from "@/lib/token-storage";
-import { getSystemSettings } from "@/lib/access-control";
+import { getSystemSettings, isSuperAdmin } from "@/lib/access-control";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -40,8 +40,8 @@ export async function GET(req: NextRequest) {
     });
 
     const email = profileResponse.data.emailAddress || "";
-    const displayEmail = email.toLowerCase() === "rupamsi007@gmail.com" ? "Store Room" : email;
-    const isOwner = email.toLowerCase() === String(process.env.OWNER_EMAIL || "rupamsi007@gmail.com").toLowerCase();
+    const isOwner = isSuperAdmin(email);
+    const displayEmail = email;
 
     // Query customer category from DB
     let customerCategory = isOwner ? "all" : "job_seeker";

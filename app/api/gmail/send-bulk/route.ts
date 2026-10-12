@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { google } from "googleapis";
 import { createOAuthClient } from "@/lib/google";
 import { generateSmartHeuristicPitch } from "@/lib/ai-personalizer";
+import { createRawMimeEmailBase64 } from "@/lib/smtp-mailer";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -37,12 +38,6 @@ function replaceVariables(template: string, row: ExcelRow) {
   });
 }
 
-function sanitizeHeader(value: string) {
-  return String(value || "")
-    .replace(/(\r\n|\n|\r)/gm, " ")
-    .trim();
-}
-
 function normalizeEmail(email: string) {
   return String(email || "")
     .trim()
@@ -54,14 +49,6 @@ function isValidEmail(email: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
-function base64UrlEncode(input: Buffer | string) {
-  return Buffer.from(input)
-    .toString("base64")
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_")
-    .replace(/=+$/, "");
-}
-
 function getMimeType(fileName: string) {
   const lower = fileName.toLowerCase();
   if (lower.endsWith(".pdf")) return "application/pdf";
@@ -71,53 +58,6 @@ function getMimeType(fileName: string) {
   return "application/octet-stream";
 }
 
-function chunkBase64(base64: string) {
-  return base64.match(/.{1,76}/g)?.join("\r\n") || base64;
-}
-
-function createRawEmail({
-  to,
-  subject,
-  body,
-  attachmentName,
-  attachmentMimeType,
-  attachmentBase64,
-}: {
-  to: string;
-  subject: string;
-  body: string;
-  attachmentName: string;
-  attachmentMimeType: string;
-  attachmentBase64: string;
-}) {
-  const boundary = `boundary_${Date.now()}_${Math.random().toString(36).slice(2)}`;
-  const safeSubject = sanitizeHeader(subject);
-  const safeAttachmentName = sanitizeHeader(attachmentName);
-
-  const messageParts = [
-    `To: ${to}`,
-    `Subject: ${safeSubject}`,
-    `MIME-Version: 1.0`,
-    `Content-Type: multipart/mixed; boundary="${boundary}"`,
-    ``,
-    `--${boundary}`,
-    `Content-Type: text/plain; charset="UTF-8"`,
-    `Content-Transfer-Encoding: 7bit`,
-    ``,
-    body,
-    ``,
-    `--${boundary}`,
-    `Content-Type: ${attachmentMimeType}; name="${safeAttachmentName}"`,
-    `Content-Disposition: attachment; filename="${safeAttachmentName}"`,
-    `Content-Transfer-Encoding: base64`,
-    ``,
-    chunkBase64(attachmentBase64),
-    ``,
-    `--${boundary}--`,
-  ];
-
-  return base64UrlEncode(messageParts.join("\r\n"));
-}
 
 /**
  * Checks Gmail Sent folder for a small batch of emails (max 8).
@@ -308,8 +248,9 @@ export async function POST(req: NextRequest) {
         const finalSubject = replaceVariables(subjectTemplate, normalizedRow);
         const finalBody = replaceVariables(bodyTemplate, normalizedRow);
 
-        const raw = createRawEmail({
-          to,
+        const raw = createRawMimeEmailBase64({
+          fromEmail: "candidate@gmail.com",
+          toEmail: to,
           subject: finalSubject,
           body: finalBody,
           attachmentName,

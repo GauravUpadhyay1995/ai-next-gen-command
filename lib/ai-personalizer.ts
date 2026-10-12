@@ -90,7 +90,8 @@ Business Context / Snippet: ${context.snippet || "Active registered business"}
 Instructions:
 1. Do NOT include greetings (Hi/Dear) or sign-offs (Thanks/Regards).
 2. Write exactly 2 compelling sentences showing clear ROI and offering a quick chat.
-3. Keep it punchy, professional, and under 45 words.`
+3. Keep it punchy, professional, and under 45 words.
+4. ANTI-SPAM RULE: Never use hype words (e.g. '100% guarantee', 'urgent', 'act fast', 'free offer', ALL CAPS, or multiple exclamation marks '!!!'). Maintain a natural, consultative tone.`
     : `You are an elite career coach and cold outreach specialist.
 Write a powerful, highly specific 2-sentence pitch for a job application email.
 Candidate Target Role: ${context.role || "Software Engineer"}
@@ -100,7 +101,8 @@ Candidate Core Strengths: Full-stack web development, React, Next.js, Node.js, T
 Instructions:
 1. Do NOT include greetings (Hi/Dear) or sign-offs (Thanks/Regards).
 2. Write exactly 2 compelling sentences showing why the candidate is a strong fit based on the job details.
-3. Keep it natural, confident, and punchy (under 45 words).`;
+3. Keep it natural, confident, and punchy (under 45 words).
+4. ANTI-SPAM RULE: Never use spammy hype phrases (e.g. 'hire me immediately', 'urgent applicant', ALL CAPS, or multiple exclamation marks '!!!'). Keep it polite, human, and credible.`;
 
   try {
     const res = await fetch(
