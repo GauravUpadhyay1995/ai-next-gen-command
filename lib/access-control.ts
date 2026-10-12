@@ -12,6 +12,7 @@ export type AllowedUser = {
 
 export type SystemSettings = {
   allowCustomerLogin: boolean; // default: false (SuperAdmin only)
+  emailsPerMinute?: number; // default: 10 (emails sent per minute, e.g. 1 mail/min = 60s gap)
   updatedAt?: Date;
   updatedBy?: string;
 };
@@ -29,28 +30,32 @@ export function isSuperAdmin(email: string): boolean {
 }
 
 /**
- * Retrieves global system settings (e.g. whether customer login is enabled).
- * Default is FALSE (Superadmin only).
+ * Retrieves global system settings (e.g. whether customer login is enabled, dispatch rate).
+ * Default is FALSE for customer login, and 10 emails/min.
  */
 export async function getSystemSettings(): Promise<SystemSettings> {
   if (!process.env.MONGODB_URI) {
-    return { allowCustomerLogin: false };
+    return { allowCustomerLogin: false, emailsPerMinute: 10 };
   }
 
   try {
     const { db } = await connectToDatabase();
     const settings = await db.collection("system_settings").findOne({ _id: "global_settings" as any });
     if (!settings) {
-      return { allowCustomerLogin: false };
+      return { allowCustomerLogin: false, emailsPerMinute: 10 };
     }
+    const rate = typeof settings.emailsPerMinute === "number" && settings.emailsPerMinute > 0
+      ? settings.emailsPerMinute
+      : 10;
     return {
       allowCustomerLogin: Boolean(settings.allowCustomerLogin),
+      emailsPerMinute: rate,
       updatedAt: settings.updatedAt,
       updatedBy: settings.updatedBy,
     };
   } catch (err) {
     console.warn("[System Settings] Could not fetch settings:", err);
-    return { allowCustomerLogin: false };
+    return { allowCustomerLogin: false, emailsPerMinute: 10 };
   }
 }
 
@@ -67,6 +72,9 @@ export async function updateSystemSettings(
   const current = await getSystemSettings();
   const nextSettings: SystemSettings = {
     allowCustomerLogin: updates.allowCustomerLogin !== undefined ? Boolean(updates.allowCustomerLogin) : current.allowCustomerLogin,
+    emailsPerMinute: typeof updates.emailsPerMinute === "number" && updates.emailsPerMinute > 0
+      ? Math.max(1, Math.min(60, Math.round(updates.emailsPerMinute)))
+      : (current.emailsPerMinute || 10),
     updatedAt: new Date(),
     updatedBy: updatedBy || "superadmin",
   };

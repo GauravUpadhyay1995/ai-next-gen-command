@@ -116,6 +116,9 @@ export default function AdminDashboardPage() {
   // System Settings State
   const [allowCustomerLogin, setAllowCustomerLogin] = useState(false);
   const [savingSettings, setSavingSettings] = useState(false);
+  const [emailsPerMinute, setEmailsPerMinute] = useState<number>(10);
+  const [rateInput, setRateInput] = useState<string>("10");
+  const [savingRateLimit, setSavingRateLimit] = useState<boolean>(false);
 
   // Customer Management States
   const [customers, setCustomers] = useState<CustomerProfile[]>([]);
@@ -193,6 +196,9 @@ export default function AdminDashboardPage() {
       const setData = await setRes.json();
       if (setRes.ok && setData.settings) {
         setAllowCustomerLogin(Boolean(setData.settings.allowCustomerLogin));
+        const rate = Number(setData.settings.emailsPerMinute) || 10;
+        setEmailsPerMinute(rate);
+        setRateInput(String(rate));
       }
 
       // 4. Fetch Queue & Sent History
@@ -321,6 +327,38 @@ export default function AdminDashboardPage() {
       setError(err.message || "Could not update setting.");
     } finally {
       setSavingSettings(false);
+    }
+  };
+
+  const handleUpdateRateLimit = async (newRate: number) => {
+    if (isNaN(newRate) || newRate < 1 || newRate > 60) {
+      setError("Please specify a dispatch rate between 1 and 60 emails per minute.");
+      return;
+    }
+    try {
+      setSavingRateLimit(true);
+      setError("");
+      setSuccessMsg("");
+
+      const res = await fetch("/api/admin/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ emailsPerMinute: newRate }),
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || "Failed to update email dispatch rate");
+      }
+
+      setEmailsPerMinute(newRate);
+      setRateInput(String(newRate));
+      const intervalSec = Math.round(60 / newRate);
+      setSuccessMsg(`⚡ Email Dispatch Rate updated: ${newRate} email(s) per minute! (Interval: ${intervalSec}s delay between consecutive emails)`);
+    } catch (err: any) {
+      setError(err.message || "Could not update dispatch rate.");
+    } finally {
+      setSavingRateLimit(false);
     }
   };
 
@@ -1479,6 +1517,113 @@ export default function AdminDashboardPage() {
                   {savingSettings ? <Loader2 className="w-4 h-4 animate-spin" /> : <Lock className="w-4 h-4" />}
                   <span>{allowCustomerLogin ? "Disable Customer Login" : "Enable Customer Login"}</span>
                 </button>
+              </div>
+            </div>
+
+            {/* CARD 2: DISPATCH RATE LIMITER (Pacing Engine) */}
+            <div className="genz-glass-panel rounded-2xl p-5 border border-cyan-500/30 space-y-5">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-cyan-500/15 border border-cyan-500/30 flex items-center justify-center text-cyan-400">
+                  <Clock className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-white font-mono">EMAIL DISPATCH RATE LIMITER (Pacing Engine)</h3>
+                  <p className="text-xs text-slate-400 font-mono">
+                    Configure how many emails your system sends per minute. Emails will be strictly spaced out to prevent spam flagging.
+                  </p>
+                </div>
+              </div>
+
+              <div className="p-4 bg-black/60 rounded-xl border border-white/10 space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/10 pb-3">
+                  <div>
+                    <span className="font-mono text-xs font-bold text-white block">CURRENT DISPATCH SPEED:</span>
+                    <span className="text-2xl font-black font-mono text-cyan-400">
+                      {emailsPerMinute} <span className="text-xs font-normal text-slate-400">email(s) / minute</span>
+                    </span>
+                  </div>
+
+                  <div className="p-2.5 rounded-lg bg-cyan-950/40 border border-cyan-500/30 font-mono text-xs text-cyan-300">
+                    ⏱️ Interval: <strong className="text-white">{Math.round(60 / (emailsPerMinute || 1))}s</strong> delay between consecutive emails
+                  </div>
+                </div>
+
+                {/* Quick Presets */}
+                <div>
+                  <label className="text-[11px] font-mono text-slate-400 uppercase tracking-wider block mb-2">
+                    Quick Speed Presets:
+                  </label>
+                  <div className="grid grid-cols-2 sm:grid-cols-6 gap-2">
+                    {[
+                      { rate: 1, label: "1 mail/min", note: "60s gap (Safest)" },
+                      { rate: 2, label: "2 mails/min", note: "30s gap" },
+                      { rate: 5, label: "5 mails/min", note: "12s gap" },
+                      { rate: 10, label: "10 mails/min", note: "6s gap" },
+                      { rate: 15, label: "15 mails/min", note: "4s gap" },
+                      { rate: 30, label: "30 mails/min", note: "2s gap" },
+                    ].map((item) => (
+                      <button
+                        key={item.rate}
+                        type="button"
+                        onClick={() => handleUpdateRateLimit(item.rate)}
+                        disabled={savingRateLimit}
+                        className={`p-2.5 rounded-xl border text-center transition-all cursor-pointer font-mono ${
+                          emailsPerMinute === item.rate
+                            ? "bg-cyan-500/20 border-cyan-400 text-white shadow-lg shadow-cyan-950/50"
+                            : "bg-white/5 border-white/10 text-slate-300 hover:bg-white/10 hover:border-cyan-500/40"
+                        }`}
+                      >
+                        <div className="text-xs font-bold">{item.label}</div>
+                        <div className="text-[10px] text-slate-400 mt-0.5">{item.note}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Custom Rate Input */}
+                <div className="pt-2 flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                  <div className="flex-1 flex items-center gap-2">
+                    <span className="text-xs font-mono text-slate-300 shrink-0">Custom Rate:</span>
+                    <input
+                      type="number"
+                      min={1}
+                      max={60}
+                      value={rateInput}
+                      onChange={(e) => setRateInput(e.target.value)}
+                      placeholder="e.g. 1"
+                      className="w-24 px-3 py-2 bg-slate-900 border border-white/20 rounded-xl text-white font-mono text-sm focus:outline-none focus:border-cyan-400"
+                    />
+                    <span className="text-xs font-mono text-slate-400">emails / minute (1 to 60)</span>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => handleUpdateRateLimit(parseInt(rateInput, 10))}
+                    disabled={savingRateLimit}
+                    className="px-5 py-2.5 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 rounded-xl text-white font-mono text-xs font-bold flex items-center justify-center gap-2 shadow-lg shadow-cyan-950/40 transition-all cursor-pointer disabled:opacity-50"
+                  >
+                    {savingRateLimit ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
+                    <span>Save Custom Rate</span>
+                  </button>
+                </div>
+
+                {/* Live Behavior Simulation Preview */}
+                <div className="p-3 bg-black/40 rounded-lg border border-white/5 text-[11px] font-mono text-slate-400 space-y-1">
+                  <div className="text-cyan-300 font-bold flex items-center gap-1.5">
+                    <Activity className="w-3.5 h-3.5 text-cyan-400" />
+                    <span>How this works during outreach:</span>
+                  </div>
+                  <p>• 1st email sends immediately when dispatched.</p>
+                  <p>
+                    • 2nd email waits exactly <strong className="text-white">{Math.round(60 / (emailsPerMinute || 1))} seconds</strong> before sending.
+                  </p>
+                  <p>
+                    • 3rd email waits another <strong className="text-white">{Math.round(60 / (emailsPerMinute || 1))} seconds</strong>... and so on.
+                  </p>
+                  <p className="text-slate-500 text-[10px]">
+                    (This guarantees 100% human-like pacing and prevents Google anti-spam detection).
+                  </p>
+                </div>
               </div>
             </div>
           </div>

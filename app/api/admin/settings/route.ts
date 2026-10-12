@@ -76,18 +76,24 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { allowCustomerLogin } = body;
+    const { allowCustomerLogin, emailsPerMinute } = body;
 
-    const updated = await updateSystemSettings(
-      {
-        allowCustomerLogin: Boolean(allowCustomerLogin),
-      },
-      email || "superadmin"
-    );
+    const updates: any = {};
+    if (allowCustomerLogin !== undefined) {
+      updates.allowCustomerLogin = Boolean(allowCustomerLogin);
+    }
+    if (emailsPerMinute !== undefined) {
+      const parsedRate = parseInt(String(emailsPerMinute), 10);
+      if (!isNaN(parsedRate) && parsedRate >= 1 && parsedRate <= 60) {
+        updates.emailsPerMinute = parsedRate;
+      }
+    }
+
+    const updated = await updateSystemSettings(updates, email || "superadmin");
 
     return NextResponse.json({
       success: true,
-      message: `System settings updated: Customer Login is now ${
+      message: `System settings updated: Dispatch Rate is ${updated.emailsPerMinute || 10} email(s)/min, Customer Login is ${
         updated.allowCustomerLogin ? "ENABLED" : "DISABLED (Superadmin Only)"
       }.`,
       settings: updated,

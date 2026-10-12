@@ -5,6 +5,7 @@ import { createOAuthClient } from "@/lib/google";
 import { google } from "googleapis";
 import { generateAIPersonalizedPitch, generateSmartHeuristicPitch } from "@/lib/ai-personalizer";
 import { sendGmailSmtp, createRawMimeEmailBase64 } from "@/lib/smtp-mailer";
+import { getSystemSettings } from "@/lib/access-control";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -191,77 +192,85 @@ export async function POST(req: NextRequest) {
     let totalDispatched = 0;
     let totalFailed = 0;
 
-    // Process leads concurrently in pools of 3
-    const CONCURRENCY_BATCH = 3;
-    for (let i = 0; i < selectedLeads.length; i += CONCURRENCY_BATCH) {
-      const batch = selectedLeads.slice(i, i + CONCURRENCY_BATCH);
-      const batchPromises = batch.map(async (lead, batchIdx) => {
-        const itemIdx = i + batchIdx + 1;
-        const hrEmail = (lead.email || "").toLowerCase().trim();
-        const hrCompany = lead.company || "Hiring Team";
-        const hrRole = lead.role || customer.role || "Software Engineer";
-        const hrName = lead.name || "Hiring Manager";
-        const hrLocation = lead.location || customer.location || "Remote";
+    // Fetch SuperAdmin Rate Limiting Settings
+    const systemSettings = await getSystemSettings();
+    const emailsPerMin = systemSettings.emailsPerMinute && systemSettings.emailsPerMinute > 0
+      ? systemSettings.emailsPerMinute
+      : 10;
+    const delayBetweenEmailsMs = Math.max(1000, Math.round((60 / emailsPerMin) * 1000));
+    log(`⏱️ Dispatch Pacing Config: ${emailsPerMin} mail/min (Configured interval: ${Math.round(delayBetweenEmailsMs / 1000)}s between consecutive emails)`);
 
-        if (!hrEmail) {
-          return { email: "unknown", company: hrCompany, success: false, error: "Empty email address" };
+    // Process leads sequentially according to rate limit
+    for (let i = 0; i < selectedLeads.length; i++) {
+      const lead = selectedLeads[i];
+      const itemIdx = i + 1;
+      const hrEmail = (lead.email || "").toLowerCase().trim();
+      const hrCompany = lead.company || "Hiring Team";
+      const hrRole = lead.role || customer.role || "Software Engineer";
+      const hrName = lead.name || "Hiring Manager";
+      const hrLocation = lead.location || customer.location || "Remote";
+
+      if (!hrEmail) {
+        results.push({ email: "unknown", company: hrCompany, success: false, error: "Empty email address" });
+        totalFailed++;
+        continue;
+      }
+
+      try {
+        // 1. Generate AI Pitch or Heuristic Pitch
+        let aiPitch = "";
+        if (useAiPitch || bodyTemplate.includes("{{ai_pitch}}")) {
+          try {
+            const pitchRes = await generateAIPersonalizedPitch({
+              company: hrCompany,
+              role: hrRole,
+              snippet: lead.snippet || "",
+              location: hrLocation,
+            });
+            aiPitch = pitchRes.pitch;
+          } catch (pitchErr) {
+            aiPitch = generateSmartHeuristicPitch({
+              company: hrCompany,
+              role: hrRole,
+              snippet: lead.snippet || "",
+            });
+          }
         }
 
-        try {
-          // 1. Generate AI Pitch or Heuristic Pitch
-          let aiPitch = "";
-          if (useAiPitch || bodyTemplate.includes("{{ai_pitch}}")) {
-            try {
-              const pitchRes = await generateAIPersonalizedPitch({
-                company: hrCompany,
-                role: hrRole,
-                snippet: lead.snippet || "",
-                location: hrLocation,
-              });
-              aiPitch = pitchRes.pitch;
-            } catch (pitchErr) {
-              aiPitch = generateSmartHeuristicPitch({
-                company: hrCompany,
-                role: hrRole,
-                snippet: lead.snippet || "",
-              });
-            }
-          }
+        // 2. Render Template Variables
+        const finalSubject = replacePlaceholders(subjectTemplate, {
+          hrName,
+          company: hrCompany,
+          role: hrRole,
+          location: hrLocation,
+          candidateName: customer.name || "Candidate",
+          candidateEmail: customer.email,
+          experience: customer.experience || "1-3 Years",
+          aiPitch,
+        });
 
-          // 2. Render Template Variables
-          const finalSubject = replacePlaceholders(subjectTemplate, {
-            hrName,
+        const finalBody = replacePlaceholders(bodyTemplate, {
+          hrName,
+          company: hrCompany,
+          role: hrRole,
+          location: hrLocation,
+          candidateName: customer.name || "Candidate",
+          candidateEmail: customer.email,
+          experience: customer.experience || "1-3 Years",
+          aiPitch,
+        });
+
+        // 3. Dry Run Simulation Mode
+        if (simulateOnly) {
+          log(`[${itemIdx}/${selectedLeads.length}] 🧪 [SIMULATION] Prepared cold outreach to ${hrEmail} (${hrCompany}) - Subject: "${finalSubject.slice(0, 45)}..."`);
+          results.push({
+            email: hrEmail,
             company: hrCompany,
-            role: hrRole,
-            location: hrLocation,
-            candidateName: customer.name || "Candidate",
-            candidateEmail: customer.email,
-            experience: customer.experience || "1-3 Years",
-            aiPitch,
+            success: true,
+            simulated: true,
           });
-
-          const finalBody = replacePlaceholders(bodyTemplate, {
-            hrName,
-            company: hrCompany,
-            role: hrRole,
-            location: hrLocation,
-            candidateName: customer.name || "Candidate",
-            candidateEmail: customer.email,
-            experience: customer.experience || "1-3 Years",
-            aiPitch,
-          });
-
-          // 3. Dry Run Simulation Mode
-          if (simulateOnly) {
-            log(`[${itemIdx}/${selectedLeads.length}] 🧪 [SIMULATION] Prepared cold outreach to ${hrEmail} (${hrCompany}) - Subject: "${finalSubject.slice(0, 45)}..."`);
-            return {
-              email: hrEmail,
-              company: hrCompany,
-              success: true,
-              simulated: true,
-            };
-          }
-
+          totalDispatched++;
+        } else {
           // 4. Live Dispatch Execution
           if (sendMethod === "smtp") {
             const smtpRes = await sendGmailSmtp({
@@ -333,24 +342,20 @@ export async function POST(req: NextRequest) {
             );
           } catch {}
 
-          return { email: hrEmail, company: hrCompany, success: true };
-        } catch (dispatchErr: any) {
-          const errMsg = dispatchErr.message || "Failed to send email";
-          log(`[${itemIdx}/${selectedLeads.length}] ❌ Failed sending to ${hrEmail} (${hrCompany}): ${errMsg}`);
-          return { email: hrEmail, company: hrCompany, success: false, error: errMsg };
+          results.push({ email: hrEmail, company: hrCompany, success: true });
+          totalDispatched++;
         }
-      });
-
-      const batchResults = await Promise.all(batchPromises);
-      for (const res of batchResults) {
-        results.push(res);
-        if (res.success) totalDispatched++;
-        else totalFailed++;
+      } catch (dispatchErr: any) {
+        const errMsg = dispatchErr.message || "Failed to send email";
+        log(`[${itemIdx}/${selectedLeads.length}] ❌ Failed sending to ${hrEmail} (${hrCompany}): ${errMsg}`);
+        results.push({ email: hrEmail, company: hrCompany, success: false, error: errMsg });
+        totalFailed++;
       }
 
-      // Humanized jitter pause between batches to protect sender reputation & avoid bot triggers
-      if (i + CONCURRENCY_BATCH < selectedLeads.length && !simulateOnly) {
-        await new Promise((r) => setTimeout(r, 1800 + Math.random() * 2200));
+      // Pacing delay between consecutive emails according to configured rate limit
+      if (i < selectedLeads.length - 1 && !simulateOnly) {
+        log(`⏳ [Pacing Rate: ${emailsPerMin} mail/min] Waiting ${Math.round(delayBetweenEmailsMs / 1000)}s before sending next email...`);
+        await new Promise((r) => setTimeout(r, delayBetweenEmailsMs));
       }
     }
 
