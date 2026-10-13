@@ -29,16 +29,12 @@ import {
   LogIn,
   CheckSquare,
   Square,
-  Send,
   Layers,
-  Phone,
   PhoneCall,
   MessageSquare,
   MapPin,
-  Compass,
-  UserCheck,
-  CheckCheck,
-  Crown
+  Crown,
+  X
 } from "lucide-react";
 import LanguageSelector from "../components/LanguageSelector";
 import { useLanguage } from "../context/LanguageContext";
@@ -98,8 +94,6 @@ const POPULAR_B2B_CATEGORIES = [
   "Interior Designers & Architects",
   "Gyms & Fitness Centres",
   "Law Firms & Advocates",
-  "Hotels & Hospitality",
-  "Manufacturing & Exporters",
 ];
 
 export default function LeadFinderPage() {
@@ -167,7 +161,7 @@ export default function LeadFinderPage() {
         const cat = data.customerCategory || (data.isOwner ? "all" : "job_seeker");
         setUserCategory(cat);
 
-        // Auto-select persona according to category (without auto-searching on page load)
+        // Auto-select persona according to category
         if (cat === "b2b_lead_finder") {
           setActiveModule("b2b_lead_finder");
         } else {
@@ -570,38 +564,38 @@ export default function LeadFinderPage() {
 
   const getSourceBadge = (lead: Lead) => {
     if (lead.sourceType === "b2b_maps" || lead.id.startsWith("b2b_osm")) {
-      return { label: "🗺️ Registered Entity", color: "bg-amber-500/15 text-amber-300 border-amber-500/30" };
+      return { label: "Registered Entity", color: "bg-amber-500/10 text-amber-300 border-amber-500/20" };
     }
     if (lead.sourceType === "b2b_directory" || lead.id.startsWith("b2b_ddg")) {
-      return { label: "🌐 Verified Website", color: "bg-cyan-500/15 text-cyan-300 border-cyan-500/30" };
+      return { label: "Verified Website", color: "bg-cyan-500/10 text-cyan-300 border-cyan-500/20" };
     }
     if (lead.id.startsWith("career_") || lead.sourceType === "company_career") {
-      return { label: "🏢 Direct Career Portal", color: "bg-amber-500/15 text-amber-300 border-amber-500/30" };
+      return { label: "Direct Career Portal", color: "bg-indigo-500/10 text-indigo-300 border-indigo-500/20" };
     }
     if (lead.sourceUrl.includes("linkedin.com") || lead.id.startsWith("feed_linkedin")) {
-      return { label: "LinkedIn", color: "bg-sky-500/15 text-sky-300 border-sky-500/30" };
+      return { label: "LinkedIn", color: "bg-sky-500/10 text-sky-300 border-sky-500/20" };
     }
     if (lead.id.startsWith("feed_wwr")) {
-      return { label: "WeWorkRemotely", color: "bg-red-500/15 text-red-300 border-red-500/30" };
+      return { label: "WeWorkRemotely", color: "bg-rose-500/10 text-rose-300 border-rose-500/20" };
     }
     if (lead.id.startsWith("feed_himalayas")) {
-      return { label: "Himalayas", color: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30" };
+      return { label: "Himalayas", color: "bg-emerald-500/10 text-emerald-300 border-emerald-500/20" };
     }
     if (lead.id.startsWith("feed_remotive")) {
-      return { label: "Remotive", color: "bg-teal-500/15 text-teal-300 border-teal-500/30" };
+      return { label: "Remotive", color: "bg-teal-500/10 text-teal-300 border-teal-500/20" };
     }
-    return { label: "Verified Feed", color: "bg-purple-500/15 text-purple-300 border-purple-500/30" };
+    return { label: "Verified Feed", color: "bg-violet-500/10 text-violet-300 border-violet-500/20" };
   };
 
   // Auth Loading State
   if (checkingAuth) {
     return (
-      <div className="min-h-screen bg-[#070a12] text-slate-100 flex flex-col items-center justify-center p-6 font-sans">
-        <div className="p-8 rounded-2xl bg-slate-900/60 border border-slate-800 backdrop-blur-xl flex flex-col items-center gap-4 shadow-2xl">
-          <Loader2 className="w-9 h-9 text-emerald-400 animate-spin" />
+      <div className="min-h-screen bg-[#090d16] text-slate-100 flex flex-col items-center justify-center p-6">
+        <div className="p-8 rounded-2xl bg-[#111726] border border-slate-800 flex flex-col items-center gap-4 shadow-xl">
+          <Loader2 className="w-8 h-8 text-indigo-400 animate-spin" />
           <div className="text-center space-y-1">
-            <p className="text-sm font-semibold text-slate-200">Verifying Authentication & Persona</p>
-            <p className="text-xs text-slate-500">Loading your customized search module...</p>
+            <p className="text-sm font-semibold text-slate-200">Checking Access...</p>
+            <p className="text-xs text-slate-400">Loading your search workspace</p>
           </div>
         </div>
       </div>
@@ -611,56 +605,45 @@ export default function LeadFinderPage() {
   // Auth Guard Barrier
   if (!isConnected) {
     return (
-      <div className="min-h-screen bg-[#070a12] text-slate-100 flex flex-col justify-between p-6 sm:p-12 font-sans relative">
-        <div className="absolute inset-0 pointer-events-none overflow-hidden">
-          <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[40rem] h-[25rem] bg-emerald-500/10 rounded-full filter blur-[140px]"></div>
-        </div>
+      <div className="min-h-screen bg-[#090d16] text-slate-100 flex flex-col justify-center items-center p-6">
+        <div className="max-w-md w-full bg-[#111726] border border-slate-800 rounded-2xl p-8 text-center space-y-5 shadow-2xl">
+          <div className="w-14 h-14 bg-rose-500/10 border border-rose-500/20 rounded-2xl flex items-center justify-center mx-auto text-rose-400">
+            <Lock className="w-7 h-7" />
+          </div>
 
-        <div className="relative z-10 max-w-lg mx-auto w-full my-auto space-y-6 animate-fade-up">
-          <div className="rounded-3xl p-8 sm:p-10 bg-slate-900/80 border border-slate-800/90 backdrop-blur-2xl text-center space-y-5 shadow-2xl">
-            <div className="w-16 h-16 bg-rose-500/10 border border-rose-500/20 rounded-2xl flex items-center justify-center mx-auto shadow-inner">
-              <Lock className="w-8 h-8 text-rose-400" />
-            </div>
+          <div className="space-y-2">
+            <h2 className="text-xl font-bold text-white tracking-tight">
+              Connect Google Account
+            </h2>
+            <p className="text-slate-400 text-xs sm:text-sm leading-relaxed">
+              Connect your verified Google account to discover live recruiter emails, direct hiring feeds, and company contacts.
+            </p>
+          </div>
 
-            <div className="space-y-2">
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-rose-500/10 border border-rose-500/25 rounded-full text-rose-300 text-xs font-medium">
-                <ShieldAlert className="w-3.5 h-3.5 text-rose-400" />
-                <span>Authentication Required</span>
-              </div>
-              <h2 className="text-2xl font-bold text-white tracking-tight">
-                Lead Finder is Locked
-              </h2>
-              <p className="text-slate-400 text-xs sm:text-sm leading-relaxed">
-                Connect your verified Google account to access your assigned search module (Job Hunter Feeds or B2B Company & Contact Scanner).
-              </p>
-            </div>
+          <div className="p-4 bg-slate-900 rounded-xl border border-slate-800 text-left text-xs space-y-2 text-slate-300">
+            <p className="font-semibold text-white flex items-center gap-1.5">
+              <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+              <span>Features Included:</span>
+            </p>
+            <p className="text-slate-400 pl-5">• 18+ Live Hiring Feeds & Direct ATS Portals</p>
+            <p className="text-slate-400 pl-5">• Verified Recruiter Mailboxes & DNS MX Check</p>
+            <p className="text-slate-400 pl-5">• 1-Click Export to Excel & Campaign Launcher</p>
+          </div>
 
-            <div className="p-4 bg-slate-950/60 rounded-xl border border-slate-800/80 text-left text-xs space-y-2 text-slate-300">
-              <div className="flex items-center gap-2 text-emerald-400 font-semibold">
-                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                <span>Available Features by Category</span>
-              </div>
-              <p className="text-slate-400 pl-6">• 🧑‍💻 Job Seeker: 18+ Live Feeds, ATS Scanners, Recruiter Inboxes</p>
-              <p className="text-slate-400 pl-6">• 🏢 B2B Lead Fetcher: Company Phone Numbers, WhatsApp & Emails</p>
-              <p className="text-slate-400 pl-6">• Real-time Server DNS MX Verification</p>
-            </div>
-
-            <div className="pt-2 flex flex-col sm:flex-row gap-3">
-              <button
-                onClick={() => (window.location.href = "/api/auth/google")}
-                className="flex-1 py-3 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-semibold text-xs rounded-xl shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2 transition-all cursor-pointer"
-              >
-                <LogIn className="w-4 h-4" />
-                <span>Connect Google Account</span>
-              </button>
-              <Link
-                href="/"
-                className="px-5 py-3 rounded-xl bg-slate-800/60 hover:bg-slate-800 border border-slate-700/60 text-slate-300 text-xs font-semibold flex items-center justify-center gap-1.5 transition-all"
-              >
-                <ArrowLeft className="w-4 h-4" />
-                <span>Return</span>
-              </Link>
-            </div>
+          <div className="pt-2 flex flex-col sm:flex-row gap-3">
+            <button
+              onClick={() => (window.location.href = "/api/auth/google")}
+              className="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs rounded-xl shadow-lg transition-all cursor-pointer"
+            >
+              Connect with Google
+            </button>
+            <Link
+              href="/"
+              className="px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 text-xs font-semibold flex items-center justify-center gap-1.5 transition-all"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              <span>Back</span>
+            </Link>
           </div>
         </div>
       </div>
@@ -668,54 +651,87 @@ export default function LeadFinderPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#070a12] text-slate-100 font-sans flex flex-col justify-between p-4 sm:p-6 lg:p-8">
-      {/* Ambient background lighting */}
-      <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
-        <div className="absolute -top-32 left-1/3 w-[45rem] h-[30rem] bg-emerald-500/5 rounded-full filter blur-[150px]"></div>
-        <div className="absolute top-1/2 right-10 w-[35rem] h-[30rem] bg-cyan-600/5 rounded-full filter blur-[160px]"></div>
-      </div>
+    <div className="min-h-screen bg-[#090d16] text-slate-100 pb-16">
+      {/* Top Subtle Ambient Glow */}
+      <div className="fixed top-0 left-1/2 -translate-x-1/2 w-[800px] h-[250px] bg-indigo-600/10 blur-[130px] pointer-events-none -z-10" />
 
-      <div className="relative z-10 max-w-7xl mx-auto w-full space-y-4">
-        {/* Top Navbar */}
-        <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-3 border-b border-slate-800/70">
-          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+      <div className="max-w-[1360px] mx-auto px-4 sm:px-6 pt-6 space-y-5">
+        
+        {/* ==================================================== */}
+        {/* TOP HEADER (Ultra-Clean & Minimalist)               */}
+        {/* ==================================================== */}
+        <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-800">
+          <div className="flex items-center gap-3">
             <Link
               href="/"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-900/80 border border-slate-800 text-slate-300 hover:text-white text-xs font-medium transition-all shadow-sm self-start"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 text-slate-400 hover:text-white hover:border-slate-700 text-xs font-medium transition-all shrink-0"
+              title="Return to Main Dashboard"
             >
-              <ArrowLeft className="w-3.5 h-3.5 text-slate-400" />
-              <span>Command Station</span>
+              <ArrowLeft className="w-3.5 h-3.5" />
+              <span>Back</span>
             </Link>
 
-            <div className="flex items-center gap-2.5">
-              <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-white flex items-center gap-2">
-                {activeModule === "b2b_lead_finder" ? "B2B Business Lead Finder" : "Hiring Lead Finder"}
-              </h1>
-              <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/25 text-emerald-400 text-[11px] font-medium flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                {activeModule === "b2b_lead_finder" ? "B2B Scanner Active" : "18 Feeds Active"}
-              </span>
+            <div>
+              <div className="flex items-center gap-2">
+                <h1 className="text-xl font-bold text-white tracking-tight">
+                  {activeModule === "b2b_lead_finder" ? "B2B Lead Finder" : "Hiring Lead Finder"}
+                </h1>
+                <span className="w-2 h-2 rounded-full bg-emerald-400" title="System Live" />
+              </div>
+              <p className="text-xs text-slate-400">
+                {activeModule === "b2b_lead_finder"
+                  ? "Discover verified business contacts, phone numbers & company decision-makers"
+                  : "Discover verified recruiter inboxes and direct company hiring feeds"}
+              </p>
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2.5 text-xs">
-            {/* Category / Persona Indicator */}
-            <div className="px-3 py-1.5 rounded-lg bg-slate-900/70 border border-slate-800 text-slate-300 flex items-center gap-2">
-              <span className={`w-2 h-2 rounded-full ${activeModule === "b2b_lead_finder" ? "bg-amber-400" : "bg-emerald-400"}`}></span>
-              <span className="truncate max-w-[170px] font-mono text-[11px]">
-                {userCategory === "b2b_lead_finder" ? "🏢 B2B Client Tier" : userCategory === "all" ? "👑 Dual / Superadmin" : "🧑‍💻 Job Seeker Tier"}
-              </span>
-            </div>
+          {/* Clean Controls Strip */}
+          <div className="flex items-center gap-2.5 text-xs">
+            {/* Simple Segmented Mode Switcher */}
+            {(userCategory === "all" || isSuperAdmin) && (
+              <div className="flex items-center p-1 bg-slate-900 border border-slate-800 rounded-xl">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveModule("job_seeker");
+                    setLeads([]);
+                  }}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                    activeModule === "job_seeker"
+                      ? "bg-indigo-600 text-white shadow-sm"
+                      : "text-slate-400 hover:text-white"
+                  }`}
+                >
+                  <Briefcase className="w-3.5 h-3.5" />
+                  <span>Job Seeker</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveModule("b2b_lead_finder");
+                    setLeads([]);
+                  }}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                    activeModule === "b2b_lead_finder"
+                      ? "bg-indigo-600 text-white shadow-sm"
+                      : "text-slate-400 hover:text-white"
+                  }`}
+                >
+                  <Building className="w-3.5 h-3.5" />
+                  <span>B2B Businesses</span>
+                </button>
+              </div>
+            )}
 
-            {/* Superadmin Console Direct Link */}
             {isSuperAdmin && (
               <Link
                 href="/admin"
-                className="px-3 py-1.5 rounded-lg bg-purple-500/15 hover:bg-purple-500/25 border border-purple-500/40 text-purple-300 hover:text-white font-mono font-bold text-[11px] flex items-center gap-1.5 transition-all shadow-sm"
-                title="Superadmin Autopilot & Customer Management Console"
+                className="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-violet-300 hover:text-white text-xs font-medium flex items-center gap-1.5 transition-all"
+                title="SuperAdmin Console"
               >
                 <Crown className="w-3.5 h-3.5 text-amber-400" />
-                <span>Superadmin</span>
+                <span className="hidden sm:inline">Admin</span>
               </Link>
             )}
 
@@ -723,88 +739,38 @@ export default function LeadFinderPage() {
 
             <button
               onClick={() => setShowSettings(!showSettings)}
-              className="px-3 py-1.5 rounded-lg bg-slate-900/70 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-white flex items-center gap-1.5 transition-all cursor-pointer"
+              className="p-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-400 hover:text-white transition-all cursor-pointer"
+              title="Search Settings"
             >
-              <Sliders className="w-3.5 h-3.5 text-slate-400" />
-              <span>Settings</span>
+              <Sliders className="w-4 h-4" />
             </button>
 
-            <button
-              onClick={exportToExcel}
-              disabled={leads.length === 0 || exporting}
-              className="px-3.5 py-1.5 rounded-lg bg-slate-900/80 hover:bg-slate-800 border border-slate-700/80 text-emerald-400 font-medium flex items-center gap-1.5 disabled:opacity-40 transition-all cursor-pointer shadow-sm"
-            >
-              <Download className="w-3.5 h-3.5" />
-              <span>Export XLSX</span>
-            </button>
-
-            <button
-              onClick={launchCampaignWithLeads}
-              disabled={leads.length === 0 || selectedLeadIds.size === 0}
-              className="px-4 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-semibold shadow-md shadow-emerald-500/15 flex items-center gap-1.5 disabled:opacity-40 transition-all cursor-pointer"
-            >
-              <Rocket className="w-3.5 h-3.5" />
-              <span>Launch Campaign ({selectedLeadIds.size})</span>
-            </button>
+            {leads.length > 0 && selectedLeadIds.size > 0 && (
+              <button
+                onClick={launchCampaignWithLeads}
+                className="px-4 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold flex items-center gap-1.5 shadow-md shadow-indigo-950/50 transition-all cursor-pointer"
+              >
+                <Rocket className="w-3.5 h-3.5" />
+                <span>Launch ({selectedLeadIds.size})</span>
+              </button>
+            )}
           </div>
         </header>
 
-        {/* Dual / Superadmin Mode Switcher Tabs (Only if userCategory is 'all' or Superadmin) */}
-        {(userCategory === "all" || isSuperAdmin) && (
-          <div className="flex items-center justify-between p-1.5 rounded-2xl bg-slate-900/90 border border-slate-800 shadow-md">
-            <div className="flex items-center gap-1.5">
-              <button
-                onClick={() => {
-                  setActiveModule("job_seeker");
-                  setLeads([]);
-                }}
-                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
-                  activeModule === "job_seeker"
-                    ? "bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/20"
-                    : "text-slate-400 hover:text-white"
-                }`}
-              >
-                <Briefcase className="w-4 h-4" />
-                <span>1. Job Seeker Module (Hiring Feeds & ATS)</span>
-              </button>
-
-              <button
-                onClick={() => {
-                  setActiveModule("b2b_lead_finder");
-                  setLeads([]);
-                }}
-                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
-                  activeModule === "b2b_lead_finder"
-                    ? "bg-amber-400 text-slate-950 shadow-md shadow-amber-400/20"
-                    : "text-slate-400 hover:text-white"
-                }`}
-              >
-                <Building className="w-4 h-4" />
-                <span>2. B2B Lead Fetcher Module (Company, Phone & Biz Leads)</span>
-              </button>
-            </div>
-
-            <div className="hidden sm:flex items-center gap-1.5 text-xs text-slate-400 pr-3 font-mono">
-              <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-              <span>Dual Category Enabled</span>
-            </div>
-          </div>
-        )}
-
-        {/* Optional Custom Google Search Key Settings Drawer */}
+        {/* Optional Search Settings Drawer */}
         {showSettings && (
-          <div className="p-4 rounded-2xl bg-slate-900/90 border border-slate-800 space-y-3 animate-fade-up text-xs">
+          <div className="bg-[#111726] border border-slate-800 rounded-2xl p-4 space-y-3 animate-in fade-in text-xs">
             <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-              <span className="font-semibold text-slate-200 flex items-center gap-1.5">
-                <Globe className="w-4 h-4 text-emerald-400" />
-                Custom Search Engine API (Optional / Advanced)
+              <span className="font-semibold text-white flex items-center gap-1.5">
+                <Globe className="w-4 h-4 text-indigo-400" />
+                Custom Search Engine API (Optional)
               </span>
-              <span className="text-[11px] text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded border border-amber-400/20 font-medium">
-                Note: Google deprecated Custom Search API for new GCP projects on Jan 20, 2026
-              </span>
+              <button onClick={() => setShowSettings(false)} className="text-slate-400 hover:text-white">
+                <X className="w-4 h-4" />
+              </button>
             </div>
-            <p className="text-slate-400 leading-relaxed text-[11px]">
-              FetchMail automatically queries 18+ live global hiring streams, direct ATS portals, and OpenStreetMap business registries with server-side MX validation without needing any API key. If you own a legacy Google project, you can optionally configure it here:
+            <p className="text-slate-400 text-xs leading-relaxed">
+              FetchMail automatically queries 18+ live global hiring streams, direct ATS portals, and OpenStreetMap business registries without requiring any API key. If you have your own Google Custom Search API, you can specify it here:
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
               <div>
@@ -814,7 +780,7 @@ export default function LeadFinderPage() {
                   placeholder="AIzaSy... (optional)"
                   value={googleApiKey}
                   onChange={(e) => setGoogleApiKey(e.target.value)}
-                  className="w-full px-3 py-1.5 bg-slate-950 border border-slate-800 rounded-lg text-slate-200 text-xs focus:border-emerald-500 focus:outline-none"
+                  className="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-white text-xs focus:border-indigo-500 focus:outline-none"
                 />
               </div>
               <div>
@@ -824,415 +790,303 @@ export default function LeadFinderPage() {
                   placeholder="017576... (optional)"
                   value={googleCx}
                   onChange={(e) => setGoogleCx(e.target.value)}
-                  className="w-full px-3 py-1.5 bg-slate-950 border border-slate-800 rounded-lg text-slate-200 text-xs focus:border-emerald-500 focus:outline-none"
+                  className="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-white text-xs focus:border-indigo-500 focus:outline-none"
                 />
               </div>
             </div>
           </div>
         )}
 
-        {/* ==================================================== */}
-        {/* MODULE 1: B2B BUSINESS & DIRECTORY DISCOVERY SEARCH  */}
-        {/* ==================================================== */}
-        {activeModule === "b2b_lead_finder" && (
-          <section className="sticky top-2 sm:top-3 z-30 rounded-2xl p-3.5 sm:p-4 bg-slate-900/95 backdrop-blur-xl border border-amber-500/30 shadow-2xl shadow-black/70 space-y-3 transition-all">
-            <div className="flex items-center justify-between flex-wrap gap-2 pb-2 border-b border-slate-800/60">
-              <div className="flex items-center gap-2">
-                <span className="px-2.5 py-0.5 rounded-lg bg-amber-500/15 border border-amber-500/30 text-amber-300 text-xs font-bold flex items-center gap-1.5">
-                  <Building className="w-3.5 h-3.5 text-amber-400" />
-                  <span>B2B Business & Client Discovery</span>
-                </span>
-                <span className="text-[11px] text-slate-400 hidden sm:inline">
-                  Deep-scanning company contacts, phone numbers & verified mailboxes
-                </span>
-              </div>
-
-              <div className="text-[11px] text-slate-400 flex items-center gap-1 font-mono">
-                <PhoneCall className="w-3.5 h-3.5 text-amber-400" />
-                <span>Real-time Phone & Email Extraction</span>
-              </div>
+        {/* Global Error Banner */}
+        {error && (
+          <div className="p-3.5 bg-rose-500/10 border border-rose-500/30 rounded-xl text-rose-300 text-xs flex items-center justify-between gap-2 animate-in fade-in">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
+              <span>{error}</span>
             </div>
-
-            {/* B2B Form Inputs */}
-            <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end">
-              <div className="sm:col-span-6 space-y-1">
-                <label className="text-xs font-semibold text-amber-300 flex items-center gap-1.5">
-                  <Building className="w-3.5 h-3.5 text-amber-400" />
-                  <span>Target Business Category / Industry</span>
-                </label>
-                <input
-                  type="text"
-                  value={b2bCategory}
-                  onChange={(e) => setB2bCategory(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleB2BSearch()}
-                  placeholder="e.g. Real Estate, Digital Marketing, Dental Clinics, IT Companies"
-                  className="w-full px-3 py-2 bg-slate-950 border border-amber-500/40 rounded-xl text-white text-xs placeholder:text-slate-500 focus:border-amber-400 focus:outline-none transition-all"
-                />
-              </div>
-
-              <div className="sm:col-span-4 space-y-1">
-                <label className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
-                  <MapPin className="w-3.5 h-3.5 text-cyan-400" />
-                  <span>Target City / Country</span>
-                </label>
-                <input
-                  type="text"
-                  value={b2bLocation}
-                  onChange={(e) => setB2bLocation(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleB2BSearch()}
-                  placeholder="e.g. Mumbai, Delhi NCR, Bangalore, Dubai, London"
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white text-xs placeholder:text-slate-500 focus:border-cyan-500 focus:outline-none transition-all"
-                />
-              </div>
-
-              <div className="sm:col-span-2">
-                <button
-                  onClick={() => handleB2BSearch()}
-                  disabled={loading}
-                  className="w-full py-2 bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold text-xs rounded-xl shadow-lg shadow-amber-400/20 flex items-center justify-center gap-2 disabled:opacity-40 transition-all cursor-pointer"
-                >
-                  {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
-                  <span>{loading ? "Scanning..." : "Find B2B Leads"}</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Quick B2B Category Chips & Batch Limit Selector */}
-            <div className="pt-2 border-t border-slate-800/50 flex flex-col lg:flex-row lg:items-center justify-between gap-2.5 text-xs">
-              <div className="flex items-center gap-1.5 flex-wrap">
-                <span className="text-[11px] text-slate-500 font-medium mr-1">Target Categories:</span>
-                {POPULAR_B2B_CATEGORIES.map((cat) => (
-                  <button
-                    key={cat}
-                    type="button"
-                    onClick={() => {
-                      setB2bCategory(cat);
-                      handleB2BSearch(cat);
-                    }}
-                    className={`px-2.5 py-0.5 rounded-lg text-[11px] border transition-all cursor-pointer ${
-                      b2bCategory.toLowerCase() === cat.toLowerCase()
-                        ? "bg-amber-500/20 text-amber-300 border-amber-400 font-medium"
-                        : "bg-slate-950 hover:bg-slate-800 border-slate-800 text-slate-400 hover:text-slate-200"
-                    }`}
-                  >
-                    {cat}
-                  </button>
-                ))}
-              </div>
-
-              {/* Batch Size Selection */}
-              <div className="flex items-center gap-1.5 shrink-0 self-end lg:self-center">
-                <span className="text-[11px] text-slate-500">Batch Stream:</span>
-                {[40, 80, 120].map((limitOption) => (
-                  <button
-                    key={limitOption}
-                    type="button"
-                    onClick={() => setBatchLimit(limitOption)}
-                    className={`px-2 py-0.5 rounded-md text-[10px] font-bold border transition-all ${
-                      batchLimit === limitOption
-                        ? "bg-amber-400 text-slate-950 border-amber-400 shadow-sm"
-                        : "bg-slate-950 text-slate-400 hover:text-slate-200 border-slate-800"
-                    }`}
-                  >
-                    {limitOption} Leads
-                  </button>
-                ))}
-              </div>
-            </div>
-          </section>
+            <button onClick={() => setError("")} className="text-slate-400 hover:text-white">
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
         )}
 
         {/* ==================================================== */}
-        {/* MODULE 2: JOB SEEKER / CAREER FEEDS SEARCH DECK     */}
+        {/* SEARCH DECK (Clean & Intuitive)                     */}
         {/* ==================================================== */}
-        {activeModule === "job_seeker" && (
-          <section className="sticky top-2 sm:top-3 z-30 rounded-2xl p-3.5 sm:p-4 bg-slate-900/95 backdrop-blur-xl border border-slate-700/80 shadow-2xl shadow-black/70 space-y-3 transition-all">
-            {/* Mode Switcher Tabs */}
-            <div className="flex items-center justify-between flex-wrap gap-2 pb-2 border-b border-slate-800/60">
-              <div className="flex items-center gap-1 p-0.5 rounded-lg bg-slate-950 border border-slate-800/80">
+        <section className="bg-[#111726] border border-slate-800/80 rounded-2xl p-4 sm:p-5 shadow-sm space-y-4">
+          
+          {/* Active Persona Header / Mode Selector */}
+          {activeModule === "job_seeker" ? (
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-800">
+              <div className="flex items-center p-1 bg-slate-900 border border-slate-800 rounded-xl text-xs font-semibold">
                 <button
                   type="button"
                   onClick={() => setSearchMode("global")}
-                  className={`px-3 py-1 rounded-md text-xs font-medium transition-all flex items-center gap-1.5 cursor-pointer ${
+                  className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
                     searchMode === "global"
-                      ? "bg-slate-800 text-white font-semibold shadow-sm"
-                      : "text-slate-400 hover:text-slate-200"
+                      ? "bg-indigo-600 text-white shadow-sm"
+                      : "text-slate-400 hover:text-white"
                   }`}
                 >
-                  <Layers className="w-3.5 h-3.5 text-emerald-400" />
+                  <Layers className="w-3.5 h-3.5" />
                   <span>Search All 18+ Feeds</span>
                 </button>
+
                 <button
                   type="button"
                   onClick={() => setSearchMode("company")}
-                  className={`px-3 py-1 rounded-md text-xs font-medium transition-all flex items-center gap-1.5 cursor-pointer ${
+                  className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
                     searchMode === "company"
-                      ? "bg-slate-800 text-white font-semibold shadow-sm"
-                      : "text-slate-400 hover:text-slate-200"
+                      ? "bg-indigo-600 text-white shadow-sm"
+                      : "text-slate-400 hover:text-white"
                   }`}
                 >
-                  <Building className="w-3.5 h-3.5 text-amber-400" />
-                  <span>Direct Company & ATS Scanner</span>
+                  <Building className="w-3.5 h-3.5" />
+                  <span>Target Company ATS Scanner</span>
                 </button>
               </div>
 
-              <div className="text-[11px] text-slate-400 flex items-center gap-1 font-mono">
-                <Zap className="w-3.5 h-3.5 text-emerald-400" />
-                <span>Real-time DNS MX Verified</span>
+              <div className="flex items-center gap-2 text-xs text-slate-400">
+                <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                <span>DNS MX Mailbox Verification Enabled</span>
               </div>
             </div>
+          ) : (
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+              <div className="flex items-center gap-2 text-sm font-semibold text-white">
+                <Building className="w-4 h-4 text-indigo-400" />
+                <span>B2B Business Directory & Direct Contacts</span>
+              </div>
+              <div className="flex items-center gap-2 text-xs text-slate-400">
+                <PhoneCall className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Direct Phone & WhatsApp Extraction</span>
+              </div>
+            </div>
+          )}
 
-            {/* Form Inputs Grid */}
+          {/* Form Input Row */}
+          {activeModule === "job_seeker" ? (
             <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end">
-              <div className={`${searchMode === "company" ? "sm:col-span-4" : "sm:col-span-5"} space-y-1`}>
-                <label className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
-                  <Briefcase className="w-3.5 h-3.5 text-emerald-400" />
-                  <span>Job Role / Target Keywords</span>
-                </label>
+              <div className={`${searchMode === "company" ? "sm:col-span-4" : "sm:col-span-5"} space-y-1.5`}>
+                <label className="text-xs font-medium text-slate-300 block">Job Role or Keywords *</label>
                 <input
                   type="text"
                   value={keyword}
                   onChange={(e) => setKeyword(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && handleJobSearch()}
-                  placeholder="e.g. React Developer, Fullstack, SRE, Designer"
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white text-xs placeholder:text-slate-500 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/20 focus:outline-none transition-all"
+                  placeholder="e.g. React Developer, Node.js, UI Designer"
+                  className="w-full px-3.5 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-white text-xs placeholder:text-slate-500 focus:outline-none focus:border-indigo-500"
                 />
               </div>
 
-              {searchMode === "company" ? (
-                <div className="sm:col-span-4 space-y-1">
-                  <label className="text-xs font-semibold text-amber-300 flex items-center gap-1.5">
-                    <Building className="w-3.5 h-3.5 text-amber-400" />
-                    <span>Target Company Domain / Name</span>
-                  </label>
+              {searchMode === "company" && (
+                <div className="sm:col-span-4 space-y-1.5">
+                  <label className="text-xs font-medium text-slate-300 block">Target Company Name *</label>
                   <input
                     type="text"
                     value={company}
                     onChange={(e) => setCompany(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && handleJobSearch()}
                     placeholder="e.g. Stripe, Razorpay, Vercel, Postman"
-                    className="w-full px-3 py-2 bg-slate-950 border border-amber-500/40 rounded-xl text-white text-xs placeholder:text-slate-500 focus:border-amber-400 focus:outline-none transition-all"
+                    className="w-full px-3.5 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-white text-xs placeholder:text-slate-500 focus:outline-none focus:border-indigo-500"
                   />
                 </div>
-              ) : null}
+              )}
 
-              <div className={`${searchMode === "company" ? "sm:col-span-2" : "sm:col-span-3"} space-y-1`}>
-                <label className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
-                  <Globe className="w-3.5 h-3.5 text-cyan-400" />
-                  <span>Location</span>
-                </label>
+              <div className={`${searchMode === "company" ? "sm:col-span-2" : "sm:col-span-4"} space-y-1.5`}>
+                <label className="text-xs font-medium text-slate-300 block">Location</label>
                 <input
                   type="text"
                   value={location}
                   onChange={(e) => setLocation(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && handleJobSearch()}
                   placeholder="e.g. Remote, India, US"
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white text-xs placeholder:text-slate-500 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/20 focus:outline-none transition-all"
+                  className="w-full px-3.5 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-white text-xs placeholder:text-slate-500 focus:outline-none focus:border-indigo-500"
                 />
               </div>
 
-              {searchMode === "global" ? (
-                <div className="sm:col-span-2 space-y-1">
-                  <label className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
-                    <Filter className="w-3.5 h-3.5 text-purple-400" />
-                    <span>Feed Source</span>
-                  </label>
-                  <select
-                    value={source}
-                    onChange={(e) => setSource(e.target.value as any)}
-                    className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-slate-200 text-xs focus:border-purple-500 focus:outline-none transition-all cursor-pointer"
-                  >
-                    <option value="all">All 18+ Feeds</option>
-                    <option value="public_feed">Verified Job Feeds</option>
-                    <option value="company_career">Direct ATS Portals</option>
-                    <option value="google">Legacy Google Search</option>
-                  </select>
-                </div>
-              ) : null}
-
-              <div className="sm:col-span-2">
+              <div className="sm:col-span-3">
                 <button
                   onClick={() => handleJobSearch()}
                   disabled={loading}
-                  className="w-full py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs rounded-xl shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2 disabled:opacity-40 transition-all cursor-pointer"
+                  className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs rounded-xl shadow-md shadow-indigo-950/50 flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-40"
                 >
                   {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
-                  <span>{loading ? "Searching..." : "Find Leads"}</span>
+                  <span>{loading ? "Searching 18+ Feeds..." : "Find Recruiter Leads"}</span>
                 </button>
               </div>
             </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end">
+              <div className="sm:col-span-6 space-y-1.5">
+                <label className="text-xs font-medium text-slate-300 block">Industry or Category *</label>
+                <input
+                  type="text"
+                  value={b2bCategory}
+                  onChange={(e) => setB2bCategory(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleB2BSearch()}
+                  placeholder="e.g. Real Estate, Digital Marketing, Dental Clinics"
+                  className="w-full px-3.5 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-white text-xs placeholder:text-slate-500 focus:outline-none focus:border-indigo-500"
+                />
+              </div>
 
-            {/* Quick-select chips */}
-            <div className="pt-2 border-t border-slate-800/50 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
-              <div className="flex items-center gap-1.5 flex-wrap">
-                <span className="text-[11px] text-slate-500 font-medium mr-1">Quick Queries:</span>
-                {POPULAR_KEYWORDS.map((kw) => (
+              <div className="sm:col-span-3 space-y-1.5">
+                <label className="text-xs font-medium text-slate-300 block">City or Region</label>
+                <input
+                  type="text"
+                  value={b2bLocation}
+                  onChange={(e) => setB2bLocation(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleB2BSearch()}
+                  placeholder="e.g. Mumbai, Delhi, Bangalore"
+                  className="w-full px-3.5 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-white text-xs placeholder:text-slate-500 focus:outline-none focus:border-indigo-500"
+                />
+              </div>
+
+              <div className="sm:col-span-3">
+                <button
+                  onClick={() => handleB2BSearch()}
+                  disabled={loading}
+                  className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs rounded-xl shadow-md shadow-indigo-950/50 flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-40"
+                >
+                  {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+                  <span>{loading ? "Scanning Businesses..." : "Find B2B Leads"}</span>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Quick Preset Queries Strip */}
+          <div className="pt-2 border-t border-slate-800/80 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 text-xs">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="text-slate-500 text-[11px] font-medium mr-1">Quick Suggestions:</span>
+              {(activeModule === "job_seeker" ? POPULAR_KEYWORDS : POPULAR_B2B_CATEGORIES).slice(0, 6).map((item) => {
+                const isActive = activeModule === "job_seeker"
+                  ? keyword.toLowerCase() === item.toLowerCase()
+                  : b2bCategory.toLowerCase() === item.toLowerCase();
+
+                return (
                   <button
-                    key={kw}
+                    key={item}
                     type="button"
                     onClick={() => {
-                      setKeyword(kw);
-                      handleJobSearch();
+                      if (activeModule === "job_seeker") {
+                        setKeyword(item);
+                        handleJobSearch();
+                      } else {
+                        setB2bCategory(item);
+                        handleB2BSearch(item);
+                      }
                     }}
-                    className={`px-2.5 py-0.5 rounded-lg text-[11px] border transition-all cursor-pointer ${
-                      keyword.toLowerCase() === kw.toLowerCase()
-                        ? "bg-emerald-500/15 text-emerald-300 border-emerald-500/40 font-medium"
-                        : "bg-slate-950 hover:bg-slate-800 border-slate-800 text-slate-400 hover:text-slate-200"
+                    className={`px-2.5 py-1 rounded-lg text-[11px] border transition-all cursor-pointer ${
+                      isActive
+                        ? "bg-indigo-500/15 border-indigo-500/40 text-indigo-300 font-semibold"
+                        : "bg-slate-900 hover:bg-slate-800 border-slate-800 text-slate-400 hover:text-slate-200"
                     }`}
                   >
-                    {kw}
+                    {item}
                   </button>
-                ))}
-              </div>
-
-              {searchMode === "company" && (
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  <span className="text-[11px] text-slate-500 font-medium mr-1">Top Tech ATS:</span>
-                  {POPULAR_COMPANIES.slice(0, 6).map((compName) => (
-                    <button
-                      key={compName}
-                      type="button"
-                      onClick={() => {
-                        setCompany(compName);
-                        handleJobSearch(compName);
-                      }}
-                      className={`px-2 py-0.5 rounded-lg text-[11px] border transition-all cursor-pointer ${
-                        company.toLowerCase() === compName.toLowerCase()
-                          ? "bg-amber-500/20 border-amber-400 text-amber-300 font-medium"
-                          : "bg-slate-950 hover:bg-slate-800 border-slate-800 text-slate-400 hover:text-slate-200"
-                      }`}
-                    >
-                      {compName}
-                    </button>
-                  ))}
-                </div>
-              )}
+                );
+              })}
             </div>
-          </section>
-        )}
 
-        {/* Error Alert */}
-        {error && (
-          <div className="p-3 bg-rose-500/10 border border-rose-500/30 rounded-xl text-rose-300 text-xs flex items-center gap-2.5 animate-fade-up">
-            <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
-            <span>{error}</span>
+            {/* Batch Selector */}
+            <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-center">
+              <span className="text-slate-500 text-[11px]">Batch Limit:</span>
+              {[40, 80, 120].map((limit) => (
+                <button
+                  key={limit}
+                  type="button"
+                  onClick={() => setBatchLimit(limit)}
+                  className={`px-2 py-0.5 rounded-md text-[10px] font-semibold border transition-all ${
+                    batchLimit === limit
+                      ? "bg-slate-800 text-white border-slate-700"
+                      : "bg-slate-900 text-slate-500 border-slate-800 hover:text-slate-300"
+                  }`}
+                >
+                  {limit} Leads
+                </button>
+              ))}
+            </div>
           </div>
-        )}
+        </section>
 
         {/* ==================================================== */}
-        {/* KPI TELEMETRY BANNER (COMPACT PILLS)                */}
+        {/* STATS OVERVIEW CARDS (When Leads Found)              */}
         {/* ==================================================== */}
         {leads.length > 0 && (
-          <section className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 animate-fade-up">
-            {/* Stat 1: Total Leads / Businesses */}
-            <div className="px-3.5 py-2.5 rounded-xl bg-slate-900/70 border border-slate-800/80 flex items-center justify-between shadow-sm">
-              <div className="flex items-center gap-2.5">
-                <div className={`w-8 h-8 rounded-lg ${activeModule === "b2b_lead_finder" ? "bg-amber-500/10 border-amber-500/20" : "bg-emerald-500/10 border-emerald-500/20"} border flex items-center justify-center shrink-0`}>
-                  {activeModule === "b2b_lead_finder" ? <Building className="w-4 h-4 text-amber-400" /> : <Mail className="w-4 h-4 text-emerald-400" />}
-                </div>
-                <div>
-                  <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider leading-none">
-                    {activeModule === "b2b_lead_finder" ? "Businesses Found" : "Total Leads"}
-                  </p>
-                  <p className="text-base sm:text-lg font-bold text-white mt-1 leading-none">{stats.total}</p>
-                </div>
+          <section className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
+            <div className="bg-[#111726] border border-slate-800/80 rounded-2xl p-4 flex items-center justify-between shadow-sm">
+              <div>
+                <p className="text-[11px] font-medium uppercase tracking-wider text-slate-400">Total Leads Found</p>
+                <p className="text-2xl font-bold text-white mt-1">{stats.total}</p>
+                <p className="text-[11px] text-slate-400 mt-0.5">{stats.uniqueCompanies} unique companies</p>
+              </div>
+              <div className="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
+                <Briefcase className="w-5 h-5" />
               </div>
             </div>
 
-            {/* Stat 2: Phones Found (B2B) OR MX Verified (Jobs) */}
-            {activeModule === "b2b_lead_finder" ? (
-              <div className="px-3.5 py-2.5 rounded-xl bg-slate-900/70 border border-slate-800/80 flex items-center justify-between shadow-sm">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center shrink-0">
-                    <PhoneCall className="w-4 h-4 text-emerald-400" />
-                  </div>
-                  <div>
-                    <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider leading-none">Phone & WhatsApp</p>
-                    <p className="text-base sm:text-lg font-bold text-emerald-400 mt-1 leading-none">{stats.withPhone}</p>
-                  </div>
-                </div>
+            <div className="bg-[#111726] border border-slate-800/80 rounded-2xl p-4 flex items-center justify-between shadow-sm">
+              <div>
+                <p className="text-[11px] font-medium uppercase tracking-wider text-slate-400">MX Verified Inboxes</p>
+                <p className="text-2xl font-bold text-emerald-400 mt-1">{stats.verified}</p>
+                <p className="text-[11px] text-emerald-400/80 mt-0.5">{stats.verifiedRate}% deliverability score</p>
               </div>
-            ) : (
-              <div className="px-3.5 py-2.5 rounded-xl bg-slate-900/70 border border-slate-800/80 flex items-center justify-between shadow-sm">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-lg bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center shrink-0">
-                    <ShieldCheck className="w-4 h-4 text-cyan-400" />
-                  </div>
-                  <div>
-                    <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider leading-none">MX Verified</p>
-                    <div className="flex items-baseline gap-1.5 mt-1 leading-none">
-                      <span className="text-base sm:text-lg font-bold text-emerald-400">{stats.verified}</span>
-                      <span className="text-[11px] text-emerald-400/80 font-medium">({stats.verifiedRate}%)</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Stat 3: MX Verified Inboxes */}
-            <div className="px-3.5 py-2.5 rounded-xl bg-slate-900/70 border border-slate-800/80 flex items-center justify-between shadow-sm">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-purple-500/10 border border-purple-500/20 flex items-center justify-center shrink-0">
-                  <Mail className="w-4 h-4 text-purple-400" />
-                </div>
-                <div>
-                  <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider leading-none">
-                    {activeModule === "b2b_lead_finder" ? "Official Inboxes" : "Companies"}
-                  </p>
-                  <p className="text-base sm:text-lg font-bold text-white mt-1 leading-none">
-                    {activeModule === "b2b_lead_finder" ? stats.verified : stats.uniqueCompanies}
-                  </p>
-                </div>
+              <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
+                <ShieldCheck className="w-5 h-5" />
               </div>
             </div>
 
-            {/* Stat 4: Filter Toggle Pill */}
-            <div className="px-3.5 py-2.5 rounded-xl bg-slate-900/70 border border-slate-800/80 flex items-center justify-between shadow-sm">
-              <label className="flex items-center gap-2.5 cursor-pointer select-none w-full justify-between">
-                <div className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={activeModule === "b2b_lead_finder" ? phoneOnly : verifiedOnly}
-                    onChange={(e) => {
-                      if (activeModule === "b2b_lead_finder") setPhoneOnly(e.target.checked);
-                      else setVerifiedOnly(e.target.checked);
-                    }}
-                    className="w-3.5 h-3.5 rounded border-slate-700 bg-slate-950 text-emerald-500 focus:ring-0 cursor-pointer accent-emerald-500"
-                  />
-                  <div>
-                    <p className="text-[10px] text-slate-300 font-semibold uppercase tracking-wider leading-none">
-                      {activeModule === "b2b_lead_finder" ? "Phone Filter" : "Filter Verified"}
-                    </p>
-                    <p className="text-[10px] text-slate-400 mt-1 leading-none">
-                      {activeModule === "b2b_lead_finder"
-                        ? phoneOnly ? "With Phone Numbers Only" : "All Businesses"
-                        : verifiedOnly ? "Active MX Only" : "All Leads"}
-                    </p>
-                  </div>
+            <div className="bg-[#111726] border border-slate-800/80 rounded-2xl p-4 flex items-center justify-between shadow-sm">
+              <div>
+                <p className="text-[11px] font-medium uppercase tracking-wider text-slate-400">
+                  {activeModule === "b2b_lead_finder" ? "Phones & WhatsApp" : "Selected for Campaign"}
+                </p>
+                <p className="text-2xl font-bold text-cyan-400 mt-1">
+                  {activeModule === "b2b_lead_finder" ? stats.withPhone : selectedLeadIds.size}
+                </p>
+                <p className="text-[11px] text-slate-400 mt-0.5">Ready to reach out</p>
+              </div>
+              <div className="w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400">
+                {activeModule === "b2b_lead_finder" ? <PhoneCall className="w-5 h-5" /> : <Rocket className="w-5 h-5" />}
+              </div>
+            </div>
+
+            <div className="bg-[#111726] border border-slate-800/80 rounded-2xl p-4 flex items-center justify-between shadow-sm">
+              <label className="flex items-center justify-between w-full cursor-pointer select-none">
+                <div>
+                  <p className="text-[11px] font-medium uppercase tracking-wider text-slate-400">Verification Filter</p>
+                  <p className="text-sm font-bold text-white mt-1">
+                    {verifiedOnly ? "Active MX Only" : "Show All Leads"}
+                  </p>
+                  <p className="text-[11px] text-slate-400 mt-0.5">Click to toggle filter</p>
                 </div>
-                <div className="w-8 h-8 rounded-lg bg-slate-800/80 border border-slate-700/60 flex items-center justify-center shrink-0">
-                  <Filter className="w-3.5 h-3.5 text-slate-400" />
-                </div>
+                <input
+                  type="checkbox"
+                  checked={verifiedOnly}
+                  onChange={(e) => setVerifiedOnly(e.target.checked)}
+                  className="w-4 h-4 accent-indigo-600 rounded cursor-pointer"
+                />
               </label>
             </div>
           </section>
         )}
 
         {/* ==================================================== */}
-        {/* DISCOVERED LEADS WORKSPACE                           */}
+        {/* LEADS LIST / VAULT                                   */}
         {/* ==================================================== */}
-        <section className="rounded-2xl bg-slate-900/60 border border-slate-800 shadow-xl overflow-hidden flex flex-col space-y-4 p-4 sm:p-5">
-          {/* Action and Search Toolbar */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-800/70">
+        <section className="bg-[#111726] border border-slate-800/80 rounded-2xl p-4 sm:p-5 space-y-4 shadow-sm">
+          {/* Action Toolbar */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-800">
             <div className="flex items-center gap-3">
               <button
                 type="button"
                 onClick={toggleSelectAll}
                 disabled={filteredLeads.length === 0}
-                className="flex items-center gap-2 text-xs text-slate-300 hover:text-white font-medium px-2.5 py-1.5 rounded-lg bg-slate-950 border border-slate-800 transition-all cursor-pointer disabled:opacity-40"
+                className="flex items-center gap-2 text-xs text-slate-300 hover:text-white font-medium px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 transition-all cursor-pointer disabled:opacity-40"
               >
                 {selectedLeadIds.size === filteredLeads.length && filteredLeads.length > 0 ? (
-                  <CheckSquare className="w-4 h-4 text-emerald-400" />
+                  <CheckSquare className="w-4 h-4 text-indigo-400" />
                 ) : (
                   <Square className="w-4 h-4 text-slate-500" />
                 )}
@@ -1244,47 +1098,45 @@ export default function LeadFinderPage() {
               </button>
 
               <span className="text-xs text-slate-400">
-                Showing <strong className="text-white">{filteredLeads.length}</strong> {activeModule === "b2b_lead_finder" ? "businesses" : "recipients"}
+                Showing <strong className="text-white">{filteredLeads.length}</strong> {activeModule === "b2b_lead_finder" ? "businesses" : "leads"}
               </span>
             </div>
 
-            <div className="relative min-w-[240px]">
+            <div className="relative min-w-[260px]">
               <input
                 type="text"
                 placeholder={
                   activeModule === "b2b_lead_finder"
-                    ? "Search by company, phone, category, email..."
-                    : "Search leads by role, email, company..."
+                    ? "Filter by company, phone, email..."
+                    : "Filter leads by role, email, company..."
                 }
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full px-3 py-1.5 bg-slate-950 border border-slate-800 rounded-xl text-slate-200 text-xs pl-8 placeholder:text-slate-500 focus:border-emerald-500 focus:outline-none"
+                className="w-full px-3.5 py-2 pl-9 bg-slate-900 border border-slate-800 rounded-xl text-white text-xs placeholder:text-slate-500 focus:outline-none focus:border-indigo-500"
               />
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+              <Search className="w-3.5 h-3.5 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
             </div>
           </div>
 
-          {/* Cards List */}
+          {/* Cards Vault */}
           <div className="space-y-3">
             {filteredLeads.length === 0 ? (
               <div className="py-16 flex flex-col items-center justify-center text-center space-y-3">
-                <div className="w-12 h-12 rounded-2xl bg-slate-800/60 border border-slate-700/60 flex items-center justify-center">
-                  <Search className="w-6 h-6 text-slate-400" />
+                <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
+                  <Search className="w-6 h-6" />
                 </div>
                 <div className="space-y-1">
-                  <p className="text-sm font-semibold text-slate-200">
+                  <p className="text-sm font-semibold text-white">
                     {loading
                       ? activeModule === "b2b_lead_finder"
-                        ? "Scanning B2B Directories, Contact Pages & Maps..."
-                        : "Searching 18+ Live Streams & ATS Portals..."
+                        ? "Scanning B2B Directories & Contact Pages..."
+                        : "Querying 18+ Live Feeds & Career Portals..."
                       : "No Leads Discovered"}
                   </p>
-                  <p className="text-xs text-slate-500 max-w-sm">
+                  <p className="text-xs text-slate-400 max-w-sm">
                     {loading
-                      ? "Extracting verified emails, direct phone numbers, and company overview..."
-                      : activeModule === "b2b_lead_finder"
-                      ? "Try searching different categories like 'Real Estate', 'Doctors', 'Gyms', or a broader city."
-                      : "Try broader keywords like 'Developer', 'Designer', or switch to Direct ATS Scan."}
+                      ? "Verifying active DNS MX records and direct contact mailboxes..."
+                      : "Use the search bar above or choose a quick suggestion to start discovering verified leads."}
                   </p>
                 </div>
               </div>
@@ -1296,69 +1148,68 @@ export default function LeadFinderPage() {
                 return (
                   <div
                     key={lead.id ? `${lead.id}-${idx}` : `lead-${lead.email || idx}-${idx}`}
-                    className={`rounded-xl p-4 border transition-all ${
+                    className={`rounded-2xl p-4 border transition-all ${
                       isSelected
-                        ? "bg-slate-900/90 border-slate-700 shadow-md"
-                        : "bg-slate-950/60 border-slate-800/80 hover:border-slate-700/80"
+                        ? "bg-[#141c2e] border-indigo-500/40 shadow-sm"
+                        : "bg-slate-900/50 border-slate-800/80 hover:border-slate-700/80"
                     }`}
                   >
                     <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
-                      {/* Left: Checkbox & Info */}
-                      <div className="flex items-start gap-3 flex-1 min-w-0">
+                      {/* Left: Selection + Info */}
+                      <div className="flex items-start gap-3.5 flex-1 min-w-0">
                         <button
                           type="button"
                           onClick={() => toggleLeadSelection(lead.id)}
                           className="mt-1 text-slate-400 hover:text-white cursor-pointer"
                         >
                           {isSelected ? (
-                            <CheckSquare className="w-4 h-4 text-emerald-400" />
+                            <CheckSquare className="w-4 h-4 text-indigo-400" />
                           ) : (
                             <Square className="w-4 h-4 text-slate-600" />
                           )}
                         </button>
 
                         <div className="flex-1 min-w-0 space-y-2">
-                          {/* Header badges */}
+                          {/* Row 1: Badges & Company */}
                           <div className="flex items-center gap-2 flex-wrap text-xs">
-                            <span className="font-bold text-white text-sm tracking-tight flex items-center gap-1.5">
+                            <span className="font-bold text-white text-sm truncate">
                               {lead.company}
                             </span>
 
-                            <span className="px-2.5 py-0.5 rounded-md bg-slate-800/90 border border-slate-700/80 text-slate-300 font-medium text-[11px]">
+                            <span className="px-2 py-0.5 rounded-full bg-slate-800 border border-slate-700 text-slate-300 text-[11px] font-medium">
                               {lead.category || lead.role}
                             </span>
 
-                            <span className={`px-2 py-0.5 rounded-md text-[10px] font-semibold border ${sourceBadge.color}`}>
+                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium border ${sourceBadge.color}`}>
                               {sourceBadge.label}
                             </span>
 
                             {lead.mxValid ? (
-                              <span className="px-2 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[10px] font-medium flex items-center gap-1">
-                                <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+                              <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-medium flex items-center gap-1">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
                                 Active MX
                               </span>
                             ) : (
-                              <span className="px-2 py-0.5 rounded-md bg-rose-500/10 border border-rose-500/30 text-rose-400 text-[10px] font-medium flex items-center gap-1">
-                                <AlertCircle className="w-3 h-3 text-rose-400" />
+                              <span className="px-2 py-0.5 rounded-full bg-rose-500/10 border border-rose-500/20 text-rose-400 text-[10px] font-medium flex items-center gap-1">
+                                <span className="w-1.5 h-1.5 rounded-full bg-rose-400" />
                                 Unverified
                               </span>
                             )}
 
-                            <span className="text-slate-400 text-[11px] flex items-center gap-1">
-                              <MapPin className="w-3 h-3 text-slate-500" />
+                            <span className="text-slate-400 text-xs flex items-center gap-1">
+                              <MapPin className="w-3.5 h-3.5 text-slate-500" />
                               {lead.city || lead.location}
                             </span>
                           </div>
 
-                          {/* Contact Details Line (Phone & Email) */}
+                          {/* Row 2: Contact Pills */}
                           <div className="flex items-center gap-2.5 flex-wrap pt-0.5">
-                            {/* Phone Number Pill with 1-Click Call & WhatsApp */}
                             {lead.phone && (
                               <div className="flex items-center gap-1.5">
                                 <a
                                   href={`tel:${lead.phone.replace(/\s+/g, "")}`}
-                                  className="px-2.5 py-1 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 font-mono text-xs font-semibold flex items-center gap-1.5 transition-all shadow-sm"
-                                  title="Click to Call"
+                                  className="px-2.5 py-1 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 text-emerald-300 font-mono text-xs font-semibold flex items-center gap-1.5 transition-all"
+                                  title="Call Phone"
                                 >
                                   <PhoneCall className="w-3.5 h-3.5 text-emerald-400" />
                                   <span>{lead.phone}</span>
@@ -1369,10 +1220,10 @@ export default function LeadFinderPage() {
                                     href={lead.whatsappUrl}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="px-2 py-1 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/30 border border-emerald-500/40 text-emerald-400 text-xs font-medium flex items-center gap-1 transition-all"
-                                    title="Direct WhatsApp Chat"
+                                    className="px-2 py-1 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 text-emerald-400 text-xs font-medium flex items-center gap-1 transition-all"
+                                    title="WhatsApp Chat"
                                   >
-                                    <MessageSquare className="w-3 h-3" />
+                                    <MessageSquare className="w-3.5 h-3.5" />
                                     <span>WhatsApp</span>
                                   </a>
                                 )}
@@ -1380,7 +1231,7 @@ export default function LeadFinderPage() {
                                 <button
                                   type="button"
                                   onClick={() => copyToClipboard(lead.phone || "", true)}
-                                  className="p-1 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-400 hover:text-slate-200 text-xs transition-all"
+                                  className="p-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-400 hover:text-white text-xs transition-all cursor-pointer"
                                   title="Copy Phone"
                                 >
                                   {copiedPhone === lead.phone ? (
@@ -1393,7 +1244,7 @@ export default function LeadFinderPage() {
                             )}
 
                             {/* Email Pill */}
-                            <div className="px-2.5 py-1 rounded-lg bg-slate-950 border border-slate-800 text-cyan-300 font-mono text-xs font-semibold flex items-center gap-1.5">
+                            <div className="px-2.5 py-1 rounded-xl bg-slate-900 border border-slate-800 text-cyan-300 font-mono text-xs font-semibold flex items-center gap-1.5">
                               <Mail className="w-3.5 h-3.5 text-cyan-400" />
                               <span>{lead.email}</span>
                             </div>
@@ -1401,7 +1252,7 @@ export default function LeadFinderPage() {
                             <button
                               type="button"
                               onClick={() => copyToClipboard(lead.email)}
-                              className="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-white text-xs font-medium flex items-center gap-1 transition-all cursor-pointer"
+                              className="px-2.5 py-1 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-white text-xs font-medium flex items-center gap-1 transition-all cursor-pointer"
                             >
                               {copiedEmail === lead.email ? (
                                 <>
@@ -1411,18 +1262,17 @@ export default function LeadFinderPage() {
                               ) : (
                                 <>
                                   <Copy className="w-3 h-3 text-slate-400" />
-                                  <span>Copy Email</span>
+                                  <span>Copy</span>
                                 </>
                               )}
                             </button>
 
-                            {/* Website / Source Link */}
                             {(lead.website || lead.sourceUrl) && (
                               <a
                                 href={lead.website || lead.sourceUrl}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-400 hover:text-slate-200 text-xs font-medium flex items-center gap-1 transition-all"
+                                className="px-2.5 py-1 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-400 hover:text-white text-xs font-medium flex items-center gap-1 transition-all"
                               >
                                 <span>{activeModule === "b2b_lead_finder" ? "Visit Website" : "View Posting"}</span>
                                 <ExternalLink className="w-3 h-3" />
@@ -1430,30 +1280,30 @@ export default function LeadFinderPage() {
                             )}
                           </div>
 
-                          {/* Snippet / Description */}
+                          {/* Snippet Overview */}
                           {lead.snippet && (
                             <p className="text-xs text-slate-400 line-clamp-2 leading-relaxed pt-1">
                               {lead.snippet}
                             </p>
                           )}
 
-                          {/* AI Generated Pitch preview */}
+                          {/* AI Generated Pitch Preview */}
                           {pitchPreview[lead.id] && (
-                            <div className="p-3 rounded-xl bg-slate-950/80 border border-slate-800 text-xs text-slate-300 space-y-1 animate-fade-up">
-                              <div className="flex items-center justify-between text-[11px] font-semibold text-emerald-400">
+                            <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-300 space-y-1 animate-in fade-in">
+                              <div className="flex items-center justify-between text-[11px] font-semibold text-indigo-400">
                                 <span className="flex items-center gap-1">
                                   <Sparkles className="w-3 h-3" />
-                                  {activeModule === "b2b_lead_finder" ? "AI B2B Proposal Draft" : "AI Application Pitch Draft"}
+                                  {activeModule === "b2b_lead_finder" ? "AI B2B Pitch Draft" : "AI Application Pitch Draft"}
                                 </span>
                                 <button
                                   type="button"
                                   onClick={() => copyToClipboard(pitchPreview[lead.id])}
-                                  className="text-slate-400 hover:text-slate-200"
+                                  className="text-slate-400 hover:text-white cursor-pointer"
                                 >
                                   Copy Pitch
                                 </button>
                               </div>
-                              <p className="italic text-slate-300 leading-relaxed font-sans">
+                              <p className="italic text-slate-300 leading-relaxed">
                                 &ldquo;{pitchPreview[lead.id]}&rdquo;
                               </p>
                             </div>
@@ -1461,25 +1311,25 @@ export default function LeadFinderPage() {
                         </div>
                       </div>
 
-                      {/* Right: Pitch Generator Action */}
-                      <div className="flex md:flex-col items-center gap-2 shrink-0 self-end md:self-start">
+                      {/* Right Action: AI Pitch Generator */}
+                      <div className="flex shrink-0">
                         <button
                           type="button"
                           onClick={() => generatePitchForLead(lead)}
                           disabled={generatingPitchId === lead.id}
-                          className="px-3 py-1.5 rounded-lg bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/30 text-purple-300 hover:text-purple-200 text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-40"
+                          className="px-3 py-1.5 rounded-xl bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/20 text-indigo-300 text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-40"
                         >
                           {generatingPitchId === lead.id ? (
-                            <Loader2 className="w-3.5 h-3.5 animate-spin text-purple-400" />
+                            <Loader2 className="w-3.5 h-3.5 animate-spin text-indigo-400" />
                           ) : (
-                            <Sparkles className="w-3.5 h-3.5 text-purple-400" />
+                            <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
                           )}
                           <span>
                             {generatingPitchId === lead.id
                               ? "Drafting..."
                               : activeModule === "b2b_lead_finder"
                               ? "Generate Proposal"
-                              : "Generate AI Pitch"}
+                              : "Generate Pitch"}
                           </span>
                         </button>
                       </div>
@@ -1489,13 +1339,13 @@ export default function LeadFinderPage() {
               })
             )}
 
-            {/* Load More / Next Batch Pagination Bar */}
+            {/* Pagination / Next Batch */}
             {filteredLeads.length > 0 && (
-              <div className="pt-4 flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-slate-800/80">
+              <div className="pt-4 flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-slate-800">
                 <div className="text-xs text-slate-400 flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
+                  <span className="w-2 h-2 rounded-full bg-emerald-400" />
                   <span>
-                    Showing <strong className="text-white">{filteredLeads.length}</strong> {activeModule === "b2b_lead_finder" ? "Businesses" : "Job Postings"} • Page {currentPage}
+                    Showing <strong className="text-white">{filteredLeads.length}</strong> leads • Page {currentPage}
                   </span>
                 </div>
 
@@ -1504,22 +1354,22 @@ export default function LeadFinderPage() {
                     type="button"
                     onClick={handleLoadMore}
                     disabled={loadingMore || loading}
-                    className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-emerald-500 hover:from-amber-400 hover:to-emerald-400 text-slate-950 font-bold text-xs shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50"
+                    className="w-full sm:w-auto px-5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-white font-semibold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50"
                   >
                     {loadingMore ? (
                       <>
-                        <Loader2 className="w-4 h-4 animate-spin text-slate-950" />
-                        <span>Scanning Next Stream Batch...</span>
+                        <Loader2 className="w-4 h-4 animate-spin text-indigo-400" />
+                        <span>Loading Next Batch...</span>
                       </>
                     ) : (
                       <>
-                        <Zap className="w-4 h-4 text-slate-950 fill-current" />
-                        <span>Load Next Batch (+{batchLimit} Leads)</span>
+                        <Zap className="w-4 h-4 text-indigo-400" />
+                        <span>Load More (+{batchLimit} Leads)</span>
                       </>
                     )}
                   </button>
                 ) : (
-                  <span className="text-xs text-slate-500 italic">All available matching leads loaded for this search.</span>
+                  <span className="text-xs text-slate-500 italic">All matching leads loaded.</span>
                 )}
               </div>
             )}
