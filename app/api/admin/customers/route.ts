@@ -4,6 +4,7 @@ import {
   getAllCustomerProfiles,
   updateCustomerStatus,
   updateCustomerAppPassword,
+  updateCustomerProfile,
   deleteCustomerProfile,
 } from "@/lib/customer-profile";
 import { connectToDatabase } from "@/lib/db";
@@ -113,48 +114,145 @@ export async function POST(req: NextRequest) {
 
 export async function PUT(req: NextRequest) {
   try {
-    const body = await req.json();
-    const { email, status, appPassword } = body;
+    const contentType = req.headers.get("content-type") || "";
 
-    if (!email) {
+    if (contentType.includes("multipart/form-data")) {
+      const formData = await req.formData();
+      const email = String(formData.get("email") || "").toLowerCase().trim();
+
+      if (!email) {
+        return NextResponse.json(
+          { success: false, message: "Candidate email is required" },
+          { status: 400 }
+        );
+      }
+
+      const name = formData.get("name") !== null ? String(formData.get("name")).trim() : undefined;
+      const role = formData.get("role") !== null ? String(formData.get("role")).trim() : undefined;
+      const experience = formData.get("experience") !== null ? String(formData.get("experience")).trim() : undefined;
+      const location = formData.get("location") !== null ? String(formData.get("location")).trim() : undefined;
+      const dailyLimit = formData.get("dailyLimit") !== null ? Number(formData.get("dailyLimit")) : undefined;
+      const customerCategory = formData.get("customerCategory") !== null ? (String(formData.get("customerCategory")) as any) : undefined;
+      const googleAppPassword = formData.get("googleAppPassword") !== null ? String(formData.get("googleAppPassword")).trim() : undefined;
+      const notes = formData.get("notes") !== null ? String(formData.get("notes")).trim() : undefined;
+      const status = formData.get("status") !== null ? (String(formData.get("status")) as any) : undefined;
+      const resumeFile = formData.get("resume") as File | null;
+
+      let resumeBase64: string | undefined;
+      let resumeName: string | undefined;
+      let resumeMimeType: string | undefined;
+
+      if (resumeFile && typeof resumeFile.arrayBuffer === "function" && resumeFile.size > 0) {
+        const buffer = Buffer.from(await resumeFile.arrayBuffer());
+        resumeBase64 = buffer.toString("base64");
+        resumeName = resumeFile.name || "resume.pdf";
+        resumeMimeType = resumeFile.type || "application/pdf";
+      }
+
+      const result = await updateCustomerProfile({
+        email,
+        name,
+        role,
+        experience,
+        location,
+        dailyLimit,
+        customerCategory,
+        googleAppPassword,
+        resumeName,
+        resumeBase64,
+        resumeMimeType,
+        notes,
+        status,
+      });
+
+      if (!result.success) {
+        return NextResponse.json({ success: false, message: result.message }, { status: 400 });
+      }
+
+      return NextResponse.json({
+        success: true,
+        message: result.message,
+        profile: result.profile,
+        customer: result.profile,
+      });
+    }
+
+    // Handle application/json payloads
+    const body = await req.json();
+    const {
+      email,
+      name,
+      role,
+      experience,
+      location,
+      dailyLimit,
+      customerCategory,
+      googleAppPassword,
+      appPassword,
+      notes,
+      status,
+    } = body;
+
+    const cleanEmail = String(email || "").toLowerCase().trim();
+    if (!cleanEmail) {
       return NextResponse.json(
-        { success: false, message: "Email is required" },
+        { success: false, message: "Candidate email is required" },
         { status: 400 }
       );
     }
 
-    if (appPassword !== undefined) {
-      const updated = await updateCustomerAppPassword(email, appPassword);
+    // Direct password update
+    if (appPassword !== undefined && Object.keys(body).length <= 2) {
+      const updated = await updateCustomerAppPassword(cleanEmail, appPassword);
       if (!updated) {
         return NextResponse.json(
-          { success: false, message: "Customer not found or password update failed" },
+          { success: false, message: "Candidate not found or password update failed" },
           { status: 404 }
         );
       }
       return NextResponse.json({
         success: true,
-        message: `Candidate ${email} app password updated in raw format`,
+        message: `Candidate ${cleanEmail} app password updated in raw format`,
       });
     }
 
-    if (!status) {
-      return NextResponse.json(
-        { success: false, message: "Status or appPassword is required" },
-        { status: 400 }
-      );
+    // Direct status update
+    if (status && Object.keys(body).length <= 2 && !name && !role) {
+      const updated = await updateCustomerStatus(cleanEmail, status);
+      if (!updated) {
+        return NextResponse.json(
+          { success: false, message: "Customer not found or status unchanged" },
+          { status: 404 }
+        );
+      }
+      return NextResponse.json({
+        success: true,
+        message: `Customer ${cleanEmail} status updated to ${status}`,
+      });
     }
 
-    const updated = await updateCustomerStatus(email, status);
-    if (!updated) {
-      return NextResponse.json(
-        { success: false, message: "Customer not found or status unchanged" },
-        { status: 404 }
-      );
+    const result = await updateCustomerProfile({
+      email: cleanEmail,
+      name,
+      role,
+      experience,
+      location,
+      dailyLimit: dailyLimit !== undefined ? Number(dailyLimit) : undefined,
+      customerCategory,
+      googleAppPassword: googleAppPassword || appPassword,
+      notes,
+      status,
+    });
+
+    if (!result.success) {
+      return NextResponse.json({ success: false, message: result.message }, { status: 400 });
     }
 
     return NextResponse.json({
       success: true,
-      message: `Customer ${email} status updated to ${status}`,
+      message: result.message,
+      profile: result.profile,
+      customer: result.profile,
     });
   } catch (error: any) {
     console.error("[Customers API] PUT error:", error);

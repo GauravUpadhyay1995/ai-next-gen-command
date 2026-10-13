@@ -46,7 +46,8 @@ import {
   HelpCircle,
   Building2,
   Eye,
-  EyeOff
+  EyeOff,
+  Pencil
 } from "lucide-react";
 import DbLeadsSection from "./components/DbLeadsSection";
 
@@ -154,6 +155,22 @@ export default function AdminDashboardPage() {
   const [editAppPasswordInput, setEditAppPasswordInput] = useState("");
   const [showEditAppPass, setShowEditAppPass] = useState(false);
   const [savingPassword, setSavingPassword] = useState(false);
+
+  // Full Candidate Edit Modal State (all creation fields)
+  const [editingCustomer, setEditingCustomer] = useState<CustomerProfile | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editRole, setEditRole] = useState("Software Engineer");
+  const [editExperience, setEditExperience] = useState("1-3 Years");
+  const [editLocation, setEditLocation] = useState("Remote");
+  const [editDailyLimit, setEditDailyLimit] = useState(20);
+  const [editCustomerCategory, setEditCustomerCategory] = useState<"job_seeker" | "b2b_lead_finder" | "all">("job_seeker");
+  const [editAuthMethod, setEditAuthMethod] = useState<"app_password" | "link">("app_password");
+  const [editCustomerAppPassword, setEditCustomerAppPassword] = useState("");
+  const [showEditCustomerPass, setShowEditCustomerPass] = useState(false);
+  const [editNotes, setEditNotes] = useState("");
+  const [editStatus, setEditStatus] = useState<"active" | "paused" | "pending_auth" | "blocked">("active");
+  const [editResumeFile, setEditResumeFile] = useState<File | null>(null);
+  const [savingEditCustomer, setSavingEditCustomer] = useState(false);
 
   // Cron Simulator States
   const [cronRunning2am, setCronRunning2am] = useState(false);
@@ -506,6 +523,67 @@ export default function AdminDashboardPage() {
       setError(err.message || "Failed to update app password");
     } finally {
       setSavingPassword(false);
+    }
+  };
+
+  const openEditCustomerModal = (c: CustomerProfile) => {
+    setEditingCustomer(c);
+    setEditName(c.name || "");
+    setEditRole(c.role || "Software Engineer");
+    setEditExperience(c.experience || "1-3 Years");
+    setEditLocation(c.location || "Remote");
+    setEditDailyLimit(c.dailyLimit || 20);
+    setEditCustomerCategory(c.customerCategory || "job_seeker");
+    setEditAuthMethod(c.appPassword || c.encryptedAppPassword ? "app_password" : "link");
+    setEditCustomerAppPassword(c.appPassword || c.encryptedAppPassword || "");
+    setShowEditCustomerPass(false);
+    setEditNotes(c.notes || "");
+    setEditStatus(c.status || "active");
+    setEditResumeFile(null);
+  };
+
+  const handleUpdateCustomer = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingCustomer) return;
+    setSavingEditCustomer(true);
+    setError("");
+    setSuccessMsg("");
+
+    try {
+      const formData = new FormData();
+      formData.append("email", editingCustomer.email);
+      formData.append("name", editName.trim() || editingCustomer.name);
+      formData.append("role", editRole.trim() || "Software Engineer");
+      formData.append("experience", editExperience);
+      formData.append("location", editLocation.trim() || "Remote");
+      formData.append("dailyLimit", String(editDailyLimit));
+      formData.append("customerCategory", editCustomerCategory);
+      formData.append("notes", editNotes.trim());
+      formData.append("status", editStatus);
+      if (editAuthMethod === "app_password") {
+        formData.append("googleAppPassword", editCustomerAppPassword.trim());
+      }
+      if (editResumeFile) {
+        formData.append("resume", editResumeFile);
+      }
+
+      const res = await fetch("/api/admin/customers", {
+        method: "PUT",
+        body: formData,
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || "Failed to update candidate profile");
+      }
+
+      setSuccessMsg(`🎉 Candidate "${editName.trim() || editingCustomer.name}" updated successfully!`);
+      setEditingCustomer(null);
+      loadAllData();
+    } catch (err: any) {
+      setError(err.message || "Failed to update candidate profile");
+    } finally {
+      setSavingEditCustomer(false);
     }
   };
 
@@ -1091,6 +1169,15 @@ export default function AdminDashboardPage() {
                           ) : (
                             <Copy className="w-3.5 h-3.5" />
                           )}
+                        </button>
+
+                        {/* Edit Candidate Profile (All Fields) */}
+                        <button
+                          onClick={() => openEditCustomerModal(c)}
+                          className="p-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-indigo-400 transition-all cursor-pointer"
+                          title="Edit Candidate Profile (All Fields)"
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
                         </button>
 
                         {/* Set / Edit Raw Google App Password */}
@@ -1976,6 +2063,284 @@ export default function AdminDashboardPage() {
                 >
                   {savingPassword ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
                   <span>Save Raw Password</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+      {/* ========================================================== */}
+      {/* ✏️ MODAL 4: EDIT FULL CANDIDATE PROFILE                   */}
+      {/* ========================================================== */}
+      {editingCustomer && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-[#111726] border border-slate-800 rounded-2xl max-w-2xl w-full p-6 shadow-2xl space-y-5 animate-in fade-in zoom-in-95 my-8">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3.5">
+              <div>
+                <h3 className="text-base font-bold text-white flex items-center gap-2">
+                  <Pencil className="w-4 h-4 text-indigo-400" />
+                  <span>Edit Candidate Profile</span>
+                </h3>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Update candidate target role, quota, credentials, and resume.
+                </p>
+              </div>
+
+              <button
+                onClick={() => setEditingCustomer(null)}
+                className="p-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleUpdateCustomer} className="space-y-4">
+              {/* Row 1: Name & Email */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                <div>
+                  <label className="text-xs font-medium text-slate-300 block mb-1">Candidate Full Name *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Gaurav Upadhyay"
+                    value={editName}
+                    onChange={(e) => setEditName(e.target.value)}
+                    className="w-full px-3.5 py-2 rounded-xl bg-slate-900 border border-slate-800 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-indigo-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-medium text-slate-300 block mb-1">
+                    Candidate Gmail <span className="text-[10px] text-slate-500 font-normal">(Account ID)</span>
+                  </label>
+                  <input
+                    type="email"
+                    disabled
+                    value={editingCustomer.email}
+                    className="w-full px-3.5 py-2 rounded-xl bg-slate-950/80 border border-slate-800/80 text-xs text-slate-400 cursor-not-allowed font-mono"
+                  />
+                </div>
+              </div>
+
+              {/* Row 2: Target Role & Experience */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                <div>
+                  <label className="text-xs font-medium text-slate-300 block mb-1">Target Job Role *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. React / Full Stack Developer"
+                    value={editRole}
+                    onChange={(e) => setEditRole(e.target.value)}
+                    className="w-full px-3.5 py-2 rounded-xl bg-slate-900 border border-slate-800 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-indigo-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-medium text-slate-300 block mb-1">Experience Level</label>
+                  <select
+                    value={editExperience}
+                    onChange={(e) => setEditExperience(e.target.value)}
+                    className="w-full px-3.5 py-2 rounded-xl bg-slate-900 border border-slate-800 text-xs text-white focus:outline-none focus:border-indigo-500"
+                  >
+                    <option value="Fresher">Fresher (0-1 Years)</option>
+                    <option value="1-3 Years">1-3 Years Experience</option>
+                    <option value="3-5 Years">3-5 Years Experience</option>
+                    <option value="5+ Years">5+ Years Senior</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Row 3: Location, Quota, Category */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+                <div>
+                  <label className="text-xs font-medium text-slate-300 block mb-1">Target Location</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Remote, India, USA"
+                    value={editLocation}
+                    onChange={(e) => setEditLocation(e.target.value)}
+                    className="w-full px-3.5 py-2 rounded-xl bg-slate-900 border border-slate-800 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-indigo-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-medium text-slate-300 block mb-1">Daily Email Quota</label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={100}
+                    value={editDailyLimit}
+                    onChange={(e) => setEditDailyLimit(Number(e.target.value))}
+                    className="w-full px-3.5 py-2 rounded-xl bg-slate-900 border border-slate-800 text-xs text-white focus:outline-none focus:border-indigo-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-medium text-slate-300 block mb-1">Category</label>
+                  <select
+                    value={editCustomerCategory}
+                    onChange={(e) => setEditCustomerCategory(e.target.value as any)}
+                    className="w-full px-3.5 py-2 rounded-xl bg-slate-900 border border-slate-800 text-xs text-white focus:outline-none focus:border-indigo-500"
+                  >
+                    <option value="job_seeker">Job Seeker</option>
+                    <option value="b2b_lead_finder">B2B Client Outreach</option>
+                    <option value="all">Dual Channel (All)</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Row 4: Status Selection */}
+              <div>
+                <label className="text-xs font-medium text-slate-300 block mb-1">Candidate Account Status</label>
+                <select
+                  value={editStatus}
+                  onChange={(e) => setEditStatus(e.target.value as any)}
+                  className="w-full px-3.5 py-2 rounded-xl bg-slate-900 border border-slate-800 text-xs text-white focus:outline-none focus:border-indigo-500"
+                >
+                  <option value="active">Active (Ready for auto dispatch)</option>
+                  <option value="paused">Paused (Temporarily halt dispatch)</option>
+                  <option value="pending_auth">Pending Auth (Requires App Password or Link)</option>
+                  <option value="blocked">Blocked (Disabled)</option>
+                </select>
+              </div>
+
+              {/* Row 5: Resume File Upload */}
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-xs font-medium text-slate-300 block">Candidate Resume (PDF)</label>
+                  {editingCustomer.resumeName && (
+                    <span className="text-[11px] text-emerald-400 font-medium flex items-center gap-1">
+                      <CheckCircle2 className="w-3 h-3" />
+                      <span>Current: {editingCustomer.resumeName}</span>
+                    </span>
+                  )}
+                </div>
+                <input
+                  type="file"
+                  accept=".pdf"
+                  onChange={(e) => setEditResumeFile(e.target.files?.[0] || null)}
+                  className="w-full text-xs text-slate-400 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-medium file:bg-indigo-600/20 file:text-indigo-300 hover:file:bg-indigo-600/30 cursor-pointer"
+                />
+                <p className="text-[10px] text-slate-500 mt-1">
+                  {editingCustomer.resumeName
+                    ? "Leave empty to keep the existing resume, or upload a new PDF to replace it."
+                    : "No resume currently uploaded. Upload a PDF resume for email attachments."}
+                </p>
+              </div>
+
+              {/* SECTION: AUTHENTICATION METHOD */}
+              <div className="p-4 bg-slate-900/80 rounded-xl border border-slate-800 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-white">Sending Authorization:</span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setEditAuthMethod("app_password")}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all cursor-pointer ${
+                        editAuthMethod === "app_password"
+                          ? "bg-indigo-600 text-white"
+                          : "text-slate-400 hover:text-white"
+                      }`}
+                    >
+                      Instant App Password
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setEditAuthMethod("link")}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all cursor-pointer ${
+                        editAuthMethod === "link"
+                          ? "bg-indigo-600 text-white"
+                          : "text-slate-400 hover:text-white"
+                      }`}
+                    >
+                      Share Connect Link
+                    </button>
+                  </div>
+                </div>
+
+                {editAuthMethod === "app_password" ? (
+                  <div className="space-y-2 pt-1">
+                    <div className="flex items-center justify-between text-[11px]">
+                      <span className="text-slate-400">Google 16-Digit App Password (Raw Format)</span>
+                      <a
+                        href="https://myaccount.google.com/apppasswords"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-indigo-400 hover:text-indigo-300 flex items-center gap-1"
+                      >
+                        <span>Generate from Google</span>
+                        <ExternalLink className="w-3 h-3" />
+                      </a>
+                    </div>
+
+                    <div className="relative">
+                      <input
+                        type={showEditCustomerPass ? "text" : "password"}
+                        placeholder="e.g. abcd efgh ijkl mnop"
+                        value={editCustomerAppPassword}
+                        onChange={(e) => setEditCustomerAppPassword(e.target.value)}
+                        className="w-full px-3.5 py-2 pr-12 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white placeholder:text-slate-600 focus:outline-none focus:border-indigo-500 font-mono"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowEditCustomerPass(!showEditCustomerPass)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white cursor-pointer"
+                      >
+                        {showEditCustomerPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+
+                    <p className="text-[11px] text-emerald-400/90">
+                      ✓ Instant Raw Activation: Stored in raw format (no encryption or hashing) for immediate direct 1-click email dispatching.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="p-3 bg-slate-950 rounded-lg text-xs text-slate-400 space-y-2">
+                    <p className="text-slate-300 font-medium">Candidate self-connect link:</p>
+                    <div className="flex items-center justify-between gap-2 p-2 bg-slate-900 rounded-lg font-mono text-[11px] text-slate-300 truncate">
+                      <span className="truncate">/connect/{editingCustomer.connectToken}</span>
+                      <button
+                        type="button"
+                        onClick={() => copyConnectLink(editingCustomer.connectToken)}
+                        className="px-2 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded text-[10px] font-semibold shrink-0 cursor-pointer"
+                      >
+                        {copiedToken === editingCustomer.connectToken ? "Copied!" : "Copy Link"}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Row 6: Notes */}
+              <div>
+                <label className="text-xs font-medium text-slate-300 block mb-1">Notes / Preferences (Optional)</label>
+                <textarea
+                  rows={2}
+                  placeholder="e.g. Prefers frontend roles, available immediately..."
+                  value={editNotes}
+                  onChange={(e) => setEditNotes(e.target.value)}
+                  className="w-full px-3.5 py-2 rounded-xl bg-slate-900 border border-slate-800 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-indigo-500 resize-none"
+                />
+              </div>
+
+              {/* Modal Buttons */}
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setEditingCustomer(null)}
+                  className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-xs font-semibold text-slate-300 transition-all cursor-pointer"
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="submit"
+                  disabled={savingEditCustomer}
+                  className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold flex items-center gap-2 shadow-md shadow-indigo-950/40 transition-all cursor-pointer disabled:opacity-40"
+                >
+                  {savingEditCustomer ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                  <span>Save Candidate Changes</span>
                 </button>
               </div>
             </form>

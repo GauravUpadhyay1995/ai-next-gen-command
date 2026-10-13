@@ -331,3 +331,98 @@ export async function updateCustomerAppPassword(
     return false;
   }
 }
+
+/**
+ * Updates an entire candidate profile with all fields from creation.
+ */
+export async function updateCustomerProfile(data: {
+  email: string;
+  name?: string;
+  role?: string;
+  experience?: string;
+  location?: string;
+  dailyLimit?: number;
+  customerCategory?: "job_seeker" | "b2b_lead_finder" | "all";
+  googleAppPassword?: string;
+  appPassword?: string;
+  resumeName?: string;
+  resumeBase64?: string;
+  resumeMimeType?: string;
+  notes?: string;
+  status?: "pending_auth" | "active" | "paused" | "blocked";
+}): Promise<{ success: boolean; profile?: CustomerProfile; message?: string }> {
+  const cleanEmail = String(data.email || "").toLowerCase().trim();
+  if (!cleanEmail) {
+    return { success: false, message: "Valid candidate email is required." };
+  }
+
+  try {
+    const { db } = await connectToDatabase();
+    const collection = db.collection("customer_profiles");
+
+    const existing = await collection.findOne({ email: cleanEmail });
+    if (!existing) {
+      return { success: false, message: `Candidate ${cleanEmail} not found.` };
+    }
+
+    const setDoc: any = {
+      updatedAt: new Date(),
+    };
+
+    if (data.name !== undefined) setDoc.name = data.name.trim();
+    if (data.role !== undefined) setDoc.role = data.role.trim();
+    if (data.experience !== undefined) setDoc.experience = data.experience.trim();
+    if (data.location !== undefined) setDoc.location = data.location.trim();
+    if (data.dailyLimit !== undefined && !isNaN(Number(data.dailyLimit))) setDoc.dailyLimit = Number(data.dailyLimit);
+    if (data.customerCategory !== undefined) setDoc.customerCategory = data.customerCategory;
+    if (data.notes !== undefined) setDoc.notes = data.notes.trim();
+    if (data.status !== undefined) setDoc.status = data.status;
+
+    // Google App Password handling: raw format without encryption or hashing
+    const rawPass = (data.googleAppPassword || data.appPassword || "").replace(/\s+/g, "");
+    const updateOps: any = { $set: setDoc };
+
+    if (rawPass) {
+      setDoc.appPassword = rawPass;
+      setDoc.authMethod = existing.encryptedRefreshToken ? "both" : "app_password";
+      if (!data.status && existing.status === "pending_auth") {
+        setDoc.status = "active";
+      }
+      updateOps.$unset = { encryptedAppPassword: "" };
+    }
+
+    // Resume update handling
+    if (data.resumeBase64) {
+      setDoc.resumeBase64 = data.resumeBase64;
+      setDoc.resumeName = data.resumeName || "resume.pdf";
+      setDoc.resumeMimeType = data.resumeMimeType || "application/pdf";
+    }
+
+    await collection.updateOne({ email: cleanEmail }, updateOps);
+
+    // Keep allowed_users synced
+    if (data.name) {
+      try {
+        await db.collection("allowed_users").updateOne(
+          { email: cleanEmail },
+          { $set: { name: data.name.trim(), updatedAt: new Date() } }
+        );
+      } catch {}
+    }
+
+    const updated = await collection.findOne({ email: cleanEmail });
+    const resolvedPass = getCustomerRawAppPassword(updated as any);
+    if (resolvedPass && updated) {
+      (updated as any).appPassword = resolvedPass;
+    }
+
+    return {
+      success: true,
+      profile: updated as any,
+      message: `Candidate profile for ${cleanEmail} updated successfully.`,
+    };
+  } catch (error: any) {
+    console.error("[CustomerProfile] Failed to update customer profile:", error);
+    return { success: false, message: error.message || "Database update failed." };
+  }
+}
