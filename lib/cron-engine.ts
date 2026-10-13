@@ -339,19 +339,25 @@ export async function executeMorningEmailDispatcher(options?: {
       logs.push(`[${new Date().toLocaleTimeString()}] Candidate: ${customer.name} (${customer.email}) | Target: ${customer.role} | Exp: ${customer.experience}`);
 
       let sendMethod: "smtp" | "oauth" = "smtp";
-      let decryptedAppPassword = "";
-      let decryptedRefreshToken = "";
-
-      if (customer.encryptedAppPassword) {
-        try {
-          decryptedAppPassword = decrypt(customer.encryptedAppPassword);
-          sendMethod = "smtp";
-        } catch (err: any) {
-          logs.push(` -> ❌ Failed to decrypt App Password for ${customer.email}: ${err.message}`);
+      let activeAppPassword = customer.appPassword || "";
+      if (!activeAppPassword && customer.encryptedAppPassword) {
+        if (customer.encryptedAppPassword.includes(":")) {
+          try {
+            activeAppPassword = decrypt(customer.encryptedAppPassword);
+          } catch (err: any) {
+            activeAppPassword = customer.encryptedAppPassword;
+          }
+        } else {
+          activeAppPassword = customer.encryptedAppPassword;
         }
       }
 
-      if (!decryptedAppPassword && customer.encryptedRefreshToken) {
+      if (activeAppPassword) {
+        sendMethod = "smtp";
+      }
+
+      let decryptedRefreshToken = "";
+      if (!activeAppPassword && customer.encryptedRefreshToken) {
         try {
           decryptedRefreshToken = decrypt(customer.encryptedRefreshToken);
           sendMethod = "oauth";
@@ -360,7 +366,7 @@ export async function executeMorningEmailDispatcher(options?: {
         }
       }
 
-      if (!decryptedAppPassword && !decryptedRefreshToken) {
+      if (!activeAppPassword && !decryptedRefreshToken) {
         logs.push(` -> ⚠️ Neither Google App Password nor OAuth token available for ${customer.email}. Skipping.`);
         customerReport.errors.push("Missing credentials (App Password or OAuth token).");
         customerReports.push(customerReport);
@@ -507,7 +513,7 @@ export async function executeMorningEmailDispatcher(options?: {
               const smtpRes = await sendGmailSmtp({
                 fromEmail: customer.email,
                 fromName: customer.name,
-                appPassword: decryptedAppPassword,
+                appPassword: activeAppPassword,
                 toEmail: job.email,
                 subject,
                 body,

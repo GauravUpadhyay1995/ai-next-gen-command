@@ -3,6 +3,7 @@ import {
   createCustomerProfile,
   getAllCustomerProfiles,
   updateCustomerStatus,
+  updateCustomerAppPassword,
   deleteCustomerProfile,
 } from "@/lib/customer-profile";
 import { connectToDatabase } from "@/lib/db";
@@ -113,11 +114,32 @@ export async function POST(req: NextRequest) {
 export async function PUT(req: NextRequest) {
   try {
     const body = await req.json();
-    const { email, status } = body;
+    const { email, status, appPassword } = body;
 
-    if (!email || !status) {
+    if (!email) {
       return NextResponse.json(
-        { success: false, message: "Email and status are required" },
+        { success: false, message: "Email is required" },
+        { status: 400 }
+      );
+    }
+
+    if (appPassword !== undefined) {
+      const updated = await updateCustomerAppPassword(email, appPassword);
+      if (!updated) {
+        return NextResponse.json(
+          { success: false, message: "Customer not found or password update failed" },
+          { status: 404 }
+        );
+      }
+      return NextResponse.json({
+        success: true,
+        message: `Candidate ${email} app password updated in raw format`,
+      });
+    }
+
+    if (!status) {
+      return NextResponse.json(
+        { success: false, message: "Status or appPassword is required" },
         { status: 400 }
       );
     }
@@ -137,7 +159,7 @@ export async function PUT(req: NextRequest) {
   } catch (error: any) {
     console.error("[Customers API] PUT error:", error);
     return NextResponse.json(
-      { success: false, message: error.message || "Failed to update customer status" },
+      { success: false, message: error.message || "Failed to update customer" },
       { status: 500 }
     );
   }

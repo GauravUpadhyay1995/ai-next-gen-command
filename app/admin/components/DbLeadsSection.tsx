@@ -56,6 +56,7 @@ type CustomerProfile = {
   resumeMimeType?: string;
   encryptedRefreshToken?: string;
   encryptedAppPassword?: string;
+  appPassword?: string;
   authMethod?: "app_password" | "oauth" | "both";
   status: "pending_auth" | "active" | "paused" | "blocked";
   connectToken: string;
@@ -192,7 +193,7 @@ export default function DbLeadsSection({ customers, onOutreachComplete }: DbLead
   // Auto-set default customer when available
   useEffect(() => {
     if (customers.length > 0 && !selectedCustomerEmail) {
-      const activeCust = customers.find((c) => c.status === "active" && (c.encryptedAppPassword || c.encryptedRefreshToken));
+      const activeCust = customers.find((c) => c.status === "active" && (c.appPassword || c.encryptedAppPassword || c.encryptedRefreshToken));
       setSelectedCustomerEmail(activeCust ? activeCust.email : customers[0].email);
     }
   }, [customers, selectedCustomerEmail]);
@@ -449,7 +450,7 @@ export default function DbLeadsSection({ customers, onOutreachComplete }: DbLead
       ? selectedLeadsList
       : Array.from(selectedLeadEmails).map((e) => ({ email: e }));
 
-    const isConnected = currentCustomer?.encryptedAppPassword || currentCustomer?.encryptedRefreshToken;
+    const isConnected = currentCustomer?.appPassword || currentCustomer?.encryptedAppPassword || currentCustomer?.encryptedRefreshToken;
     if (!isConnected && !simulateOnly) {
       alert(`Customer "${currentCustomer?.name || selectedCustomerEmail}" has not configured a Google App Password or 1-Click OAuth. Please connect credentials or run in Simulation Mode.`);
       return;
@@ -807,7 +808,7 @@ export default function DbLeadsSection({ customers, onOutreachComplete }: DbLead
               className="w-full px-3 py-2 genz-input rounded-xl text-white text-xs font-mono font-bold"
             >
               {customers.map((c) => {
-                const isConn = Boolean(c.encryptedAppPassword || c.encryptedRefreshToken);
+                const isConn = Boolean(c.appPassword || c.encryptedAppPassword || c.encryptedRefreshToken);
                 return (
                   <option key={c.email} value={c.email} className="bg-[#0a0f28] text-white">
                     {c.name} ({c.role}) - {isConn ? "🟢 Connected" : "🔴 Not Authenticated"}
@@ -824,8 +825,8 @@ export default function DbLeadsSection({ customers, onOutreachComplete }: DbLead
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-slate-400">Sending Auth:</span>
-                  <span className={currentCustomer.encryptedAppPassword || currentCustomer.encryptedRefreshToken ? "text-emerald-400 font-bold flex items-center gap-1" : "text-rose-400 font-bold flex items-center gap-1"}>
-                    {currentCustomer.encryptedAppPassword || currentCustomer.encryptedRefreshToken ? (
+                  <span className={currentCustomer.appPassword || currentCustomer.encryptedAppPassword || currentCustomer.encryptedRefreshToken ? "text-emerald-400 font-bold flex items-center gap-1" : "text-rose-400 font-bold flex items-center gap-1"}>
+                    {currentCustomer.appPassword || currentCustomer.encryptedAppPassword || currentCustomer.encryptedRefreshToken ? (
                       <>
                         <CheckCircle2 className="w-3 h-3" />
                         <span>Google SMTP / OAuth Ready</span>

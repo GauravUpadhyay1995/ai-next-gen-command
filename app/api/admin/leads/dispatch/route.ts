@@ -131,17 +131,24 @@ export async function POST(req: NextRequest) {
     }
 
     // 2. Determine Authentication Method
-    let decryptedAppPassword = "";
+    let activeAppPassword = customer.appPassword || "";
+    if (!activeAppPassword && customer.encryptedAppPassword) {
+      if (customer.encryptedAppPassword.includes(":")) {
+        try {
+          activeAppPassword = decrypt(customer.encryptedAppPassword);
+        } catch (e) {
+          activeAppPassword = customer.encryptedAppPassword;
+        }
+      } else {
+        activeAppPassword = customer.encryptedAppPassword;
+      }
+    }
+
     let decryptedRefreshToken = "";
     let sendMethod: "smtp" | "oauth" | null = null;
 
-    if (customer.encryptedAppPassword) {
-      try {
-        decryptedAppPassword = decrypt(customer.encryptedAppPassword);
-        if (decryptedAppPassword) sendMethod = "smtp";
-      } catch (e) {
-        log(`⚠️ Could not decrypt customer Google App Password.`);
-      }
+    if (activeAppPassword) {
+      sendMethod = "smtp";
     }
 
     if (!sendMethod && customer.encryptedRefreshToken) {
@@ -276,7 +283,7 @@ export async function POST(req: NextRequest) {
             const smtpRes = await sendGmailSmtp({
               fromEmail: customer.email,
               fromName: customer.name,
-              appPassword: decryptedAppPassword,
+              appPassword: activeAppPassword,
               toEmail: hrEmail,
               subject: finalSubject,
               body: finalBody,

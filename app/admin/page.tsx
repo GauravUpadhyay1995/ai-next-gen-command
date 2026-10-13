@@ -64,6 +64,7 @@ type CustomerProfile = {
   resumeMimeType?: string;
   encryptedRefreshToken?: string;
   encryptedAppPassword?: string;
+  appPassword?: string;
   authMethod?: "app_password" | "oauth" | "both";
   status: "pending_auth" | "active" | "paused" | "blocked";
   connectToken: string;
@@ -147,6 +148,12 @@ export default function AdminDashboardPage() {
   const [launchModalOpen, setLaunchModalOpen] = useState(false);
   const [liveLaunchLogs, setLiveLaunchLogs] = useState<string[]>([]);
   const [launchSummary, setLaunchSummary] = useState<any>(null);
+
+  // Edit Raw App Password Modal State
+  const [editingPasswordCust, setEditingPasswordCust] = useState<CustomerProfile | null>(null);
+  const [editAppPasswordInput, setEditAppPasswordInput] = useState("");
+  const [showEditAppPass, setShowEditAppPass] = useState(false);
+  const [savingPassword, setSavingPassword] = useState(false);
 
   // Cron Simulator States
   const [cronRunning2am, setCronRunning2am] = useState(false);
@@ -472,6 +479,34 @@ export default function AdminDashboardPage() {
     navigator.clipboard.writeText(link);
     setCopiedToken(token);
     setTimeout(() => setCopiedToken(null), 3000);
+  };
+
+  const handleSaveAppPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingPasswordCust) return;
+    setSavingPassword(true);
+    try {
+      const res = await fetch("/api/admin/customers", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: editingPasswordCust.email,
+          appPassword: editAppPasswordInput.trim(),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || "Failed to update app password");
+      }
+      setSuccessMsg(`Google App Password (raw format) saved for ${editingPasswordCust.email}`);
+      setEditingPasswordCust(null);
+      setEditAppPasswordInput("");
+      loadAllData();
+    } catch (err: any) {
+      setError(err.message || "Failed to update app password");
+    } finally {
+      setSavingPassword(false);
+    }
   };
 
   const runSimulator2am = async () => {
@@ -979,7 +1014,7 @@ export default function AdminDashboardPage() {
                             </span>
 
                             {/* Auth Status Pill */}
-                            {c.encryptedAppPassword ? (
+                            {c.appPassword || c.encryptedAppPassword ? (
                               <span className="px-2.5 py-0.5 bg-emerald-500/10 border border-emerald-500/20 rounded-full text-emerald-400 text-[10px] font-medium flex items-center gap-1">
                                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
                                 Active (App Password)
@@ -1012,6 +1047,18 @@ export default function AdminDashboardPage() {
                             <span className="text-slate-300 font-medium">
                               {c.totalSentCount || 0} sent (Limit: {c.dailyLimit || 20}/day)
                             </span>
+                            {(c.appPassword || c.encryptedAppPassword) && (
+                              <>
+                                <span>•</span>
+                                <span
+                                  className="text-emerald-300 font-mono bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-800/40 inline-flex items-center gap-1 text-[11px]"
+                                  title="Candidate Raw App Password"
+                                >
+                                  <KeyRound className="w-3 h-3 text-emerald-400" />
+                                  <span>{c.appPassword || c.encryptedAppPassword}</span>
+                                </span>
+                              </>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -1044,6 +1091,19 @@ export default function AdminDashboardPage() {
                           ) : (
                             <Copy className="w-3.5 h-3.5" />
                           )}
+                        </button>
+
+                        {/* Set / Edit Raw Google App Password */}
+                        <button
+                          onClick={() => {
+                            setEditingPasswordCust(c);
+                            setEditAppPasswordInput(c.appPassword || c.encryptedAppPassword || "");
+                            setShowEditAppPass(false);
+                          }}
+                          className="p-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-white transition-all cursor-pointer"
+                          title="Set / Edit Raw App Password"
+                        >
+                          <KeyRound className="w-3.5 h-3.5 text-indigo-400" />
                         </button>
 
                         {/* Pause / Resume Button */}
@@ -1745,7 +1805,7 @@ export default function AdminDashboardPage() {
                     </div>
 
                     <p className="text-[11px] text-emerald-400/90">
-                      ✓ Instant Activation: Entering the 16-digit password allows immediate 1-click email dispatching.
+                      ✓ Instant Raw Activation: Stored in raw format (no encryption or hashing) for immediate direct 1-click email dispatching.
                     </p>
                   </div>
                 ) : (
@@ -1850,6 +1910,75 @@ export default function AdminDashboardPage() {
                 Close Stream
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================== */}
+      {/* 🔑 MODAL 3: EDIT RAW APP PASSWORD                          */}
+      {/* ========================================================== */}
+      {editingPasswordCust && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-[#111726] border border-slate-800 max-w-md w-full rounded-2xl p-6 shadow-2xl space-y-4 animate-in fade-in zoom-in-95">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div className="flex items-center gap-2">
+                <KeyRound className="w-5 h-5 text-indigo-400" />
+                <h3 className="text-sm font-bold text-white">Google App Password (Raw Format)</h3>
+              </div>
+              <button
+                onClick={() => setEditingPasswordCust(null)}
+                className="text-slate-400 hover:text-white transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="text-xs text-slate-400 space-y-1">
+              <p>Candidate: <strong className="text-slate-200">{editingPasswordCust.name}</strong> ({editingPasswordCust.email})</p>
+              <p className="text-[11px] text-slate-500">The 16-character password is saved in raw format (no hashing or encryption) for direct SMTP connection.</p>
+            </div>
+
+            <form onSubmit={handleSaveAppPassword} className="space-y-4 pt-1">
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-medium text-slate-400 block">
+                  16-Digit App Password
+                </label>
+                <div className="relative">
+                  <input
+                    type={showEditAppPass ? "text" : "password"}
+                    placeholder="e.g. abcd efgh ijkl mnop"
+                    value={editAppPasswordInput}
+                    onChange={(e) => setEditAppPasswordInput(e.target.value)}
+                    className="w-full px-3.5 py-2 pr-12 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white placeholder:text-slate-600 focus:outline-none focus:border-indigo-500 font-mono"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowEditAppPass(!showEditAppPass)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white cursor-pointer"
+                  >
+                    {showEditAppPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setEditingPasswordCust(null)}
+                  className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-xs font-semibold text-slate-300 transition-all cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingPassword}
+                  className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold flex items-center gap-2 shadow-md shadow-indigo-950/40 transition-all cursor-pointer disabled:opacity-40"
+                >
+                  {savingPassword ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                  <span>Save Raw Password</span>
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

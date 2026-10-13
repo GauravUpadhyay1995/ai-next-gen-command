@@ -16,6 +16,7 @@ export type CustomerProfile = {
   resumeMimeType?: string;
   encryptedRefreshToken?: string;
   encryptedAppPassword?: string;
+  appPassword?: string; // Raw Google App Password (not hashed or encrypted)
   authMethod?: "app_password" | "oauth" | "both";
   status: "pending_auth" | "active" | "paused" | "blocked";
   connectToken: string;
@@ -72,10 +73,10 @@ export async function createCustomerProfile(data: {
       updatedAt: new Date(),
     };
 
-    // If Google App Password is provided, encrypt and activate immediately
+    // If Google App Password is provided, save in raw format (no encryption or hashing) and activate immediately
     const cleanAppPass = (data.googleAppPassword || "").replace(/\s+/g, "");
     if (cleanAppPass) {
-      profileDoc.encryptedAppPassword = encrypt(cleanAppPass);
+      profileDoc.appPassword = cleanAppPass;
       profileDoc.authMethod = existing?.encryptedRefreshToken ? "both" : "app_password";
       profileDoc.status = "active";
     }
@@ -94,9 +95,14 @@ export async function createCustomerProfile(data: {
       profileDoc.totalSentCount = 0;
     }
 
+    const updateOps: any = { $set: profileDoc };
+    if (cleanAppPass) {
+      updateOps.$unset = { encryptedAppPassword: "" };
+    }
+
     await collection.updateOne(
       { email: cleanEmail },
-      { $set: profileDoc },
+      updateOps,
       { upsert: true }
     );
 
@@ -165,6 +171,27 @@ export async function saveCustomerRefreshToken(
 }
 
 /**
+ * Helper to get raw app password from a customer profile document,
+ * decrypting legacy encryptedAppPassword if needed.
+ */
+export function getCustomerRawAppPassword(customer: Partial<CustomerProfile>): string {
+  if (customer.appPassword) {
+    return customer.appPassword;
+  }
+  if (customer.encryptedAppPassword) {
+    if (customer.encryptedAppPassword.includes(":")) {
+      try {
+        return decrypt(customer.encryptedAppPassword);
+      } catch {
+        return customer.encryptedAppPassword;
+      }
+    }
+    return customer.encryptedAppPassword;
+  }
+  return "";
+}
+
+/**
  * Retrieves a customer profile by their 1-time connect token.
  */
 export async function getCustomerByConnectToken(
@@ -175,6 +202,11 @@ export async function getCustomerByConnectToken(
     const { db } = await connectToDatabase();
     const collection = db.collection("customer_profiles");
     const doc = await collection.findOne({ connectToken: token });
+    if (!doc) return null;
+    const rawAppPass = getCustomerRawAppPassword(doc as any);
+    if (rawAppPass) {
+      (doc as any).appPassword = rawAppPass;
+    }
     return doc as any;
   } catch (error) {
     console.error("[CustomerProfile] Failed to find customer by token:", error);
@@ -183,14 +215,20 @@ export async function getCustomerByConnectToken(
 }
 
 /**
- * Retrieves all customer profiles.
+ * Retrieves all customer profiles with raw app password resolved.
  */
 export async function getAllCustomerProfiles(): Promise<CustomerProfile[]> {
   try {
     const { db } = await connectToDatabase();
     const collection = db.collection("customer_profiles");
     const docs = await collection.find({}).sort({ createdAt: -1 }).toArray();
-    return docs as any[];
+    return docs.map((doc: any) => {
+      const rawAppPass = getCustomerRawAppPassword(doc);
+      if (rawAppPass) {
+        doc.appPassword = rawAppPass;
+      }
+      return doc as CustomerProfile;
+    });
   } catch (error) {
     console.error("[CustomerProfile] Failed to fetch customer profiles:", error);
     return [];
@@ -208,12 +246,19 @@ export async function getActiveCustomerProfiles(): Promise<CustomerProfile[]> {
       .find({
         status: "active",
         $or: [
+          { appPassword: { $exists: true, $ne: "" } },
           { encryptedAppPassword: { $exists: true, $ne: "" } },
           { encryptedRefreshToken: { $exists: true, $ne: "" } },
         ],
       })
       .toArray();
-    return docs as any[];
+    return docs.map((doc: any) => {
+      const rawAppPass = getCustomerRawAppPassword(doc);
+      if (rawAppPass) {
+        doc.appPassword = rawAppPass;
+      }
+      return doc as CustomerProfile;
+    });
   } catch (error) {
     console.error("[CustomerProfile] Failed to fetch active profiles:", error);
     return [];
@@ -250,6 +295,39 @@ export async function deleteCustomerProfile(email: string): Promise<boolean> {
     const res = await collection.deleteOne({ email: email.toLowerCase().trim() });
     return res.deletedCount > 0;
   } catch (error) {
+    return false;
+  }
+}
+
+/**
+ * Updates a candidate's Google App Password in raw format (no hashing or encryption).
+ */
+export async function updateCustomerAppPassword(
+  email: string,
+  appPassword: string
+): Promise<boolean> {
+  const cleanEmail = String(email || "").toLowerCase().trim();
+  const cleanAppPass = (appPassword || "").replace(/\s+/g, "");
+  if (!cleanEmail) return false;
+
+  try {
+    const { db } = await connectToDatabase();
+    const collection = db.collection("customer_profiles");
+    const res = await collection.updateOne(
+      { email: cleanEmail },
+      {
+        $set: {
+          appPassword: cleanAppPass,
+          authMethod: "app_password",
+          status: cleanAppPass ? "active" : "pending_auth",
+          updatedAt: new Date(),
+        },
+        $unset: { encryptedAppPassword: "" },
+      }
+    );
+    return res.modifiedCount > 0 || res.matchedCount > 0;
+  } catch (error) {
+    console.error("[CustomerProfile] Failed to update customer app password:", error);
     return false;
   }
 }
