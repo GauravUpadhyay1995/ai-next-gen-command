@@ -1,4 +1,5 @@
 import dns from "dns";
+import net from "net";
 
 const DISPOSABLE_DOMAINS = new Set([
   "mailinator.com",
@@ -35,13 +36,102 @@ export function isDisposableDomain(email: string): boolean {
 }
 
 /**
- * Checks whether an email domain has active MX (Mail Exchange) DNS records.
- * Uses native Node.js DNS promises (zero external API cost).
+ * Performs a zero-send SMTP handshake (HELO -> MAIL FROM -> RCPT TO) to verify if a mailbox actually exists.
+ * Gracefully falls back to active MX if Port 25 is blocked by ISP/serverless environments.
  */
-export async function verifyEmailMx(email: string): Promise<{
+export async function pingMailboxSmtp(
+  email: string,
+  mxHost: string,
+  timeoutMs = 2500
+): Promise<{ valid: boolean; code?: number; note?: string }> {
+  return new Promise((resolve) => {
+    let resolved = false;
+    let socket: net.Socket;
+
+    const finish = (result: { valid: boolean; code?: number; note?: string }) => {
+      if (!resolved) {
+        resolved = true;
+        try {
+          if (socket) socket.destroy();
+        } catch {}
+        resolve(result);
+      }
+    };
+
+    const timer = setTimeout(() => {
+      finish({ valid: true, note: "SMTP ping timeout - fallback to active MX" });
+    }, timeoutMs);
+
+    try {
+      socket = net.createConnection({ host: mxHost, port: 25 });
+    } catch (err: any) {
+      clearTimeout(timer);
+      return resolve({ valid: true, note: `Socket error (${err.message}) - fallback to active MX` });
+    }
+
+    let step = 0;
+    socket.setEncoding("utf-8");
+    socket.setTimeout(timeoutMs);
+
+    socket.on("error", (err) => {
+      clearTimeout(timer);
+      // If port 25 is blocked by ISP or host (very common), fallback to active MX without breaking
+      finish({ valid: true, note: `Port 25 unreachable (${err.message}) - fallback to active MX` });
+    });
+
+    socket.on("timeout", () => {
+      clearTimeout(timer);
+      finish({ valid: true, note: "SMTP timeout - fallback to active MX" });
+    });
+
+    socket.on("data", (data) => {
+      const line = data.toString();
+      const code = parseInt(line.slice(0, 3), 10);
+
+      if (step === 0) {
+        // Welcome message from server
+        step = 1;
+        socket.write(`HELO fetchmail.local\r\n`);
+      } else if (step === 1) {
+        // HELO ack
+        step = 2;
+        socket.write(`MAIL FROM:<verify@fetchmail.local>\r\n`);
+      } else if (step === 2) {
+        // MAIL FROM ack
+        step = 3;
+        socket.write(`RCPT TO:<${email}>\r\n`);
+      } else if (step === 3) {
+        // RCPT TO response: 250 = valid, 550 = mailbox does not exist
+        clearTimeout(timer);
+        try {
+          socket.write(`QUIT\r\n`);
+        } catch {}
+
+        if (code === 250 || code === 251) {
+          finish({ valid: true, code, note: "Mailbox exists (250 OK)" });
+        } else if (code >= 550 && code <= 554) {
+          finish({ valid: false, code, note: `Mailbox rejected (${code})` });
+        } else {
+          // Greylisting / temp 450 / 451: don't falsely discard
+          finish({ valid: true, code, note: `SMTP response ${code} - fallback to active MX` });
+        }
+      }
+    });
+  });
+}
+
+/**
+ * Checks whether an email domain has active MX (Mail Exchange) DNS records,
+ * with optional deep zero-send SMTP mailbox verification.
+ */
+export async function verifyEmailMx(
+  email: string,
+  deepSmtp = false
+): Promise<{
   valid: boolean;
   mxRecords?: string[];
   reason?: string;
+  smtpStatus?: string;
 }> {
   if (!isValidEmailFormat(email)) {
     return { valid: false, reason: "invalid_format" };
@@ -50,6 +140,14 @@ export async function verifyEmailMx(email: string): Promise<{
   if (isDisposableDomain(email)) {
     return { valid: false, reason: "disposable_domain" };
   }
+
+  // Check dead / bounced blacklist
+  try {
+    const { isEmailBounced } = await import("./bounce-checker");
+    if (await isEmailBounced(email)) {
+      return { valid: false, reason: "previously_bounced_blacklist" };
+    }
+  } catch {}
 
   const domain = email.split("@")[1]?.toLowerCase().trim();
   if (!domain) {
@@ -65,9 +163,21 @@ export async function verifyEmailMx(email: string): Promise<{
     if (records && records.length > 0) {
       // Sort by priority
       records.sort((a, b) => a.priority - b.priority);
+      const topMx = records[0].exchange;
+
+      let smtpStatus = "MX Verified";
+      if (deepSmtp && topMx) {
+        const ping = await pingMailboxSmtp(email, topMx);
+        if (!ping.valid) {
+          return { valid: false, reason: ping.note || "smtp_mailbox_rejected" };
+        }
+        smtpStatus = ping.note || "SMTP Verified";
+      }
+
       return {
         valid: true,
         mxRecords: records.map((r) => `${r.exchange} (pri:${r.priority})`),
+        smtpStatus,
       };
     }
     return { valid: false, reason: "no_mx_records" };

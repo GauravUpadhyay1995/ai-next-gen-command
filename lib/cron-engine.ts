@@ -1,6 +1,6 @@
 import { connectToDatabase } from "./db";
-import { getActiveCustomerProfiles, CustomerProfile } from "./customer-profile";
-import { searchPublicJobFeeds, searchGoogleHiringPosts, DiscoveredLead } from "./lead-finder";
+import { getActiveCustomerProfiles, getCustomerResume, CustomerProfile } from "./customer-profile";
+import { searchPublicJobFeeds, searchGoogleHiringPosts, DiscoveredLead, isRoleMatch, checkLocationMatch, checkSeniorityMatch } from "./lead-finder";
 import { verifyEmailMx, isValidEmailFormat, isDisposableDomain } from "./email-verifier";
 import { decrypt } from "./crypto";
 import { createOAuthClient } from "./google";
@@ -15,6 +15,7 @@ export type DailyJobQueueItem = {
   email: string;
   company: string;
   role: string;
+  targetRole?: string;
   location: string;
   snippet: string;
   sourceUrl: string;
@@ -22,6 +23,7 @@ export type DailyJobQueueItem = {
   postedDate?: string;
   mxValid: boolean;
   mxDetails?: string;
+  score?: number;
   dispatchedTo: string[]; // customer emails
   fetchedAt: Date;
 };
@@ -107,12 +109,17 @@ export async function executeNightJobScraper(options?: {
 
     // 2. Query feeds for each role
     for (const role of targetRoles) {
-      logs.push(`[${new Date().toLocaleTimeString()}] Fetching jobs for target role: "${role}"...`);
+      const matchedCust = activeCustomers.find(
+        (c) => c.role?.trim().toLowerCase() === role.toLowerCase()
+      );
+      const roleExp = matchedCust?.experience;
+      logs.push(`[${new Date().toLocaleTimeString()}] Fetching jobs for target role: "${role}" (Exp: ${roleExp || "All"})...`);
       for (const loc of targetLocations.slice(0, 2)) {
         try {
-          const feedLeads = await searchPublicJobFeeds(role, loc);
+          const feedLeads = await searchPublicJobFeeds(role, loc, roleExp);
+          const taggedLeads = feedLeads.map((l) => ({ ...l, targetRole: role } as DiscoveredLead & { targetRole: string }));
           logs.push(` -> Public feeds returned ${feedLeads.length} leads for "${role}" (${loc})`);
-          allDiscovered = allDiscovered.concat(feedLeads);
+          allDiscovered = allDiscovered.concat(taggedLeads);
         } catch (err: any) {
           logs.push(` -> Feed fetch error for "${role}": ${err.message}`);
         }
@@ -121,8 +128,9 @@ export async function executeNightJobScraper(options?: {
         if (process.env.GOOGLE_SEARCH_API_KEY && process.env.GOOGLE_SEARCH_CX) {
           try {
             const googleLeads = await searchGoogleHiringPosts(role, loc);
+            const taggedGoogle = googleLeads.map((l) => ({ ...l, targetRole: role } as DiscoveredLead & { targetRole: string }));
             logs.push(` -> Google hiring posts returned ${googleLeads.length} leads for "${role}"`);
-            allDiscovered = allDiscovered.concat(googleLeads);
+            allDiscovered = allDiscovered.concat(taggedGoogle);
           } catch (err: any) {
             logs.push(` -> Google search error for "${role}": ${err.message}`);
           }
@@ -144,16 +152,16 @@ export async function executeNightJobScraper(options?: {
     const uniqueLeads = Array.from(uniqueMap.values());
     logs.push(`[${new Date().toLocaleTimeString()}] Total unique formatted leads: ${uniqueLeads.length}`);
 
-    // Verify MX Records in fast parallel batches
+    // Verify MX Records in fast parallel batches with deep zero-send SMTP ping
     const candidatePool = uniqueLeads.slice(0, 50);
     const mxCheckResults = await Promise.allSettled(
       candidatePool.map(async (lead) => {
-        const mxCheck = await verifyEmailMx(lead.email);
+        const mxCheck = await verifyEmailMx(lead.email, true);
         if (mxCheck.valid) {
           return {
             ...lead,
             mxValid: true,
-            mxDetails: mxCheck.mxRecords?.[0] || "Active MX Host",
+            mxDetails: mxCheck.smtpStatus || mxCheck.mxRecords?.[0] || "Active MX Host",
           };
         }
         return null;
@@ -177,6 +185,7 @@ export async function executeNightJobScraper(options?: {
         email: lead.email.toLowerCase().trim(),
         company: lead.company || "Hiring Team",
         role: lead.role || "Target Role",
+        targetRole: (lead as any).targetRole || lead.role || "Target Role",
         location: lead.location || "Remote",
         snippet: lead.snippet || "",
         sourceUrl: lead.sourceUrl || "",
@@ -184,6 +193,7 @@ export async function executeNightJobScraper(options?: {
         postedDate: lead.postedDate || new Date().toLocaleDateString(),
         mxValid: true,
         mxDetails: lead.mxDetails,
+        score: lead.score || 75,
         fetchedAt: new Date(),
       };
 
@@ -255,14 +265,51 @@ export async function executeNightJobScraper(options?: {
 }
 
 /**
+ * Helper to generate diverse natural subject lines to prevent robotic spam patterns.
+ */
+function getDynamicEmailSubject(role: string, name: string, experience: string, company: string, idx: number): string {
+  const cleanComp = company && company !== "Hiring Team" ? ` at ${company}` : "";
+  const templates = [
+    `Application for ${role}${cleanComp} - ${name} (${experience})`,
+    `${name} - Application for ${role} Opening`,
+    `Exploring ${role} Role${cleanComp} | ${name} (${experience})`,
+    `Application: ${role} - ${name}`,
+    `Experienced ${role} (${experience}) - ${name}`,
+  ];
+  return templates[idx % templates.length];
+}
+
+/**
+ * Helper to generate diverse natural salutations.
+ */
+function getDynamicSalutation(company: string, idx: number): string {
+  if (company && company !== "Hiring Team") {
+    const list = [
+      `Hi ${company} Hiring Team,`,
+      `Hello ${company} Team,`,
+      `Dear ${company} Hiring Manager,`,
+      `Greetings ${company} Team,`,
+    ];
+    return list[idx % list.length];
+  }
+  return "Hi Hiring Team,";
+}
+
+/**
  * PHASE 2: Morning 9:00 AM Cron Execution
  * Matches candidate profiles with today's fetched jobs, creates AI personalized pitches,
  * attaches stored PDF resumes, and dispatches outreach emails via their stored refresh tokens.
+ * Features:
+ * - Anti-Recruiter Fatigue: Domain throttling prevents multiple candidates from emailing the same company on the same day.
+ * - Anti-Spam: Dynamic subjects, diverse salutations, and polite opt-out footer.
+ * - Warm-Up Guard: Caps new accounts to safe velocity to protect Gmail reputation.
+ * - Serverless Timeout Guard: Processes in safe chunk batches.
  */
 export async function executeMorningEmailDispatcher(options?: {
   targetDate?: string;
   customerEmail?: string;
   simulateOnly?: boolean;
+  batchLimit?: number;
 }): Promise<{
   success: boolean;
   dateString: string;
@@ -270,6 +317,8 @@ export async function executeMorningEmailDispatcher(options?: {
   totalEmailsDispatched: number;
   totalSkipped: number;
   customerReports: any[];
+  hasMorePending: boolean;
+  remainingQueueJobs: number;
   logs: string[];
 }> {
   const logs: string[] = [];
@@ -283,8 +332,8 @@ export async function executeMorningEmailDispatcher(options?: {
     const logsCollection = db.collection("cron_execution_logs");
     const dispatchLogsCollection = db.collection("sent_dispatch_logs");
 
-    // 1. Fetch active customer profiles
-    let customers = await getActiveCustomerProfiles();
+    // 1. Fetch active customer profiles (lightweight without heavy base64 resumes)
+    let customers = await getActiveCustomerProfiles({ includeResumeBase64: false });
     if (options?.customerEmail) {
       const filterEmail = options.customerEmail.toLowerCase().trim();
       customers = customers.filter((c) => c.email.toLowerCase() === filterEmail);
@@ -301,6 +350,8 @@ export async function executeMorningEmailDispatcher(options?: {
         totalEmailsDispatched: 0,
         totalSkipped: 0,
         customerReports: [],
+        hasMorePending: false,
+        remainingQueueJobs: 0,
         logs,
       };
     }
@@ -320,6 +371,27 @@ export async function executeMorningEmailDispatcher(options?: {
     }
 
     logs.push(`[${new Date().toLocaleTimeString()}] Total available jobs in queue: ${jobs.length}`);
+
+    // Recruiter Domain & Company Throttling: Prevent multiple candidates from emailing the same company on the same day
+    const dispatchedCompanyDomainsToday = new Set<string>();
+    try {
+      const priorLogs = await dispatchLogsCollection
+        .find({ dateString })
+        .project({ company: 1, recipientEmail: 1 })
+        .toArray();
+
+      for (const pl of priorLogs) {
+        if (pl.company && pl.company !== "Hiring Team") {
+          dispatchedCompanyDomainsToday.add(pl.company.toLowerCase().trim());
+        }
+        if (pl.recipientEmail) {
+          const domain = pl.recipientEmail.split("@")[1]?.toLowerCase().trim();
+          if (domain && !["gmail.com", "yahoo.com", "outlook.com", "hotmail.com", "protonmail.com"].includes(domain)) {
+            dispatchedCompanyDomainsToday.add(domain);
+          }
+        }
+      }
+    } catch {}
 
     let grandTotalDispatched = 0;
     let grandTotalSkipped = 0;
@@ -383,84 +455,68 @@ export async function executeMorningEmailDispatcher(options?: {
         gmail = google.gmail({ version: "v1", auth: oauthClient });
       }
 
-      // Match jobs for this customer
-      const candidateRoleWords = (customer.role || "").toLowerCase().split(/\s+/).filter((w) => w.length > 1);
-      
+      // Load candidate resume on-demand (lightweight, zero memory bloat)
+      let resumeData: { resumeName?: string; resumeMimeType?: string; resumeBase64?: string } | null = null;
+      if (customer.resumeBase64) {
+        resumeData = {
+          resumeName: customer.resumeName || "resume.pdf",
+          resumeMimeType: customer.resumeMimeType || "application/pdf",
+          resumeBase64: customer.resumeBase64,
+        };
+      } else {
+        resumeData = await getCustomerResume(customer.email);
+      }
+
+      // Match jobs strictly for this customer's target role and location
       let eligibleJobs: any[] = jobs.filter((job) => {
         // Must not have been dispatched to this customer before
         const alreadyDispatched = Array.isArray(job.dispatchedTo) && job.dispatchedTo.includes(customer.email);
         if (alreadyDispatched) return false;
 
-        // Role keyword match (or general match if no strict keywords)
-        const jobText = `${job.role} ${job.snippet} ${job.company}`.toLowerCase();
-        const matches = candidateRoleWords.some((w) => jobText.includes(w)) || candidateRoleWords.length === 0;
-        return matches;
+        // Recruiter Overlap Protection: Skip if another candidate already contacted this company or domain today
+        const compKey = (job.company || "").toLowerCase().trim();
+        const recipDomain = (job.email || "").split("@")[1]?.toLowerCase().trim();
+        const isCommonEmailProvider = ["gmail.com", "yahoo.com", "outlook.com", "hotmail.com", "protonmail.com"].includes(recipDomain);
+
+        if (compKey && compKey !== "hiring team" && dispatchedCompanyDomainsToday.has(compKey)) {
+          return false;
+        }
+        if (recipDomain && !isCommonEmailProvider && dispatchedCompanyDomainsToday.has(recipDomain)) {
+          return false;
+        }
+
+        // Role match: check job.targetRole or isRoleMatch
+        const roleMatches =
+          (job.targetRole && job.targetRole.toLowerCase() === customer.role.toLowerCase()) ||
+          isRoleMatch(job.role, job.snippet || "", customer.role);
+        if (!roleMatches) return false;
+
+        // Seniority / Experience fitment
+        if (!checkSeniorityMatch(job.role, customer.experience)) {
+          return false;
+        }
+
+        // Location match
+        const locationMatches = checkLocationMatch(job.location || "Remote", job.snippet || "", customer.location || "Remote");
+        return locationMatches;
       });
 
-      const dailyLimit = customer.dailyLimit || 20;
+      // Sort eligible jobs by lead quality score descending so top-rated leads are prioritized
+      eligibleJobs.sort((a, b) => (b.score || 70) - (a.score || 70));
 
-      // If strict role matches are fewer than dailyLimit, pull from remaining un-dispatched queue jobs
-      if (eligibleJobs.length < dailyLimit) {
-        const remainingJobs = jobs.filter((job) => {
-          const alreadyDispatched = Array.isArray(job.dispatchedTo) && job.dispatchedTo.includes(customer.email);
-          const alreadyIncluded = eligibleJobs.some((ej) => ej.email === job.email);
-          return !alreadyDispatched && !alreadyIncluded;
-        });
-        eligibleJobs = eligibleJobs.concat(remainingJobs.slice(0, dailyLimit - eligibleJobs.length));
+      // Safe Account Warm-Up Safeguard:
+      // If customer is brand new (totalSentCount < 10), cap daily batch to max 5 emails for the first few days
+      let effectiveLimit = customer.dailyLimit || 20;
+      if (!customer.totalSentCount || customer.totalSentCount < 10) {
+        effectiveLimit = Math.min(effectiveLimit, 5);
+        logs.push(` -> 🛡️ Safe Warm-Up Guard: Candidate is newly connected (${customer.totalSentCount || 0} sent so far). Capping to ${effectiveLimit} emails today.`);
       }
 
-      // If still fewer than dailyLimit, auto-fetch live jobs on the fly in parallel
-      if (eligibleJobs.length < dailyLimit && customer.role) {
-        logs.push(` -> 🔍 Queue has ${eligibleJobs.length}/${dailyLimit} jobs. Auto-fetching fresh jobs for "${customer.role}" across multi-portals...`);
-        try {
-          const freshLeads = await searchPublicJobFeeds(customer.role, customer.location || "Remote");
-          const candidateLeads = freshLeads.slice(0, 25);
-          
-          const verifiedLeads = await Promise.allSettled(
-            candidateLeads.map(async (item) => {
-              const cleanEmail = item.email?.trim().toLowerCase();
-              if (!cleanEmail || !isValidEmailFormat(cleanEmail) || isDisposableDomain(cleanEmail)) return null;
-              const mxCheck = await verifyEmailMx(cleanEmail);
-              if (!mxCheck.valid) return null;
-              return { item, cleanEmail, mxCheck };
-            })
-          );
+      // Safe Serverless Batch Limit: default max 5 emails per execution to avoid 60s gateway timeouts
+      const maxBatchPerRun = options?.batchLimit && options.batchLimit > 0 ? options.batchLimit : 5;
+      const jobsToProcess = eligibleJobs.slice(0, Math.min(effectiveLimit, maxBatchPerRun));
 
-          let newlyAdded = 0;
-          for (const r of verifiedLeads) {
-            if (r.status === "fulfilled" && r.value) {
-              const { item, cleanEmail, mxCheck } = r.value;
-              const newJobDoc: DailyJobQueueItem = {
-                dateString,
-                email: cleanEmail,
-                company: item.company || "Hiring Team",
-                role: item.role || customer.role,
-                location: item.location || customer.location || "Remote",
-                snippet: item.snippet || "",
-                sourceUrl: item.sourceUrl || "",
-                sourceType: item.sourceType || "live_stream",
-                mxValid: true,
-                mxDetails: mxCheck.mxRecords?.[0] || "Active MX Host",
-                dispatchedTo: [],
-                fetchedAt: new Date(),
-              };
-              try {
-                const insertRes = await queueCollection.insertOne(newJobDoc);
-                newJobDoc._id = insertRes.insertedId;
-                eligibleJobs.push(newJobDoc);
-                newlyAdded++;
-                if (eligibleJobs.length >= dailyLimit) break;
-              } catch {}
-            }
-          }
-          logs.push(` -> ⚡ Discovered and queued ${newlyAdded} new live leads for "${customer.role}". Total ready: ${eligibleJobs.length}`);
-        } catch (fetchErr: any) {
-          logs.push(` -> ⚠️ On-the-fly lead fetch notice: ${fetchErr.message}`);
-        }
-      }
-
-      const jobsToProcess = eligibleJobs.slice(0, dailyLimit);
-      logs.push(` -> Matched ${eligibleJobs.length} eligible jobs. Processing batch of ${jobsToProcess.length} (Daily Limit: ${dailyLimit}).`);
+      logs.push(` -> Matched ${eligibleJobs.length} eligible jobs. Processing batch of ${jobsToProcess.length} (Effective Limit: ${effectiveLimit}, Batch Cap: ${maxBatchPerRun}).`);
 
       // Fetch SuperAdmin Rate Limiting Settings
       const systemSettings = await getSystemSettings();
@@ -469,7 +525,7 @@ export async function executeMorningEmailDispatcher(options?: {
         : 10;
       // Delay in ms: e.g. 1 mail/min = 60,000ms, 2 mails/min = 30,000ms, etc.
       const delayBetweenEmailsMs = Math.max(1000, Math.round((60 / emailsPerMin) * 1000));
-      logs.push(` -> ⏱️ Pacing Config: ${emailsPerMin} mail/min (Configured interval: ${Math.round(delayBetweenEmailsMs / 1000)}s between consecutive emails)`);
+      logs.push(` -> ⏱️ Pacing Config: ${emailsPerMin} mail/min (${Math.round(delayBetweenEmailsMs / 1000)}s interval between consecutive emails)`);
 
       // Sequentially dispatch outreach emails according to configured rate limit
       for (let j = 0; j < jobsToProcess.length; j++) {
@@ -485,10 +541,12 @@ export async function executeMorningEmailDispatcher(options?: {
             location: customer.location || job.location,
           });
 
-          // Compose Email Subject & Body
-          const subject = `Application for ${job.role || customer.role} - ${customer.name} (${customer.experience})`;
+          // Compose Dynamic Anti-Spam Email Subject & Body
+          const subject = getDynamicEmailSubject(job.role || customer.role, customer.name, customer.experience, job.company, j);
+          const salutation = getDynamicSalutation(job.company, j);
+
           const body = [
-            `Hi ${job.company} Hiring Team,`,
+            salutation,
             ``,
             `I am writing to express my strong interest in the ${job.role || customer.role} position at ${job.company}.`,
             ``,
@@ -501,10 +559,13 @@ export async function executeMorningEmailDispatcher(options?: {
             `Best regards,`,
             `${customer.name}`,
             `${customer.email}`,
+            ``,
+            `---`,
+            `P.S. If your team is not actively hiring or if you prefer not to receive applications, please reply with "not hiring" and I will ensure you are removed from future outreach.`,
           ].join("\n");
 
           if (options?.simulateOnly) {
-            logs.push(` -> [SIMULATION #${emailIndex}/${jobsToProcess.length}] Would send to ${job.email} (${job.company}) | Pitch: "${pitchRes.pitch?.slice(0, 50)}..."`);
+            logs.push(` -> [SIMULATION #${emailIndex}/${jobsToProcess.length}] Would send to ${job.email} (${job.company}) | Subject: "${subject}" | Pitch: "${pitchRes.pitch?.slice(0, 45)}..."`);
             customerReport.dispatched++;
             grandTotalDispatched++;
           } else {
@@ -517,9 +578,9 @@ export async function executeMorningEmailDispatcher(options?: {
                 toEmail: job.email,
                 subject,
                 body,
-                attachmentName: customer.resumeName || "resume.pdf",
-                attachmentMimeType: customer.resumeMimeType || "application/pdf",
-                attachmentBase64: customer.resumeBase64,
+                attachmentName: resumeData?.resumeName || "resume.pdf",
+                attachmentMimeType: resumeData?.resumeMimeType || "application/pdf",
+                attachmentBase64: resumeData?.resumeBase64,
               });
 
               if (!smtpRes.success) {
@@ -533,9 +594,9 @@ export async function executeMorningEmailDispatcher(options?: {
                 fromEmail: customer.email,
                 subject,
                 body,
-                attachmentName: customer.resumeName || "resume.pdf",
-                attachmentMimeType: customer.resumeMimeType || "application/pdf",
-                attachmentBase64: customer.resumeBase64,
+                attachmentName: resumeData?.resumeName || "resume.pdf",
+                attachmentMimeType: resumeData?.resumeMimeType || "application/pdf",
+                attachmentBase64: resumeData?.resumeBase64,
               });
 
               // Send via Gmail OAuth API
@@ -573,6 +634,17 @@ export async function executeMorningEmailDispatcher(options?: {
               dateString,
               status: "sent",
             });
+
+            // Lock company & domain for today so no other candidate contacts them
+            const compKey = (job.company || "").toLowerCase().trim();
+            const recipDomain = (job.email || "").split("@")[1]?.toLowerCase().trim();
+            const isCommonEmailProvider = ["gmail.com", "yahoo.com", "outlook.com", "hotmail.com", "protonmail.com"].includes(recipDomain);
+            if (compKey && compKey !== "hiring team") {
+              dispatchedCompanyDomainsToday.add(compKey);
+            }
+            if (recipDomain && !isCommonEmailProvider) {
+              dispatchedCompanyDomainsToday.add(recipDomain);
+            }
 
             customerReport.dispatched++;
             grandTotalDispatched++;
@@ -613,6 +685,8 @@ export async function executeMorningEmailDispatcher(options?: {
       },
     });
 
+    const totalRemaining = jobs.filter((j) => !j.dispatchedTo || j.dispatchedTo.length === 0).length;
+
     return {
       success: true,
       dateString,
@@ -620,6 +694,8 @@ export async function executeMorningEmailDispatcher(options?: {
       totalEmailsDispatched: grandTotalDispatched,
       totalSkipped: grandTotalSkipped,
       customerReports,
+      hasMorePending: totalRemaining > 0,
+      remainingQueueJobs: totalRemaining,
       logs,
     };
   } catch (error: any) {
@@ -633,6 +709,8 @@ export async function executeMorningEmailDispatcher(options?: {
       totalEmailsDispatched: 0,
       totalSkipped: 0,
       customerReports: [],
+      hasMorePending: false,
+      remainingQueueJobs: 0,
       logs,
     };
   }

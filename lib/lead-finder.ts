@@ -13,6 +13,7 @@ export type DiscoveredLead = {
   postedDate?: string;
   mxValid: boolean;
   mxDetails?: string;
+  score?: number;
   // B2B Business Lead Specific Fields
   category?: string;
   phone?: string;
@@ -48,10 +49,20 @@ function resolveCompanyDomain(companyName: string, description: string, applyUrl
     return textDomains[0];
   }
 
-  // 3. Clean company name to standard domain slug
-  if (companyName && companyName !== "Hiring Team" && companyName !== "Unknown Company") {
-    const cleanCompany = companyName
-      .toLowerCase()
+  // 3. Clean company name to standard domain slug ONLY IF it's a specific, genuine company name
+  const compLower = (companyName || "").toLowerCase().trim();
+  if (
+    compLower &&
+    !DUMMY_COMPANY_NAMES.has(compLower) &&
+    !compLower.includes("employer") &&
+    !compLower.includes("recruiter") &&
+    !compLower.includes("startup") &&
+    !compLower.includes("hiring") &&
+    !compLower.includes("remote team") &&
+    !compLower.includes("tech team") &&
+    !compLower.includes("unknown")
+  ) {
+    const cleanCompany = compLower
       .replace(/\b(inc|llc|ltd|corp|corporation|technologies|solutions|group|pvt|co)\b/gi, "")
       .replace(/[^a-z0-9]/g, "")
       .trim();
@@ -64,6 +75,110 @@ function resolveCompanyDomain(companyName: string, description: string, applyUrl
   return null;
 }
 
+const DUMMY_COMPANY_NAMES = new Set([
+  "hiring team",
+  "unknown company",
+  "hiring company",
+  "tech team",
+  "tech startup",
+  "python employer",
+  "go employer",
+  "remote company",
+  "global team",
+  "indian tech employer",
+  "tech recruiter",
+  "web3 / tech team",
+  "web3 tech team",
+  "tech startup hn",
+  "tech startup (hn)",
+  "remote team",
+  "recruiter",
+  "employer",
+  "confidential",
+  "stealth startup",
+  "various",
+  "open position",
+  "developer",
+  "engineer",
+  "software",
+  "current",
+  "phantom",
+  "lemon.io",
+]);
+
+const IGNORED_DOMAINS = [
+  "remoteok.com",
+  "remoteok.io",
+  "jobicy.com",
+  "remotive.com",
+  "remotive.io",
+  "arbeitnow.com",
+  "linkedin.com",
+  "twitter.com",
+  "x.com",
+  "google.com",
+  "github.com",
+  "indeed.com",
+  "indeed.co.in",
+  "naukri.com",
+  "workindia.in",
+  "glassdoor.com",
+  "greenhouse.io",
+  "lever.co",
+  "workable.com",
+  "ashbyhq.com",
+  "bamboohr.com",
+  "smartrecruiters.com",
+  "rippling.com",
+  "recruitee.com",
+  "applytojob.com",
+  "breezy.hr",
+  "himalayas.app",
+  "youtube.com",
+  "facebook.com",
+  "instagram.com",
+  "medium.com",
+  "substack.com",
+  "w3.org",
+  "schema.org",
+  "weworkremotely.com",
+  "nodesk.co",
+  "lemon.io",
+  "python.org",
+  "golangprojects.com",
+  "cryptocurrencyjobs.co",
+  "jobspresso.co",
+  "adzuna.com",
+  "wellfound.com",
+  "angellist.com",
+  "dice.com",
+  "monster.com",
+  "ziprecruiter.com",
+  "builtin.com",
+  "otta.com",
+  "dailyremote.com",
+  "justremote.co",
+  "remote.co",
+  "workingnomads.com",
+  "devitjobs.com",
+  "ycombinator.com",
+  "algolia.com",
+  "news.ycombinator.com",
+  "reddit.com",
+  "stackoverflow.com",
+  "t.co",
+  "bit.ly",
+  "tinyurl.com",
+  "goo.gl",
+  "buff.ly",
+  "ow.ly",
+  "amazon.com",
+  "aws.amazon.com",
+  "cloudflare.com",
+  "apple.com",
+  "microsoft.com",
+];
+
 function extractHiringDomain(urlStr: string): string | null {
   try {
     if (!urlStr || typeof urlStr !== "string") return null;
@@ -72,44 +187,35 @@ function extractHiringDomain(urlStr: string): string | null {
     const parsed = new URL(target);
     const host = parsed.hostname.toLowerCase().replace(/^www\./, "");
 
-    const ignored = [
-      "remoteok.com",
-      "remoteok.io",
-      "jobicy.com",
-      "remotive.com",
-      "remotive.io",
-      "arbeitnow.com",
-      "linkedin.com",
-      "twitter.com",
-      "x.com",
-      "google.com",
-      "github.com",
-      "indeed.com",
-      "indeed.co.in",
-      "naukri.com",
-      "workindia.in",
-      "glassdoor.com",
-      "greenhouse.io",
-      "lever.co",
-      "workable.com",
-      "ashbyhq.com",
-      "bamboohr.com",
-      "smartrecruiters.com",
-      "rippling.com",
-      "recruitee.com",
-      "applytojob.com",
-      "breezy.hr",
-      "himalayas.app",
-      "youtube.com",
-      "facebook.com",
-      "instagram.com",
-      "medium.com",
-      "substack.com",
-      "w3.org",
-      "schema.org",
-    ];
+    if (IGNORED_DOMAINS.some((ign) => host.includes(ign) || ign.includes(host))) {
+      return null;
+    }
 
-    if (ignored.some((ign) => host.includes(ign))) {
+    // Guard against aggregator / job board keywords in hostname
+    const aggregatorKeywords = [
+      "weworkremotely",
+      "nodesk",
+      "remotive",
+      "jobicy",
+      "remoteok",
+      "himalayas",
+      "arbeitnow",
+      "workingnomads",
+      "devitjobs",
+      "golangprojects",
+      "python.org",
+      "cryptocurrencyjobs",
+      "lemon.io",
+      "indeed",
+      "naukri",
+      "workindia",
+      "linkedin",
+      "glassdoor",
+      "greenhouse",
+      "lever.co",
+      "applytojob",
+    ];
+    if (aggregatorKeywords.some((kw) => host.includes(kw))) {
       return null;
     }
 
@@ -122,25 +228,187 @@ function extractHiringDomain(urlStr: string): string | null {
   }
 }
 
-function checkLocationMatch(jobLocation: string, text: string, cleanLocation: string): boolean {
-  if (!cleanLocation || cleanLocation === "remote" || cleanLocation === "all") return true;
+/**
+ * Strict role / title matching to ensure candidates only receive relevant jobs.
+ * Prevents cross-language contamination (e.g. Node matching Python, Java, or .NET).
+ */
+export function isRoleMatch(jobTitle: string, jobDescription: string, targetRole: string): boolean {
+  if (!targetRole || targetRole.trim() === "" || targetRole.toLowerCase() === "all") {
+    return true;
+  }
 
-  const locLower = jobLocation.toLowerCase();
-  const textLower = text.toLowerCase();
+  const cleanTarget = targetRole.trim().toLowerCase();
+  const titleLower = (jobTitle || "").toLowerCase();
+  const descSnippet = (jobDescription || "").slice(0, 500).toLowerCase();
 
-  // If a job is marked Remote, Worldwide, Global, or Anywhere, candidates from any location (e.g. India) can apply!
-  const isGlobalOrRemote =
-    locLower.includes("remote") ||
-    locLower.includes("worldwide") ||
-    locLower.includes("global") ||
-    locLower.includes("anywhere") ||
-    locLower.includes("any");
+  // Direct title match
+  if (titleLower.includes(cleanTarget)) {
+    return true;
+  }
 
-  return (
-    isGlobalOrRemote ||
-    locLower.includes(cleanLocation) ||
-    textLower.includes(cleanLocation)
+  // Technology specific profiles
+  const TECH_PROFILES: Array<{
+    aliases: RegExp;
+    mustMatch: RegExp;
+    conflicts: RegExp;
+  }> = [
+    {
+      // Node.js profile: must match node/nodejs, reject .net/java/python/php/ruby/etc.
+      aliases: /\b(node|nodejs|node\.js)\b/i,
+      mustMatch: /\b(node|nodejs|node\.js)\b/i,
+      conflicts: /\b(python|django|flask|ruby|rails|php|laravel|symfony|golang|\.net|c#|java(?!script)|spring(\s*boot)?|android|ios|swift|flutter)\b/i,
+    },
+    {
+      // Java profile: must match java (not javascript!), reject other stacks
+      aliases: /\bjava\b(?!script)/i,
+      mustMatch: /\bjava\b(?!script)|spring(\s*boot)?|quarkus|micronaut|hibernate/i,
+      conflicts: /\b(python|django|ruby|rails|php|laravel|node|nodejs|angular|vue|golang|\.net|c#)\b/i,
+    },
+    {
+      // Python profile
+      aliases: /\b(python|django|fastapi|flask)\b/i,
+      mustMatch: /\b(python|django|fastapi|flask)\b/i,
+      conflicts: /\b(java(?!script)|spring(\s*boot)?|ruby|rails|php|laravel|\.net|c#|golang|rust|ios|android)\b/i,
+    },
+    {
+      // React / Frontend profile
+      aliases: /\b(react|reactjs|react\.js|frontend|front-end)\b/i,
+      mustMatch: /\b(react|reactjs|react\.js|frontend|front-end)\b/i,
+      conflicts: /\b(python|django|ruby|rails|php|laravel|golang|\.net|c#|java(?!script))\b/i,
+    },
+    {
+      // Angular profile
+      aliases: /\b(angular|angularjs)\b/i,
+      mustMatch: /\b(angular|angularjs)\b/i,
+      conflicts: /\b(react|vue|python|php|ruby|java(?!script))\b/i,
+    },
+    {
+      // Full Stack profile
+      aliases: /\b(full\s*stack|fullstack)\b/i,
+      mustMatch: /\b(full\s*stack|fullstack|software engineer|web developer)\b/i,
+      conflicts: /\b(recruiter|marketing|sales|accountant|hr|designer|product manager)\b/i,
+    },
+    {
+      // DevOps profile
+      aliases: /\b(devops|sre|site reliability|cloud engineer|platform engineer|infrastructure)\b/i,
+      mustMatch: /\b(devops|sre|site reliability|cloud engineer|platform engineer|infrastructure|aws|kubernetes)\b/i,
+      conflicts: /\b(frontend|react|angular|ui|ux|sales|accountant)\b/i,
+    },
+  ];
+
+  for (const prof of TECH_PROFILES) {
+    if (prof.aliases.test(cleanTarget)) {
+      // If title explicitly matches the profile's core skill
+      if (prof.mustMatch.test(titleLower)) {
+        return true;
+      }
+
+      // If title explicitly conflicts (e.g. Title says "Python Developer" when targeting "Node")
+      if (prof.conflicts.test(titleLower) && !prof.mustMatch.test(titleLower)) {
+        return false;
+      }
+
+      // If title is generic (e.g. "Software Engineer", "Backend Developer", "Backend Engineer")
+      const isGenericTitle = /\b(backend|back-end|full\s*stack|fullstack|software engineer|developer|engineer|programmer)\b/i.test(titleLower);
+      if (isGenericTitle) {
+        // Must match tech in title OR in opening snippet of description
+        if (prof.mustMatch.test(descSnippet)) {
+          return true;
+        }
+      }
+
+      return false;
+    }
+  }
+
+  // Generic fallback for any custom title (e.g. "Data Scientist", "UI/UX Designer")
+  const stopWords = new Set(["developer", "engineer", "software", "senior", "sr", "junior", "jr", "lead", "architect", "intern", "remote"]);
+  const targetWords = cleanTarget
+    .split(/[\s/\\-_,]+/)
+    .filter((w) => w.length > 1 && !stopWords.has(w));
+
+  if (targetWords.length === 0) {
+    return /\b(developer|engineer|programmer|coder)\b/i.test(titleLower);
+  }
+
+  const matches = targetWords.filter((w) => {
+    const escaped = w.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, "\\$&");
+    return new RegExp(`\\b${escaped}\\b`, "i").test(titleLower);
+  });
+
+  return matches.length > 0;
+}
+
+/**
+ * Strict location matcher that respects candidate's location preferences (including comma-separated locations),
+ * rejects country locks (e.g. "US Only", "Europe Only") when candidate is not in that region,
+ * and fixes the bug where "germany" matched "any".
+ */
+export function checkLocationMatch(jobLocation: string, text: string, rawLocationFilter: string): boolean {
+  if (!rawLocationFilter || rawLocationFilter.trim() === "" || rawLocationFilter.toLowerCase() === "all") {
+    return true;
+  }
+
+  const locLower = (jobLocation || "").toLowerCase();
+  const textLower = (text || "").toLowerCase();
+  const filterTokens = rawLocationFilter
+    .split(/[,;/|]+|\bor\b/i)
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean);
+
+  if (filterTokens.length === 0) return true;
+
+  const candidateAcceptsRemote = filterTokens.some(
+    (t) => t === "remote" || t === "worldwide" || t === "global" || t === "anywhere"
   );
+  const geoTargets = filterTokens.filter(
+    (t) => t !== "remote" && t !== "worldwide" && t !== "global" && t !== "anywhere"
+  );
+
+  // 1. Direct match with any specific geographical targets requested by candidate (e.g. "noida", "delhi", "india", "pune")
+  for (const target of geoTargets) {
+    if (locLower.includes(target) || textLower.includes(target)) {
+      return true;
+    }
+  }
+
+  // 2. Restricted foreign region check:
+  // If the job explicitly requires a foreign location that excludes India/Asia (e.g. "US Only", "Europe Only", "Germany Only")
+  const RESTRICTED_REGIONS = [
+    /\b(us|usa|u\.s\.|united states)\s+(only|citizens?|residents?|based)\b/i,
+    /\b(north america|americas|latam)\s+only\b/i,
+    /\b(europe|eu|uk|united kingdom|germany|canada|australia)\s+only\b/i,
+    /\b(emea|apac)\s+only\b/i,
+    /\btimezone:\s*(est|pst|cst|gmt|cet)\s+only\b/i,
+  ];
+
+  const hasRestrictedRegion = RESTRICTED_REGIONS.some(
+    (regex) => regex.test(locLower) || regex.test(textLower.slice(0, 300))
+  );
+  if (hasRestrictedRegion) {
+    const candidateTargetMatches = geoTargets.some((target) => locLower.includes(target));
+    if (!candidateTargetMatches) {
+      return false; // Foreign location lock! Exclude!
+    }
+  }
+
+  // 3. Foreign non-remote city check:
+  // If the job location does NOT mention remote/worldwide/global/anywhere, and is in a foreign country (e.g. "Berlin, Germany", "Paris, France")
+  const isGlobalOrRemote =
+    /\b(remote|worldwide|global|anywhere|work from home|wfh|any location)\b/i.test(locLower) ||
+    /\b(remote|worldwide|global|anywhere)\b/i.test(textLower.slice(0, 300));
+
+  if (!isGlobalOrRemote) {
+    return false;
+  }
+
+  // 4. Job is marked Remote/Worldwide/Global:
+  // If candidate accepts remote, and the job is not region-locked to another continent, it's a match!
+  if (candidateAcceptsRemote) {
+    return true;
+  }
+
+  return false;
 }
 
 function decodeHtmlEntities(str: string): string {
@@ -211,11 +479,152 @@ async function fetchWithTimeout(url: string, init: RequestInit = {}, timeoutMs: 
 }
 
 /**
+ * Item 1: Strict Job Freshness Checker.
+ * Ensures we only queue leads posted within the last maxDays (default: 14 days).
+ */
+export function isJobFresh(postedDate?: string, maxDays = 14): boolean {
+  if (!postedDate || typeof postedDate !== "string") return true;
+  try {
+    const parsed = new Date(postedDate);
+    if (isNaN(parsed.getTime())) return true;
+    const diffMs = Date.now() - parsed.getTime();
+    if (diffMs < -86400000) return true; // Future timezone tolerance
+    const diffDays = diffMs / (1000 * 60 * 60 * 24);
+    return diffDays <= maxDays;
+  } catch {
+    return true;
+  }
+}
+
+/**
+ * Item 3: Seniority & Experience Fitment Checker.
+ * Prevents junior candidates from applying to Staff/Principal/Lead jobs,
+ * and senior candidates from applying to Intern/Junior jobs.
+ */
+export function checkSeniorityMatch(jobTitle: string, candidateExperience?: string): boolean {
+  if (!candidateExperience || !jobTitle) return true;
+  const expLower = candidateExperience.toLowerCase();
+  const titleLower = jobTitle.toLowerCase();
+
+  // If candidate is Fresher or junior (0-1 Yrs)
+  if (expLower.includes("fresher") || expLower.includes("0-1") || expLower.includes("intern")) {
+    const seniorRe = /\b(lead|principal|architect|director|head|vp|staff|manager|senior|sr\.?|5\+|7\+|10\+)\b/i;
+    if (seniorRe.test(titleLower)) return false;
+  }
+  // If candidate is Mid-level (1-3 Yrs)
+  else if (expLower.includes("1-3")) {
+    const execRe = /\b(principal|architect|director|head|vp|staff|team lead|10\+)\b/i;
+    if (execRe.test(titleLower)) return false;
+  }
+  // If candidate is Senior (5+ Yrs)
+  else if (expLower.includes("5+") || expLower.includes("senior")) {
+    const juniorRe = /\b(intern|internship|trainee|fresher|junior|jr\.?)\b/i;
+    if (juniorRe.test(titleLower)) return false;
+  }
+
+  return true;
+}
+
+const MASS_ENTERPRISE_NAMES = new Set([
+  "tcs",
+  "tata consultancy services",
+  "infosys",
+  "wipro",
+  "cognizant",
+  "hcl",
+  "hcltech",
+  "accenture",
+  "capgemini",
+  "tech mahindra",
+  "ibm",
+  "oracle",
+  "dell",
+  "amazon",
+  "microsoft",
+  "google",
+  "facebook",
+  "meta",
+  "apple",
+  "deloitte",
+  "ey",
+  "pwc",
+  "kpmg",
+]);
+
+/**
+ * Item 4: Mass Enterprise Blacklist & Agile Startup Prioritizer.
+ * Rejects massive service MNCs where cold emails are 100% swallowed by firewalls.
+ */
+export function isUnresponsiveEnterprise(company: string): boolean {
+  if (!company) return false;
+  const comp = company.toLowerCase().trim();
+  for (const ent of MASS_ENTERPRISE_NAMES) {
+    if (comp === ent || comp.startsWith(ent + " ") || comp.includes(" " + ent)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Item 6: Lead Quality Score Calculator (0 to 100 Confidence Index).
+ * Evaluates lead value based on direct recruiter contact, post freshness,
+ * seniority match, and source reliability.
+ */
+export function calculateLeadScore(lead: {
+  email: string;
+  sourceType: string;
+  postedDate?: string;
+  title?: string;
+  role?: string;
+  company?: string;
+  candidateExperience?: string;
+  location?: string;
+  targetLocation?: string;
+}): number {
+  let score = 50;
+
+  // 1. Direct specific email vs generic synthesis
+  const isGeneric = /^(careers|jobs|talent|hiring|info|contact|support|sales)@/i.test(lead.email);
+  if (!isGeneric) {
+    score += 25; // Direct recruiter or personal inbox
+  } else {
+    score -= 10;
+  }
+
+  // 2. Freshness (+15 for <= 7 days, +8 for <= 14 days, -15 for older)
+  if (lead.postedDate) {
+    try {
+      const parsed = new Date(lead.postedDate);
+      if (!isNaN(parsed.getTime())) {
+        const days = (Date.now() - parsed.getTime()) / (1000 * 60 * 60 * 24);
+        if (days <= 7) score += 15;
+        else if (days <= 14) score += 8;
+        else score -= 15;
+      }
+    } catch {}
+  }
+
+  // 3. Seniority Fitment (+10)
+  if (lead.role && checkSeniorityMatch(lead.role, lead.candidateExperience)) {
+    score += 10;
+  }
+
+  // 4. Source reliability (+10)
+  if (lead.sourceType === "public_feed" || lead.sourceType === "job_board") {
+    score += 10;
+  }
+
+  return Math.max(10, Math.min(100, Math.round(score)));
+}
+
+/**
  * Searches 15+ public open job feeds and RSS streams in parallel for active hiring posts.
  */
 export async function searchPublicJobFeeds(
   keyword: string,
-  location: string = ""
+  location: string = "",
+  candidateExperience?: string
 ): Promise<DiscoveredLead[]> {
   const cleanKeyword = keyword.trim().toLowerCase();
   const cleanLocation = location.trim().toLowerCase();
@@ -223,13 +632,6 @@ export async function searchPublicJobFeeds(
 
   const results: DiscoveredLead[] = [];
   const seenEmails = new Set<string>();
-
-  // Helper to test if a job matches search keywords
-  const isKeywordMatch = (text: string) => {
-    if (keywordWords.length === 0) return true;
-    const lower = text.toLowerCase();
-    return lower.includes(cleanKeyword) || keywordWords.some((w) => lower.includes(w));
-  };
 
   const addLead = (leadData: {
     idPrefix: string;
@@ -246,6 +648,17 @@ export async function searchPublicJobFeeds(
     if (!cleanMail || seenEmails.has(cleanMail)) return;
     seenEmails.add(cleanMail);
 
+    const score = calculateLeadScore({
+      email: cleanMail,
+      sourceType: "public_feed",
+      postedDate: leadData.postedDate,
+      role: leadData.role,
+      company: leadData.company,
+      candidateExperience,
+      location: leadData.location,
+      targetLocation: location,
+    });
+
     results.push({
       id: `feed_${leadData.idPrefix}_${leadData.rawId || Math.random().toString(36).slice(2)}_${encodeURIComponent(
         cleanMail
@@ -259,6 +672,7 @@ export async function searchPublicJobFeeds(
       sourceType: "public_feed",
       postedDate: leadData.postedDate || new Date().toLocaleDateString(),
       mxValid: true,
+      score,
     });
   };
 
@@ -272,12 +686,32 @@ export async function searchPublicJobFeeds(
     jobLocation: string,
     postedDate?: string
   ) => {
-    const textToSearch = `${title} ${company} ${description} ${jobLocation} ${postedDate || ""}`;
-    if (!isKeywordMatch(textToSearch) || !checkLocationMatch(jobLocation, textToSearch, cleanLocation)) {
+    // 1. Role match
+    if (!isRoleMatch(title, description, keyword)) {
       return;
     }
 
-    let foundEmails = extractEmailsFromText(textToSearch);
+    // 2. Location match
+    if (!checkLocationMatch(jobLocation, description, location)) {
+      return;
+    }
+
+    // 3. Item 1: Job Freshness Check (14-day window)
+    if (!isJobFresh(postedDate, 14)) {
+      return;
+    }
+
+    // 4. Item 3: Seniority & Experience fitment
+    if (!checkSeniorityMatch(title, candidateExperience)) {
+      return;
+    }
+
+    // 5. Item 4: Mass Enterprise Blacklist (drop unresponsive giants)
+    if (isUnresponsiveEnterprise(company)) {
+      return;
+    }
+
+    let foundEmails = extractEmailsFromText(`${title} ${company} ${description}`);
 
     if (foundEmails.length === 0) {
       const domain = resolveCompanyDomain(company, description, applyUrl);
@@ -580,6 +1014,9 @@ export async function searchPublicJobFeeds(
               }
 
               for (const email of emails) {
+                if (!isRoleMatch(commentText.slice(0, 200), commentText, keyword) || !checkLocationMatch("Remote / Worldwide", commentText, location)) {
+                  continue;
+                }
                 addLead({
                   idPrefix: "hn",
                   rawId: hit.objectID,
@@ -600,9 +1037,12 @@ export async function searchPublicJobFeeds(
       }
     })(),
 
-    // 11. Python.org Official Jobs RSS Feed
+    // 11. Python.org Official Jobs RSS Feed (Only active if searching for Python or all)
     (async () => {
       try {
+        if (cleanKeyword && !/python/i.test(cleanKeyword)) {
+          return;
+        }
         const res = await fetchWithTimeout("https://www.python.org/jobs/feed/rss/", {
           headers: { "User-Agent": "Fetchmail-LeadFinder/1.0" },
           cache: "no-store",
@@ -619,9 +1059,12 @@ export async function searchPublicJobFeeds(
       }
     })(),
 
-    // 12. GolangProjects Jobs RSS Feed
+    // 12. GolangProjects Jobs RSS Feed (Only active if searching for Go or all)
     (async () => {
       try {
+        if (cleanKeyword && !/\b(go|golang)\b/i.test(cleanKeyword)) {
+          return;
+        }
         const res = await fetchWithTimeout("https://golangprojects.com/golang-jobs-rss.xml", {
           headers: { "User-Agent": "Fetchmail-LeadFinder/1.0" },
           cache: "no-store",
@@ -934,6 +1377,54 @@ export async function searchPublicJobFeeds(
         console.warn("[LeadFinder] Indeed RSS feed error:", e.message);
       }
     })(),
+
+    // 21. Greenhouse & Lever Direct ATS Portal Stream (Item 5)
+    (async () => {
+      try {
+        const popularAtsBoards = [
+          { company: "GitLab", type: "greenhouse", board: "gitlab" },
+          { company: "Elastic", type: "greenhouse", board: "elastic" },
+          { company: "Canonical", type: "greenhouse", board: "canonical" },
+          { company: "Automattic", type: "greenhouse", board: "automattic" },
+          { company: "Postman", type: "greenhouse", board: "postman" },
+          { company: "Razorpay", type: "greenhouse", board: "razorpay" },
+        ];
+
+        // Sample 3 high-response boards concurrently per harvest
+        const selectedBoards = popularAtsBoards.slice(0, 3);
+        await Promise.allSettled(
+          selectedBoards.map(async (item) => {
+            try {
+              if (item.type === "greenhouse") {
+                const ghUrl = `https://boards-api.greenhouse.io/v1/boards/${item.board}/jobs`;
+                const ghRes = await fetchWithTimeout(ghUrl, { cache: "no-store" }, 2500);
+                if (ghRes.ok) {
+                  const ghData = await ghRes.json();
+                  for (const job of (ghData.jobs || []).slice(0, 10)) {
+                    const title = String(job.title || "");
+                    const loc = String(job.location?.name || "Remote");
+                    const jobUrl = String(job.absolute_url || `https://boards.greenhouse.io/${item.board}`);
+                    const postedDate = job.updated_at ? new Date(job.updated_at).toLocaleDateString() : undefined;
+                    processJobItem(
+                      "greenhouse",
+                      job.id,
+                      title,
+                      item.company,
+                      `Greenhouse ATS Opening: ${title} at ${item.company} (${loc})`,
+                      jobUrl,
+                      loc,
+                      postedDate
+                    );
+                  }
+                }
+              }
+            } catch {}
+          })
+        );
+      } catch (e: any) {
+        console.warn("[LeadFinder] ATS Greenhouse stream error:", e.message);
+      }
+    })(),
   ];
 
   await Promise.allSettled(feedTasks);
@@ -993,6 +1484,10 @@ export async function searchGoogleHiringPosts(
       const snippet = String(item.snippet || "");
       const link = String(item.link || "");
       const fullText = `${title} ${snippet}`;
+
+      if (!isRoleMatch(title, snippet, keyword) || !checkLocationMatch(location, fullText, location)) {
+        continue;
+      }
 
       // Extract basic company or role heuristics
       let company = "Hiring Team";

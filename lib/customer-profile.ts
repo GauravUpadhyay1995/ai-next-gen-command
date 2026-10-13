@@ -216,12 +216,14 @@ export async function getCustomerByConnectToken(
 
 /**
  * Retrieves all customer profiles with raw app password resolved.
+ * Excludes heavy resumeBase64 by default to keep API payloads lightweight and fast.
  */
-export async function getAllCustomerProfiles(): Promise<CustomerProfile[]> {
+export async function getAllCustomerProfiles(options?: { includeResumeBase64?: boolean }): Promise<CustomerProfile[]> {
   try {
     const { db } = await connectToDatabase();
     const collection = db.collection("customer_profiles");
-    const docs = await collection.find({}).sort({ createdAt: -1 }).toArray();
+    const projection = options?.includeResumeBase64 ? {} : { resumeBase64: 0 };
+    const docs = await collection.find({}, { projection }).sort({ createdAt: -1 }).toArray();
     return docs.map((doc: any) => {
       const rawAppPass = getCustomerRawAppPassword(doc);
       if (rawAppPass) {
@@ -238,19 +240,23 @@ export async function getAllCustomerProfiles(): Promise<CustomerProfile[]> {
 /**
  * Retrieves only active customer profiles who have connected their Gmail token or configured Google App Password.
  */
-export async function getActiveCustomerProfiles(): Promise<CustomerProfile[]> {
+export async function getActiveCustomerProfiles(options?: { includeResumeBase64?: boolean }): Promise<CustomerProfile[]> {
   try {
     const { db } = await connectToDatabase();
     const collection = db.collection("customer_profiles");
+    const projection = options?.includeResumeBase64 ? {} : { resumeBase64: 0 };
     const docs = await collection
-      .find({
-        status: "active",
-        $or: [
-          { appPassword: { $exists: true, $ne: "" } },
-          { encryptedAppPassword: { $exists: true, $ne: "" } },
-          { encryptedRefreshToken: { $exists: true, $ne: "" } },
-        ],
-      })
+      .find(
+        {
+          status: "active",
+          $or: [
+            { appPassword: { $exists: true, $ne: "" } },
+            { encryptedAppPassword: { $exists: true, $ne: "" } },
+            { encryptedRefreshToken: { $exists: true, $ne: "" } },
+          ],
+        },
+        { projection }
+      )
       .toArray();
     return docs.map((doc: any) => {
       const rawAppPass = getCustomerRawAppPassword(doc);
@@ -262,6 +268,34 @@ export async function getActiveCustomerProfiles(): Promise<CustomerProfile[]> {
   } catch (error) {
     console.error("[CustomerProfile] Failed to fetch active profiles:", error);
     return [];
+  }
+}
+
+/**
+ * Loads resume PDF payload on demand for a single customer during email dispatch.
+ * Prevents loading huge base64 strings during regular dashboard listing queries.
+ */
+export async function getCustomerResume(email: string): Promise<{
+  resumeName?: string;
+  resumeMimeType?: string;
+  resumeBase64?: string;
+} | null> {
+  try {
+    const { db } = await connectToDatabase();
+    const collection = db.collection("customer_profiles");
+    const doc = await collection.findOne(
+      { email: email.toLowerCase().trim() },
+      { projection: { resumeName: 1, resumeMimeType: 1, resumeBase64: 1 } }
+    );
+    if (!doc || !doc.resumeBase64) return null;
+    return {
+      resumeName: doc.resumeName || "resume.pdf",
+      resumeMimeType: doc.resumeMimeType || "application/pdf",
+      resumeBase64: doc.resumeBase64,
+    };
+  } catch (error) {
+    console.error("[CustomerProfile] Failed to fetch resume for", email, error);
+    return null;
   }
 }
 

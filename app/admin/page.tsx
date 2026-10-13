@@ -47,7 +47,8 @@ import {
   Building2,
   Eye,
   EyeOff,
-  Pencil
+  Pencil,
+  ShieldAlert
 } from "lucide-react";
 import DbLeadsSection from "./components/DbLeadsSection";
 
@@ -103,6 +104,7 @@ type QueuedJob = {
   postedDate?: string;
   mxValid: boolean;
   mxDetails?: string;
+  score?: number;
   dispatchedTo: string[];
   fetchedAt: string;
 };
@@ -184,6 +186,7 @@ export default function AdminDashboardPage() {
   // Sent History States
   const [sentHistory, setSentHistory] = useState<SentHistoryLog[]>([]);
   const [loadingSentHistory, setLoadingSentHistory] = useState(false);
+  const [scanningBounces, setScanningBounces] = useState(false);
   const [sentHistorySearch, setSentHistorySearch] = useState("");
   const [sentStats, setSentStats] = useState({ totalSent: 0, uniqueRecipients: 0, uniqueCompanies: 0 });
 
@@ -254,6 +257,31 @@ export default function AdminDashboardPage() {
       console.error("Failed to fetch sent history:", err);
     } finally {
       setLoadingSentHistory(false);
+    }
+  };
+
+  const handleScanBounces = async () => {
+    try {
+      setScanningBounces(true);
+      setError("");
+      setSuccessMsg("");
+      const res = await fetch("/api/admin/outreach/bounces", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || "Bounce check failed");
+      }
+      setSuccessMsg(
+        `🛡️ Bounce Scan Complete: Scanned ${data.data?.scannedAccounts || 0} mailboxes, flagged ${data.data?.newBouncesFlagged || 0} dead email bounces.`
+      );
+      fetchSentHistory();
+    } catch (err: any) {
+      setError(err.message || "Failed to scan bounces.");
+    } finally {
+      setScanningBounces(false);
     }
   };
 
@@ -638,8 +666,16 @@ export default function AdminDashboardPage() {
       if (!res.ok || !data.success) {
         throw new Error(data.message || "Email dispatch failed");
       }
-      setLogs9am(data.data?.logs || data.logs || []);
-      setSuccessMsg(`✅ Batch completed! Dispatched: ${data.data?.totalEmailsDispatched || 0} emails`);
+      const logs = [...(data.data?.logs || data.logs || [])];
+      if (data.data?.hasMorePending) {
+        logs.push(`[BATCH INFO] Chunk complete (${data.data.totalEmailsDispatched} emails sent). ${data.data.remainingQueueJobs} jobs remain in queue. Run again to dispatch next batch.`);
+      }
+      setLogs9am(logs);
+      setSuccessMsg(
+        data.data?.hasMorePending
+          ? `⚡ Chunk completed! Dispatched ${data.data?.totalEmailsDispatched || 0} emails (${data.data.remainingQueueJobs} remaining in queue)`
+          : `✅ Batch completed! Dispatched: ${data.data?.totalEmailsDispatched || 0} emails`
+      );
       loadAllData();
     } catch (err: any) {
       setLogs9am((prev) => [...prev, `[ERROR] ${err.message}`]);
@@ -1388,6 +1424,16 @@ export default function AdminDashboardPage() {
                 </button>
 
                 <button
+                  onClick={handleScanBounces}
+                  disabled={scanningBounces}
+                  className="px-3.5 py-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-300 hover:text-white text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-50"
+                  title="Scan candidate mailboxes for Mailer-Daemon delivery failure notifications"
+                >
+                  <ShieldAlert className={`w-3.5 h-3.5 text-rose-400 ${scanningBounces ? "animate-spin" : ""}`} />
+                  <span>{scanningBounces ? "Scanning Mailboxes..." : "Scan Dead Bounces"}</span>
+                </button>
+
+                <button
                   onClick={exportSentHistoryToExcel}
                   disabled={sentHistory.length === 0}
                   className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold flex items-center gap-2 shadow-md shadow-emerald-950/40 transition-all cursor-pointer disabled:opacity-40"
@@ -1456,9 +1502,16 @@ export default function AdminDashboardPage() {
                             {item.dispatchedAt ? new Date(item.dispatchedAt).toLocaleString() : item.dateString || "-"}
                           </td>
                           <td className="py-2.5 px-3 whitespace-nowrap">
-                            <span className="px-2 py-0.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-full text-[10px] font-medium">
-                              Sent (SMTP)
-                            </span>
+                            {item.status === "bounced" ? (
+                              <span className="px-2 py-0.5 bg-rose-500/10 border border-rose-500/30 text-rose-400 rounded-full text-[10px] font-semibold flex items-center gap-1 w-fit">
+                                <ShieldAlert className="w-3 h-3 text-rose-400" />
+                                <span>Bounced (Dead Mail)</span>
+                              </span>
+                            ) : (
+                              <span className="px-2 py-0.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-full text-[10px] font-medium">
+                                Sent (SMTP)
+                              </span>
+                            )}
                           </td>
                         </tr>
                       ))
@@ -1512,6 +1565,7 @@ export default function AdminDashboardPage() {
                     <tr>
                       <th className="py-2.5 px-3 font-medium">Role & Title</th>
                       <th className="py-2.5 px-3 font-medium">Company</th>
+                      <th className="py-2.5 px-3 font-medium">Lead Quality</th>
                       <th className="py-2.5 px-3 font-medium">Verified Email</th>
                       <th className="py-2.5 px-3 font-medium">Location</th>
                       <th className="py-2.5 px-3 font-medium">Source Portal</th>
@@ -1521,7 +1575,7 @@ export default function AdminDashboardPage() {
                   <tbody className="divide-y divide-slate-800/60 text-slate-300">
                     {filteredQueue.length === 0 ? (
                       <tr>
-                        <td colSpan={6} className="text-center py-12 text-slate-500 italic">
+                        <td colSpan={7} className="text-center py-12 text-slate-500 italic">
                           No jobs in today&apos;s queue. Click &ldquo;Run Phase 1 Job Harvester&rdquo; in Auto-Pilot tab to populate fresh leads.
                         </td>
                       </tr>
@@ -1530,6 +1584,17 @@ export default function AdminDashboardPage() {
                         <tr key={idx} className="hover:bg-slate-800/30 transition-all">
                           <td className="py-2.5 px-3 font-medium text-white">{job.role}</td>
                           <td className="py-2.5 px-3 text-violet-300">{job.company}</td>
+                          <td className="py-2.5 px-3 whitespace-nowrap">
+                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold font-mono border ${
+                              (job.score || 75) >= 80
+                                ? "bg-emerald-500/10 text-emerald-300 border-emerald-500/30"
+                                : (job.score || 75) >= 65
+                                ? "bg-cyan-500/10 text-cyan-300 border-cyan-500/30"
+                                : "bg-amber-500/10 text-amber-300 border-amber-500/30"
+                            }`}>
+                              ★ {job.score || 75}/100
+                            </span>
+                          </td>
                           <td className="py-2.5 px-3 text-cyan-300 font-mono text-[11px]">{job.email}</td>
                           <td className="py-2.5 px-3 text-slate-400">{job.location}</td>
                           <td className="py-2.5 px-3 text-[11px] text-slate-500 uppercase">{job.sourceType}</td>
@@ -1979,9 +2044,16 @@ export default function AdminDashboardPage() {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2">
               <div className="text-xs text-slate-400">
                 {launchSummary ? (
-                  <span className="text-emerald-400 font-semibold">
-                    ✓ Outreach Finished: {launchSummary.totalEmailsDispatched} emails dispatched across {launchSummary.totalCustomers} candidates.
-                  </span>
+                  <div className="space-y-1">
+                    <span className="text-emerald-400 font-semibold block">
+                      ✓ Outreach Batch Finished: {launchSummary.totalEmailsDispatched} emails dispatched across {launchSummary.totalCustomers} candidates.
+                    </span>
+                    {launchSummary.hasMorePending && (
+                      <span className="text-amber-300 text-[11px] block">
+                        ⚡ Batch chunk completed safely. {launchSummary.remainingQueueJobs} jobs remain in queue. Click "Dispatch Next Batch" to continue without server timeout.
+                      </span>
+                    )}
+                  </div>
                 ) : (
                   <span className="text-amber-300 flex items-center gap-1.5">
                     <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -1990,12 +2062,24 @@ export default function AdminDashboardPage() {
                 )}
               </div>
 
-              <button
-                onClick={() => setLaunchModalOpen(false)}
-                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-xl shadow-md transition-all cursor-pointer"
-              >
-                Close Stream
-              </button>
+              <div className="flex items-center gap-2">
+                {launchSummary?.hasMorePending && (
+                  <button
+                    onClick={() => handle1ClickLaunch(launchingOutreachEmail === "ALL" ? undefined : (launchingOutreachEmail || undefined), false)}
+                    disabled={!!launchingOutreachEmail}
+                    className="px-3.5 py-2 bg-amber-600 hover:bg-amber-500 text-white text-xs font-semibold rounded-xl shadow-md transition-all cursor-pointer flex items-center gap-1.5"
+                  >
+                    <Zap className="w-3.5 h-3.5" />
+                    <span>Dispatch Next Batch ({launchSummary.remainingQueueJobs} left)</span>
+                  </button>
+                )}
+                <button
+                  onClick={() => setLaunchModalOpen(false)}
+                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-xl shadow-md transition-all cursor-pointer"
+                >
+                  Close Stream
+                </button>
+              </div>
             </div>
           </div>
         </div>

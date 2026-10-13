@@ -19,6 +19,7 @@ async function handleDispatch(req: NextRequest) {
     let targetDate = url.searchParams.get("date") || undefined;
     let customerEmail = url.searchParams.get("customer") || undefined;
     let simulateOnly = url.searchParams.get("simulate") === "true";
+    let batchLimit = url.searchParams.get("batchLimit") ? parseInt(url.searchParams.get("batchLimit")!, 10) : undefined;
 
     if (req.method === "POST") {
       try {
@@ -26,6 +27,7 @@ async function handleDispatch(req: NextRequest) {
         if (body?.targetDate) targetDate = String(body.targetDate).trim();
         if (body?.customerEmail) customerEmail = String(body.customerEmail).trim();
         if (typeof body?.simulateOnly === "boolean") simulateOnly = body.simulateOnly;
+        if (body?.batchLimit) batchLimit = parseInt(String(body.batchLimit), 10);
       } catch {}
     }
 
@@ -33,6 +35,7 @@ async function handleDispatch(req: NextRequest) {
       targetDate,
       customerEmail,
       simulateOnly,
+      batchLimit,
     });
 
     return NextResponse.json({
