@@ -173,9 +173,9 @@ export async function sendGmailSmtp(
     };
 
     socket.setEncoding("utf-8");
-    socket.setTimeout(9000, () => {
+    socket.setTimeout(18000, () => {
       socket.destroy();
-      resolve({ success: false, error: "Gmail SMTP connection timed out (9s)." });
+      resolve({ success: false, error: "Gmail SMTP connection timed out (18s inactivity)." });
     });
 
     socket.on("data", (data: string) => {
