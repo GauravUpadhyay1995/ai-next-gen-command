@@ -213,15 +213,26 @@ export async function POST(req: NextRequest) {
             ""
         ).trim();
 
-        const sourceUrl = String(
+        let sourceUrl = String(
           rawItem.sourceUrl ||
             rawItem.source_url ||
+            rawItem.applyUrl ||
+            rawItem.apply_url ||
+            rawItem.applyLink ||
+            rawItem.apply_link ||
+            rawItem.jobUrl ||
+            rawItem.job_url ||
             rawItem.url ||
             rawItem.Url ||
             rawItem.link ||
             rawItem.Link ||
             ""
         ).trim();
+
+        // If email field accidentally contains a URL (common scraper/LLM behavior), recover it as sourceUrl
+        if (!sourceUrl && (email.startsWith("http://") || email.startsWith("https://"))) {
+          sourceUrl = email;
+        }
 
         const targetRole = String(
           rawItem.targetRole ||
@@ -285,6 +296,18 @@ export async function POST(req: NextRequest) {
           mxDetails = "No HR email provided (Job post / Direct apply link)";
           itemStatus = "queued_no_email";
           reason = "Saved without email";
+        }
+
+        // Integrity Guard: Every lead must have AT LEAST an HR email OR an Apply Link (sourceUrl)
+        if (!finalEmail && !sourceUrl) {
+          results.push({
+            email: "N/A",
+            company,
+            role,
+            status: "invalid_email",
+            reason: "Both email and apply link (sourceUrl) are missing. At least one is required.",
+          });
+          return;
         }
 
         // Insert into daily_jobs_queue
