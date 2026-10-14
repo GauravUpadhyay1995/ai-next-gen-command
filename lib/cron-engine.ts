@@ -323,6 +323,9 @@ export async function executeMorningEmailDispatcher(options?: {
 }> {
   const logs: string[] = [];
   const dateString = options?.targetDate || getTodayString();
+  const executionStartTime = Date.now();
+  // Serverless 60s execution ceiling: reserve strict 12s safety buffer for DB writes and clean HTTP response
+  const SAFE_SERVERLESS_MAX_DURATION_MS = 48_000;
   logs.push(`[${new Date().toLocaleTimeString()}] Starting 9:00 AM Email Dispatcher for Date: ${dateString}`);
 
   try {
@@ -397,7 +400,22 @@ export async function executeMorningEmailDispatcher(options?: {
     let grandTotalSkipped = 0;
     const customerReports: any[] = [];
 
+    // Fetch SuperAdmin Rate Limiting Settings once for entire run
+    const systemSettings = await getSystemSettings();
+    const emailsPerMin = systemSettings.emailsPerMinute && systemSettings.emailsPerMinute > 0
+      ? systemSettings.emailsPerMinute
+      : 10;
+    // Delay in ms: e.g. 1 mail/min = 60,000ms, 2 mails/min = 30,000ms, 10 mails/min = 6,000ms
+    const delayBetweenEmailsMs = Math.max(1000, Math.round((60 / emailsPerMin) * 1000));
+    logs.push(`[${new Date().toLocaleTimeString()}] ⏱️ System Pacing: ${emailsPerMin} mail/min (${Math.round(delayBetweenEmailsMs / 1000)}s interval between consecutive emails)`);
+
     for (const customer of customers) {
+      const elapsedAtCandidate = Date.now() - executionStartTime;
+      if (elapsedAtCandidate >= SAFE_SERVERLESS_MAX_DURATION_MS - 6000) {
+        logs.push(`----------------------------------------`);
+        logs.push(`[${new Date().toLocaleTimeString()}] ⏱️ Serverless Time Guard: Elapsed ${Math.round(elapsedAtCandidate / 1000)}s. Pausing before candidate ${customer.name} to avoid gateway timeout. Remaining candidates queued for next batch.`);
+        break;
+      }
       const customerReport: any = {
         name: customer.name,
         email: customer.email,
@@ -512,20 +530,22 @@ export async function executeMorningEmailDispatcher(options?: {
         logs.push(` -> 🛡️ Safe Warm-Up Guard: Candidate is newly connected (${customer.totalSentCount || 0} sent so far). Capping to ${effectiveLimit} emails today.`);
       }
 
-      // Safe Serverless Batch Limit: default max 5 emails per execution to avoid 60s gateway timeouts
-      const maxBatchPerRun = options?.batchLimit && options.batchLimit > 0 ? options.batchLimit : 5;
-      const jobsToProcess = eligibleJobs.slice(0, Math.min(effectiveLimit, maxBatchPerRun));
+      // Safe Serverless Batch Limit: Dynamically calculate how many emails can safely complete within remaining time budget
+      const remainingTimeMs = Math.max(0, SAFE_SERVERLESS_MAX_DURATION_MS - (Date.now() - executionStartTime));
+      const estTimePerEmailMs = 3500; // Estimated duration for AI pitch generation + SMTP handshake + DB update
 
-      logs.push(` -> Matched ${eligibleJobs.length} eligible jobs. Processing batch of ${jobsToProcess.length} (Effective Limit: ${effectiveLimit}, Batch Cap: ${maxBatchPerRun}).`);
+      // For N emails: required time = N * estTimePerEmailMs + (N - 1) * delayBetweenEmailsMs <= remainingTimeMs
+      // => N <= (remainingTimeMs + delayBetweenEmailsMs) / (estTimePerEmailMs + delayBetweenEmailsMs)
+      const maxEmailsFittingBudget = Math.max(
+        1,
+        Math.floor((remainingTimeMs + delayBetweenEmailsMs) / (estTimePerEmailMs + delayBetweenEmailsMs))
+      );
 
-      // Fetch SuperAdmin Rate Limiting Settings
-      const systemSettings = await getSystemSettings();
-      const emailsPerMin = systemSettings.emailsPerMinute && systemSettings.emailsPerMinute > 0
-        ? systemSettings.emailsPerMinute
-        : 10;
-      // Delay in ms: e.g. 1 mail/min = 60,000ms, 2 mails/min = 30,000ms, etc.
-      const delayBetweenEmailsMs = Math.max(1000, Math.round((60 / emailsPerMin) * 1000));
-      logs.push(` -> ⏱️ Pacing Config: ${emailsPerMin} mail/min (${Math.round(delayBetweenEmailsMs / 1000)}s interval between consecutive emails)`);
+      const requestedBatchCap = options?.batchLimit && options.batchLimit > 0 ? options.batchLimit : 5;
+      const safeBatchCap = Math.min(requestedBatchCap, maxEmailsFittingBudget);
+      const jobsToProcess = eligibleJobs.slice(0, Math.min(effectiveLimit, safeBatchCap));
+
+      logs.push(` -> Matched ${eligibleJobs.length} eligible jobs. Processing batch of ${jobsToProcess.length} (Effective Limit: ${effectiveLimit}, Safe Batch Cap: ${safeBatchCap}, Time-Budget Max: ${maxEmailsFittingBudget}).`);
 
       // Sequentially dispatch outreach emails according to configured rate limit
       for (let j = 0; j < jobsToProcess.length; j++) {
@@ -659,6 +679,12 @@ export async function executeMorningEmailDispatcher(options?: {
 
         // Pacing delay between consecutive emails according to configured rate limit
         if (j < jobsToProcess.length - 1 && !options?.simulateOnly) {
+          const elapsedNow = Date.now() - executionStartTime;
+          // Check if waiting for the pacing delay would exceed our safe serverless timeout ceiling
+          if (elapsedNow + delayBetweenEmailsMs >= SAFE_SERVERLESS_MAX_DURATION_MS) {
+            logs.push(` -> ⏱️ Serverless Time Guard: Next pacing interval (${Math.round(delayBetweenEmailsMs / 1000)}s) would exceed 48s execution window (Elapsed: ${Math.round(elapsedNow / 1000)}s). Yielding remaining batch cleanly.`);
+            break;
+          }
           logs.push(` -> ⏳ [Pacing Rate: ${emailsPerMin} mail/min] Waiting ${Math.round(delayBetweenEmailsMs / 1000)}s before sending next email...`);
           await sleep(delayBetweenEmailsMs);
         }
@@ -685,7 +711,9 @@ export async function executeMorningEmailDispatcher(options?: {
       },
     });
 
-    const totalRemaining = jobs.filter((j) => !j.dispatchedTo || j.dispatchedTo.length === 0).length;
+    const totalRemaining = options?.customerEmail
+      ? jobs.filter((j) => !Array.isArray(j.dispatchedTo) || !j.dispatchedTo.includes(options.customerEmail!)).length
+      : jobs.filter((j) => customers.some((c) => !Array.isArray(j.dispatchedTo) || !j.dispatchedTo.includes(c.email))).length;
 
     return {
       success: true,

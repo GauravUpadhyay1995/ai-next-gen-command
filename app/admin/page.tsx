@@ -148,6 +148,7 @@ export default function AdminDashboardPage() {
 
   // 1-Click Launch Modal & Real-time Logs
   const [launchingOutreachEmail, setLaunchingOutreachEmail] = useState<string | null>(null);
+  const [lastTargetEmail, setLastTargetEmail] = useState<string | null>(null);
   const [launchModalOpen, setLaunchModalOpen] = useState(false);
   const [liveLaunchLogs, setLiveLaunchLogs] = useState<string[]>([]);
   const [launchSummary, setLaunchSummary] = useState<any>(null);
@@ -302,6 +303,7 @@ export default function AdminDashboardPage() {
 
   const handle1ClickLaunch = async (customerEmail?: string, simulateOnly: boolean = false) => {
     try {
+      setLastTargetEmail(customerEmail || "ALL");
       setLaunchingOutreachEmail(customerEmail || "ALL");
       setLiveLaunchLogs([
         `[${new Date().toLocaleTimeString()}] 🚀 Initializing Auto-Pilot Dispatcher...`,
@@ -2065,8 +2067,8 @@ export default function AdminDashboardPage() {
               <div className="flex items-center gap-2">
                 {launchSummary?.hasMorePending && (
                   <button
-                    onClick={() => handle1ClickLaunch(launchingOutreachEmail === "ALL" ? undefined : (launchingOutreachEmail || undefined), false)}
-                    disabled={!!launchingOutreachEmail}
+                    onClick={() => handle1ClickLaunch(lastTargetEmail === "ALL" ? undefined : (lastTargetEmail || undefined), false)}
+                    disabled={launchingOutreachEmail !== null}
                     className="px-3.5 py-2 bg-amber-600 hover:bg-amber-500 text-white text-xs font-semibold rounded-xl shadow-md transition-all cursor-pointer flex items-center gap-1.5"
                   >
                     <Zap className="w-3.5 h-3.5" />
