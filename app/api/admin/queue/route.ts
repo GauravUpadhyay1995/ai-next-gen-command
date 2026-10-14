@@ -34,3 +34,22 @@ export async function GET(req: NextRequest) {
     );
   }
 }
+
+export async function DELETE(req: NextRequest) {
+  try {
+    const { db } = await connectToDatabase();
+    const result = await db.collection("daily_jobs_queue").deleteMany({});
+    return NextResponse.json({
+      success: true,
+      message: `Cleared ${result.deletedCount} items from daily_jobs_queue`,
+      deletedCount: result.deletedCount,
+    });
+  } catch (error: any) {
+    console.error("[Queue API] DELETE error:", error);
+    return NextResponse.json(
+      { success: false, message: error.message || "Failed to clear queue" },
+      { status: 500 }
+    );
+  }
+}
+

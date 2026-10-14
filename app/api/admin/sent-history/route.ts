@@ -47,3 +47,24 @@ export async function GET(req: NextRequest) {
     );
   }
 }
+
+export async function DELETE(req: NextRequest) {
+  try {
+    const { db } = await connectToDatabase();
+    const result = await db.collection("sent_dispatch_logs").deleteMany({});
+    // Also reset candidate totalSentCount
+    await db.collection("customer_profiles").updateMany({}, { $set: { totalSentCount: 0 } });
+    return NextResponse.json({
+      success: true,
+      message: `Cleared ${result.deletedCount} sent logs and reset candidate sent counts.`,
+      deletedCount: result.deletedCount,
+    });
+  } catch (error: any) {
+    console.error("[Sent History API] DELETE error:", error);
+    return NextResponse.json(
+      { success: false, message: error.message || "Failed to clear sent history" },
+      { status: 500 }
+    );
+  }
+}
+
