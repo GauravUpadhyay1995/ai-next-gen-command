@@ -43,13 +43,7 @@ function resolveCompanyDomain(companyName: string, description: string, applyUrl
     if (directDomain) return directDomain;
   }
 
-  // 2. Try any company links found inside the job description
-  const textDomains = extractAllDomainsFromText(description);
-  if (textDomains.length > 0) {
-    return textDomains[0];
-  }
-
-  // 3. Clean company name to standard domain slug ONLY IF it's a specific, genuine company name
+  // 2. Clean company name to standard domain slug ONLY IF it's a specific, genuine company name
   const compLower = (companyName || "").toLowerCase().trim();
   if (
     compLower &&
@@ -177,6 +171,13 @@ const IGNORED_DOMAINS = [
   "cloudflare.com",
   "apple.com",
   "microsoft.com",
+  "dol.gov",
+  "eeo.gov",
+  "usa.gov",
+  "sec.gov",
+  "ftc.gov",
+  "gov.uk",
+  "gov.in",
 ];
 
 function extractHiringDomain(urlStr: string): string | null {
@@ -187,7 +188,12 @@ function extractHiringDomain(urlStr: string): string | null {
     const parsed = new URL(target);
     const host = parsed.hostname.toLowerCase().replace(/^www\./, "");
 
-    if (IGNORED_DOMAINS.some((ign) => host.includes(ign) || ign.includes(host))) {
+    if (
+      host.endsWith(".gov") ||
+      host.endsWith(".edu") ||
+      host.endsWith(".mil") ||
+      IGNORED_DOMAINS.some((ign) => host.includes(ign) || ign.includes(host))
+    ) {
       return null;
     }
 
@@ -287,6 +293,12 @@ export function isRoleMatch(jobTitle: string, jobDescription: string, targetRole
       aliases: /\b(full\s*stack|fullstack)\b/i,
       mustMatch: /\b(full\s*stack|fullstack|software engineer|web developer)\b/i,
       conflicts: /\b(recruiter|marketing|sales|accountant|hr|designer|product manager)\b/i,
+    },
+    {
+      // MERN / MEAN Stack profile
+      aliases: /\b(mern|mean|mern\s*stack)\b/i,
+      mustMatch: /\b(mern|react|node|nodejs|express|mongodb|full\s*stack|fullstack|software engineer|web developer)\b/i,
+      conflicts: /\b(python|django|ruby|rails|php|laravel|golang|\.net|c#|java(?!script))\b/i,
     },
     {
       // DevOps profile
@@ -713,9 +725,9 @@ export async function searchPublicJobFeeds(
 
     let foundEmails = extractEmailsFromText(`${title} ${company} ${description}`);
 
+    // Strictly enforce real contacts: If no authentic email is found in the job posting text, do NOT fabricate.
     if (foundEmails.length === 0) {
-      const domain = resolveCompanyDomain(company, description, applyUrl);
-      if (domain) foundEmails.push(`careers@${domain}`);
+      return;
     }
 
     for (const email of foundEmails) {
@@ -986,49 +998,88 @@ export async function searchPublicJobFeeds(
       }
     })(),
 
-    // 10. HackerNews (Algolia) Who is Hiring API
+    // 10. HackerNews Official "Who is Hiring?" API (Verified Direct Founder/Recruiter inboxes)
     (async () => {
       try {
-        const queryTerm = cleanKeyword || "hiring";
-        const url = `https://hn.algolia.com/api/v1/search_by_date?tags=comment&query=${encodeURIComponent(
-          queryTerm
-        )}&hitsPerPage=40`;
-        const res = await fetchWithTimeout(url, {
-          headers: { "User-Agent": "Fetchmail-LeadFinder/1.0" },
-          cache: "no-store",
-        });
-        if (res.ok) {
-          const data = await res.json();
-          for (const hit of data.hits || []) {
-            const commentText = decodeHtmlEntities(hit.comment_text || "");
-            if (commentText.length > 40) {
-              const emails = extractEmailsFromText(commentText);
-              let company = "Tech Startup (HN)";
-              if (hit.story_title && hit.story_title.includes("|")) {
-                company = hit.story_title.split("|")[0].slice(0, 30).trim();
-              }
-              const lines = commentText.split("\n");
-              const firstLine = lines[0] || "";
-              if (firstLine.includes("|")) {
-                company = firstLine.split("|")[0].slice(0, 30).trim();
-              }
+        const sRes = await fetchWithTimeout(
+          "https://hn.algolia.com/api/v1/search_by_date?tags=story,author_whoishiring&hitsPerPage=2",
+          { headers: { "User-Agent": "Fetchmail-LeadFinder/1.0" }, cache: "no-store" }
+        );
+        if (!sRes.ok) return;
+        const sData = await sRes.json();
+        const hiringStories = (sData.hits || []).filter((h: any) =>
+          String(h.title || "").includes("Who is hiring?")
+        );
 
-              for (const email of emails) {
-                if (!isRoleMatch(commentText.slice(0, 200), commentText, keyword) || !checkLocationMatch("Remote / Worldwide", commentText, location)) {
-                  continue;
-                }
-                addLead({
-                  idPrefix: "hn",
-                  rawId: hit.objectID,
-                  email,
-                  company,
-                  role: keyword || "Developer / Engineer",
-                  location: "Remote / Worldwide",
-                  snippet: commentText,
-                  sourceUrl: `https://news.ycombinator.com/item?id=${hit.objectID}`,
-                  postedDate: hit.created_at ? new Date(hit.created_at).toLocaleDateString() : undefined,
-                });
+        for (const story of hiringStories) {
+          const storyId = Number(story.objectID);
+          const cRes = await fetchWithTimeout(
+            `https://hn.algolia.com/api/v1/search?tags=comment,story_${storyId}&hitsPerPage=300`,
+            { headers: { "User-Agent": "Fetchmail-LeadFinder/1.0" }, cache: "no-store" }
+          );
+          if (!cRes.ok) continue;
+          const cData = await cRes.json();
+
+          for (const hit of cData.hits || []) {
+            // Must be top-level employer comment directly on the hiring thread
+            if (hit.parent_id !== storyId) continue;
+
+            const rawText = hit.comment_text || "";
+            const cleanText = decodeHtmlEntities(rawText);
+            const lowerText = cleanText.toLowerCase().trim();
+
+            // Filter out job seekers posting "Seeking work / Location: ... Remote: Yes"
+            if (
+              lowerText.startsWith("location:") ||
+              lowerText.startsWith("seeking") ||
+              lowerText.startsWith("remote: yes") ||
+              lowerText.includes("seeking:") ||
+              lowerText.includes("willing to relocate:") ||
+              (lowerText.includes("my resume") && lowerText.includes("my cv"))
+            ) {
+              continue;
+            }
+
+            const emails = extractEmailsFromText(rawText);
+            if (emails.length === 0) continue;
+
+            const firstLine = cleanText.split("\n")[0] || "";
+            let comp = "Tech Startup (HN)";
+            let detectedRole = keyword || "Software Engineer";
+            let jobLoc = "Remote / Worldwide";
+
+            if (firstLine.includes("|")) {
+              const parts = firstLine.split("|").map((p) => decodeHtmlEntities(p.trim()));
+              comp = parts[0] || "Tech Startup (HN)";
+              detectedRole = parts[1] || keyword || "Software Engineer";
+              jobLoc = parts[2] || "Remote / Worldwide";
+            } else {
+              const matchComp = cleanText.match(/(?:at|with|join)\s+([A-Z][a-zA-Z0-9.\- ]{2,25})/);
+              if (matchComp && matchComp[1]) {
+                comp = matchComp[1].trim();
               }
+            }
+
+            comp = decodeHtmlEntities(comp).replace(/<[^>]+>/g, "").trim().slice(0, 35);
+            detectedRole = decodeHtmlEntities(detectedRole).replace(/<[^>]+>/g, "").trim().slice(0, 50);
+            jobLoc = decodeHtmlEntities(jobLoc).replace(/<[^>]+>/g, "").trim().slice(0, 40);
+
+            if (!isRoleMatch(detectedRole, cleanText, keyword)) continue;
+            if (!checkLocationMatch(jobLoc, cleanText, location)) continue;
+            if (!checkSeniorityMatch(detectedRole, candidateExperience)) continue;
+
+            for (const email of emails) {
+              addLead({
+                idPrefix: "hn",
+                rawId: hit.objectID,
+                email,
+                company: comp.slice(0, 40),
+                role: detectedRole.slice(0, 60),
+                location: jobLoc.slice(0, 40),
+                snippet: cleanText,
+                sourceUrl: `https://news.ycombinator.com/item?id=${hit.objectID}`,
+                postedDate: hit.created_at ? new Date(hit.created_at).toLocaleDateString() : undefined,
+              });
             }
           }
         }
@@ -1501,8 +1552,7 @@ export async function searchGoogleHiringPosts(
 
       let emails = extractEmailsFromText(fullText);
       if (emails.length === 0) {
-        const domain = resolveCompanyDomain(company, fullText, link);
-        if (domain) emails.push(`careers@${domain}`);
+        continue;
       }
 
       for (const email of emails) {
@@ -1607,7 +1657,7 @@ export async function scanCompanyCareerSection(
 
             if (isMatch(textToSearch) && checkLocationMatch(jobLoc, textToSearch, cleanLoc)) {
               let emails = extractEmailsFromText(textToSearch);
-              if (emails.length === 0) emails = [`careers@${domain}`, `talent@${domain}`];
+              if (emails.length === 0) continue;
               for (const em of emails) {
                 addLead({
                   rawId: String(job.id),
@@ -1645,7 +1695,7 @@ export async function scanCompanyCareerSection(
 
               if (isMatch(textToSearch) && checkLocationMatch(jobLoc, textToSearch, cleanLoc)) {
                 let emails = extractEmailsFromText(textToSearch);
-                if (emails.length === 0) emails = [`careers@${domain}`, `talent@${domain}`];
+                if (emails.length === 0) continue;
                 for (const em of emails) {
                   addLead({
                     rawId: String(job.id),
@@ -1684,7 +1734,7 @@ export async function scanCompanyCareerSection(
 
             if (isMatch(textToSearch) && checkLocationMatch(jobLoc, textToSearch, cleanLoc)) {
               let emails = extractEmailsFromText(textToSearch);
-              if (emails.length === 0) emails = [`careers@${domain}`, `talent@${domain}`];
+              if (emails.length === 0) continue;
               for (const em of emails) {
                 addLead({
                   rawId: String(job.id),
@@ -1731,24 +1781,6 @@ export async function scanCompanyCareerSection(
                     applyUrl: careerUrl,
                   });
                 }
-              } else {
-                // If page exists, add verified standard inboxes
-                addLead({
-                  rawId: "standard_careers",
-                  email: `careers@${domain}`,
-                  role: keyword || "Hiring Team",
-                  location: "Direct Career Portal",
-                  snippet: `Official careers portal for ${companyName}. Contact recruitment team directly.`,
-                  applyUrl: careerUrl,
-                });
-                addLead({
-                  rawId: "standard_talent",
-                  email: `talent@${domain}`,
-                  role: keyword || "Talent Acquisition",
-                  location: "Direct Career Portal",
-                  snippet: `Direct talent acquisition contact for ${companyName}.`,
-                  applyUrl: careerUrl,
-                });
               }
               break;
             }
@@ -1763,26 +1795,6 @@ export async function scanCompanyCareerSection(
   ];
 
   await Promise.allSettled(tasks);
-
-  // If no leads discovered from ATS or direct HTML, synthesize verified hiring mailboxes for the domain
-  if (results.length === 0) {
-    addLead({
-      rawId: "synth_careers",
-      email: `careers@${domain}`,
-      role: keyword || "Talent Acquisition",
-      location: "Company Headquarters / Remote",
-      snippet: `Official hiring contact channel for ${companyName}.`,
-      applyUrl: `https://${domain}`,
-    });
-    addLead({
-      rawId: "synth_talent",
-      email: `talent@${domain}`,
-      role: keyword || "Recruiting Team",
-      location: "Company Headquarters / Remote",
-      snippet: `Talent & People Operations for ${companyName}.`,
-      applyUrl: `https://${domain}`,
-    });
-  }
 
   return await verifyLeadsBatch(results.slice(0, 30));
 }

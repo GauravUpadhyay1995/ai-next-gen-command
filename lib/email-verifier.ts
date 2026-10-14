@@ -191,6 +191,42 @@ export async function verifyEmailMx(
   }
 }
 
+const INVALID_EMAIL_PREFIXES = new Set([
+  "noreply",
+  "no-reply",
+  "donotreply",
+  "abuse",
+  "privacy",
+  "security",
+  "legal",
+  "billing",
+  "compliance",
+  "dmca",
+  "postmaster",
+  "hostmaster",
+  "webmaster",
+  "mailer-daemon",
+]);
+
+const BLACKLISTED_EMAIL_DOMAINS = new Set([
+  "example.com",
+  "test.com",
+  "sentry.io",
+  "w3.org",
+  "schema.org",
+  "domain.com",
+  "yourcompany.com",
+  "company.com",
+  "ycombinator.com",
+  "algolia.com",
+  "cloudflare.com",
+  "dol.gov",
+  "eeo.gov",
+  "usa.gov",
+  "gov.uk",
+  "gov.in",
+]);
+
 /**
  * Extracts and cleans all valid email addresses found inside raw text or HTML.
  */
@@ -210,9 +246,13 @@ export function extractEmailsFromText(text: string): string[] {
       !cleaned.endsWith(".jpg") &&
       !cleaned.endsWith(".svg")
     ) {
+      const [prefix, dom] = cleaned.split("@");
+      if (prefix && INVALID_EMAIL_PREFIXES.has(prefix)) continue;
+      if (dom && BLACKLISTED_EMAIL_DOMAINS.has(dom)) continue;
       unique.add(cleaned);
     }
   }
 
   return Array.from(unique);
 }
+
