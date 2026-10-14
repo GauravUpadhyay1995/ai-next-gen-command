@@ -7,7 +7,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-const API_KEY = process.env.LEAD_IMPORT_KEY || process.env.CRON_SECRET || "fetchmail_leads_secret_2026";
+const API_KEY = process.env.LEAD_IMPORT_KEY || process.env.CRON_SECRET;
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -54,7 +54,7 @@ export async function GET() {
           "Header: 'Authorization: Bearer <YOUR_KEY>'",
           "Query: '?key=<YOUR_KEY>'",
         ],
-        defaultKey: "fetchmail_leads_secret_2026",
+        configuredKey: "LEAD_IMPORT_KEY (Configured in Vercel Environment Variables)",
       },
       samplePayload: [
         {
