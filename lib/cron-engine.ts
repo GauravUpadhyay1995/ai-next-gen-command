@@ -487,6 +487,11 @@ export async function executeMorningEmailDispatcher(options?: {
 
       // Match jobs strictly for this customer's target role and location
       let eligibleJobs: any[] = jobs.filter((job) => {
+        // Must have a valid recipient email to be eligible for automated email outreach
+        if (!job.email || !isValidEmailFormat(job.email) || job.mxValid === false) {
+          return false;
+        }
+
         // Must not have been dispatched to this customer before
         const alreadyDispatched = Array.isArray(job.dispatchedTo) && job.dispatchedTo.includes(customer.email);
         if (alreadyDispatched) return false;

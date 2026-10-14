@@ -150,11 +150,13 @@ export async function POST(req: NextRequest) {
       email: string;
       company: string;
       role: string;
-      status: "queued" | "invalid_email" | "mx_failed";
+      status: "queued" | "queued_no_email" | "invalid_email" | "mx_failed";
       reason?: string;
     }> = [];
 
     let queuedCount = 0;
+    let queuedWithEmailCount = 0;
+    let queuedWithoutEmailCount = 0;
 
     // 3. Process & Validate Leads in Parallel Batches
     await Promise.all(
@@ -166,6 +168,8 @@ export async function POST(req: NextRequest) {
             rawItem.hr_email ||
             rawItem.hrEmail ||
             rawItem.contact_email ||
+            rawItem.mail ||
+            rawItem.Mail ||
             ""
         )
           .toLowerCase()
@@ -226,23 +230,67 @@ export async function POST(req: NextRequest) {
             "Full Stack Mern Developer"
         ).trim();
 
-        // Email validation
-        if (!email || !isValidEmailFormat(email) || isDisposableDomain(email)) {
-          results.push({ email, company, role, status: "invalid_email", reason: "Format or domain invalid" });
-          return;
-        }
+        // Check if an actual email is provided or if this lead is email-less (e.g. direct apply / job link)
+        const isPlaceholderEmail =
+          !email ||
+          email === "n/a" ||
+          email === "na" ||
+          email === "none" ||
+          email === "null" ||
+          email === "undefined" ||
+          email === "not available" ||
+          email.startsWith("http");
 
-        // Deep MX check
-        const mxCheck = await verifyEmailMx(email, true);
-        if (!mxCheck.valid) {
-          results.push({ email, company, role, status: "mx_failed", reason: mxCheck.reason || "MX resolution failed" });
-          return;
+        let finalEmail = "";
+        let mxValid = false;
+        let mxDetails = "No HR email provided (Direct apply / Job post link)";
+        let itemStatus: "queued" | "queued_no_email" | "invalid_email" | "mx_failed" = "queued_no_email";
+        let reason: string | undefined = undefined;
+
+        if (!isPlaceholderEmail && isValidEmailFormat(email) && !isDisposableDomain(email)) {
+          // Deep MX check for provided email
+          try {
+            const mxCheck = await verifyEmailMx(email, true);
+            if (mxCheck.valid) {
+              finalEmail = email;
+              mxValid = true;
+              mxDetails = mxCheck.smtpStatus || mxCheck.mxRecords?.[0] || "Active MX Server";
+              itemStatus = "queued";
+            } else {
+              // MX check failed, but lead data is STILL preserved!
+              finalEmail = email;
+              mxValid = false;
+              mxDetails = mxCheck.reason || "MX resolution failed";
+              itemStatus = "mx_failed";
+              reason = mxDetails;
+            }
+          } catch (e: any) {
+            finalEmail = email;
+            mxValid = false;
+            mxDetails = "MX verification error";
+            itemStatus = "mx_failed";
+            reason = e.message;
+          }
+        } else if (!isPlaceholderEmail && email) {
+          // Has text in email field, but format is invalid - preserve lead anyway!
+          finalEmail = email;
+          mxValid = false;
+          mxDetails = "Invalid email format";
+          itemStatus = "invalid_email";
+          reason = "Invalid email format";
+        } else {
+          // No email provided at all (ChatGPT direct job post)
+          finalEmail = "";
+          mxValid = false;
+          mxDetails = "No HR email provided (Job post / Direct apply link)";
+          itemStatus = "queued_no_email";
+          reason = "Saved without email";
         }
 
         // Insert into daily_jobs_queue
         const queueDoc: Partial<DailyJobQueueItem> = {
           dateString,
-          email,
+          email: finalEmail,
           company,
           role,
           targetRole,
@@ -251,14 +299,24 @@ export async function POST(req: NextRequest) {
           sourceUrl,
           sourceType: "chatgpt_scheduler" as any,
           postedDate: rawItem.postedDate || rawItem.posted_date || dateString,
-          mxValid: true,
-          mxDetails: mxCheck.smtpStatus || mxCheck.mxRecords?.[0] || "Active MX Server",
-          score: Number(rawItem.score) || 85,
+          mxValid,
+          mxDetails,
+          score: Number(rawItem.score) || (mxValid ? 85 : 70),
           fetchedAt: new Date(),
         };
 
+        // Safe deduplication filter so leads without emails never overwrite each other
+        let filter: any;
+        if (finalEmail) {
+          filter = { email: finalEmail, dateString };
+        } else if (sourceUrl) {
+          filter = { sourceUrl, dateString };
+        } else {
+          filter = { company, role, dateString };
+        }
+
         await queueCollection.updateOne(
-          { email, dateString },
+          filter,
           {
             $set: queueDoc,
             $setOnInsert: { dispatchedTo: [] },
@@ -267,18 +325,31 @@ export async function POST(req: NextRequest) {
         );
 
         queuedCount++;
-        results.push({ email, company, role, status: "queued" });
+        if (mxValid) {
+          queuedWithEmailCount++;
+        } else {
+          queuedWithoutEmailCount++;
+        }
+
+        results.push({
+          email: finalEmail || "N/A",
+          company,
+          role,
+          status: itemStatus,
+          reason,
+        });
       })
     );
 
     return NextResponse.json(
       {
         success: true,
-        message: `Successfully processed ${incomingLeads.length} leads. ${queuedCount} queued for 9:00 AM dispatch.`,
+        message: `Successfully processed ${incomingLeads.length} leads. ${queuedCount} saved to daily queue (${queuedWithEmailCount} ready for auto-dispatch, ${queuedWithoutEmailCount} saved without email).`,
         dateString,
         received: incomingLeads.length,
         queuedCount,
-        failedCount: incomingLeads.length - queuedCount,
+        queuedWithEmailCount,
+        queuedWithoutEmailCount,
         details: results,
       },
       { headers: CORS_HEADERS }

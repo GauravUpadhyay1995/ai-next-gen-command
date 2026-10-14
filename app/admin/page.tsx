@@ -1630,9 +1630,29 @@ export default function AdminDashboardPage() {
                               ★ {job.score || 75}/100
                             </span>
                           </td>
-                          <td className="py-2.5 px-3 text-cyan-300 font-mono text-[11px]">{job.email}</td>
+                          <td className="py-2.5 px-3 text-cyan-300 font-mono text-[11px]">
+                            {job.email ? (
+                              job.email
+                            ) : (
+                              <span className="text-slate-500 italic text-[10px]">No Email (Apply Link)</span>
+                            )}
+                          </td>
                           <td className="py-2.5 px-3 text-slate-400">{job.location}</td>
-                          <td className="py-2.5 px-3 text-[11px] text-slate-500 uppercase">{job.sourceType}</td>
+                          <td className="py-2.5 px-3 text-[11px] text-slate-500 uppercase">
+                            {job.sourceUrl ? (
+                              <a
+                                href={job.sourceUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 text-violet-400 hover:text-violet-300 hover:underline"
+                              >
+                                <span>{job.sourceType || "LINK"}</span>
+                                <ExternalLink className="w-2.5 h-2.5" />
+                              </a>
+                            ) : (
+                              job.sourceType
+                            )}
+                          </td>
                           <td className="py-2.5 px-3">
                             {job.dispatchedTo && job.dispatchedTo.length > 0 ? (
                               <span className="px-2 py-0.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-full text-[10px]">
