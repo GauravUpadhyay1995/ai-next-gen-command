@@ -25,18 +25,32 @@ export function generateSmartHeuristicPitch(context: PitchContext): string {
   const lowerSnippet = snippet.toLowerCase();
   const lowerRole = role.toLowerCase();
 
-  // Detect tech keywords in job post
+  // Detect skills: Prioritize candidate target role skills first!
   const detectedSkills: string[] = [];
   const skillKeywords = [
     "react", "next.js", "typescript", "javascript", "node.js", "node",
-    "python", "django", "fastapi", "vue", "angular", "aws", "docker",
     "mongodb", "postgresql", "sql", "tailwind", "graphql", "rest api",
+    "python", "django", "fastapi", "vue", "angular", "aws", "docker",
     "ui/ux", "frontend", "backend", "full stack", "fullstack", "devops"
   ];
 
+  if (lowerRole.includes("mern")) {
+    detectedSkills.push("REACT", "NODE.JS", "MONGODB");
+  }
+
+  // 1. First add skills matching candidate's role
   for (const skill of skillKeywords) {
-    if (lowerSnippet.includes(skill) || lowerRole.includes(skill)) {
-      detectedSkills.push(skill.toUpperCase());
+    const upper = skill.toUpperCase();
+    if (lowerRole.includes(skill) && !detectedSkills.includes(upper)) {
+      detectedSkills.push(upper);
+    }
+  }
+
+  // 2. Then add complementary skills from job snippet
+  for (const skill of skillKeywords) {
+    const upper = skill.toUpperCase();
+    if (lowerSnippet.includes(skill) && !detectedSkills.includes(upper)) {
+      detectedSkills.push(upper);
     }
   }
 

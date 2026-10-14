@@ -149,6 +149,8 @@ export default function AdminDashboardPage() {
   // 1-Click Launch Modal & Real-time Logs
   const [launchingOutreachEmail, setLaunchingOutreachEmail] = useState<string | null>(null);
   const [lastTargetEmail, setLastTargetEmail] = useState<string | null>(null);
+  const [autoChainEnabled, setAutoChainEnabled] = useState(true);
+  const [countdownSeconds, setCountdownSeconds] = useState<number | null>(null);
   const [launchModalOpen, setLaunchModalOpen] = useState(false);
   const [liveLaunchLogs, setLiveLaunchLogs] = useState<string[]>([]);
   const [launchSummary, setLaunchSummary] = useState<any>(null);
@@ -199,6 +201,32 @@ export default function AdminDashboardPage() {
   useEffect(() => {
     loadAllData();
   }, []);
+
+  // ⚡ Hands-Free Auto-Advance Runner for Outreach Batch Chunks
+  useEffect(() => {
+    let timer: any = null;
+    if (launchModalOpen && launchSummary?.hasMorePending && autoChainEnabled && !launchingOutreachEmail) {
+      if (countdownSeconds === null) {
+        // Safe countdown delay between batches: minimum 3s, up to 10s based on system pacing
+        const waitSec = Math.max(3, Math.min(10, Math.round(60 / (emailsPerMinute || 10))));
+        setCountdownSeconds(waitSec);
+      } else if (countdownSeconds > 0) {
+        timer = setTimeout(() => {
+          setCountdownSeconds((prev) => (prev !== null ? prev - 1 : null));
+        }, 1000);
+      } else if (countdownSeconds === 0) {
+        setCountdownSeconds(null);
+        handle1ClickLaunch(lastTargetEmail === "ALL" ? undefined : (lastTargetEmail || undefined), false);
+      }
+    } else {
+      if (!launchSummary?.hasMorePending || launchingOutreachEmail) {
+        setCountdownSeconds(null);
+      }
+    }
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
+  }, [launchModalOpen, launchSummary, autoChainEnabled, launchingOutreachEmail, countdownSeconds, lastTargetEmail, emailsPerMinute]);
 
   const loadAllData = async () => {
     try {
@@ -305,8 +333,10 @@ export default function AdminDashboardPage() {
     try {
       setLastTargetEmail(customerEmail || "ALL");
       setLaunchingOutreachEmail(customerEmail || "ALL");
-      setLiveLaunchLogs([
-        `[${new Date().toLocaleTimeString()}] 🚀 Initializing Auto-Pilot Dispatcher...`,
+      setCountdownSeconds(null);
+      setLiveLaunchLogs((prev) => [
+        ...(prev.length > 0 ? [...prev, "========================================"] : []),
+        `[${new Date().toLocaleTimeString()}] 🚀 Launching Batch Chunk...`,
         `[${new Date().toLocaleTimeString()}] Target: ${customerEmail ? `Candidate "${customerEmail}"` : "ALL Active Candidates"}`,
         `[${new Date().toLocaleTimeString()}] Mode: ${simulateOnly ? "SIMULATION (No emails sent)" : "LIVE DISPATCH (Google SMTP:465 SSL)"}`,
         `[${new Date().toLocaleTimeString()}] Verifying active jobs across multi-portal stream...`,
@@ -324,9 +354,12 @@ export default function AdminDashboardPage() {
         throw new Error(data.message || "Outreach execution failed");
       }
 
-      setLiveLaunchLogs(data.logs || []);
+      setLiveLaunchLogs((prev) => [
+        ...prev,
+        ...(data.logs || []),
+      ]);
       setLaunchSummary(data);
-      setSuccessMsg(`✅ Outreach Completed! Dispatched: ${data.totalEmailsDispatched} emails.`);
+      setSuccessMsg(`✅ Outreach Batch Completed! Dispatched: ${data.totalEmailsDispatched} emails.`);
       loadAllData();
     } catch (err: any) {
       setError(err.message || "Outreach dispatch failed");
@@ -2048,11 +2081,20 @@ export default function AdminDashboardPage() {
                 {launchSummary ? (
                   <div className="space-y-1">
                     <span className="text-emerald-400 font-semibold block">
-                      ✓ Outreach Batch Finished: {launchSummary.totalEmailsDispatched} emails dispatched across {launchSummary.totalCustomers} candidates.
+                      ✓ Batch Complete: {launchSummary.totalEmailsDispatched} emails dispatched across {launchSummary.totalCustomers} candidates.
                     </span>
-                    {launchSummary.hasMorePending && (
-                      <span className="text-amber-300 text-[11px] block">
-                        ⚡ Batch chunk completed safely. {launchSummary.remainingQueueJobs} jobs remain in queue. Click "Dispatch Next Batch" to continue without server timeout.
+                    {launchSummary.hasMorePending ? (
+                      <span className="text-amber-300 text-[11px] flex items-center gap-1.5 font-medium">
+                        <Zap className="w-3.5 h-3.5 fill-amber-300 animate-pulse text-amber-300" />
+                        <span>
+                          {autoChainEnabled && countdownSeconds !== null
+                            ? `⚡ Auto-dispatching next batch in ${countdownSeconds}s... (${launchSummary.remainingQueueJobs} jobs remaining)`
+                            : `⚡ Batch chunk complete. ${launchSummary.remainingQueueJobs} jobs remain in queue.`}
+                        </span>
+                      </span>
+                    ) : (
+                      <span className="text-emerald-400 text-[11px] block font-semibold">
+                        ✓ All candidate queue jobs completed! No pending jobs remain today.
                       </span>
                     )}
                   </div>
@@ -2066,17 +2108,37 @@ export default function AdminDashboardPage() {
 
               <div className="flex items-center gap-2">
                 {launchSummary?.hasMorePending && (
-                  <button
-                    onClick={() => handle1ClickLaunch(lastTargetEmail === "ALL" ? undefined : (lastTargetEmail || undefined), false)}
-                    disabled={launchingOutreachEmail !== null}
-                    className="px-3.5 py-2 bg-amber-600 hover:bg-amber-500 text-white text-xs font-semibold rounded-xl shadow-md transition-all cursor-pointer flex items-center gap-1.5"
-                  >
-                    <Zap className="w-3.5 h-3.5" />
-                    <span>Dispatch Next Batch ({launchSummary.remainingQueueJobs} left)</span>
-                  </button>
+                  <>
+                    <button
+                      onClick={() => setAutoChainEnabled(!autoChainEnabled)}
+                      className={`px-3 py-2 text-xs font-semibold rounded-xl border transition-all cursor-pointer ${
+                        autoChainEnabled
+                          ? "bg-slate-900 border-amber-500/40 text-amber-300 hover:bg-slate-800"
+                          : "bg-slate-900 border-slate-700 text-slate-400 hover:text-white"
+                      }`}
+                      title={autoChainEnabled ? "Pause automatic next batch timer" : "Enable automatic next batch timer"}
+                    >
+                      {autoChainEnabled ? "Pause Auto-Run" : "Resume Auto-Run"}
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        setCountdownSeconds(null);
+                        handle1ClickLaunch(lastTargetEmail === "ALL" ? undefined : (lastTargetEmail || undefined), false);
+                      }}
+                      disabled={launchingOutreachEmail !== null}
+                      className="px-3.5 py-2 bg-amber-600 hover:bg-amber-500 text-white text-xs font-semibold rounded-xl shadow-md transition-all cursor-pointer flex items-center gap-1.5 disabled:opacity-40"
+                    >
+                      <Zap className="w-3.5 h-3.5" />
+                      <span>Dispatch Now ({launchSummary.remainingQueueJobs} left)</span>
+                    </button>
+                  </>
                 )}
                 <button
-                  onClick={() => setLaunchModalOpen(false)}
+                  onClick={() => {
+                    setLaunchModalOpen(false);
+                    setCountdownSeconds(null);
+                  }}
                   className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-xl shadow-md transition-all cursor-pointer"
                 >
                   Close Stream

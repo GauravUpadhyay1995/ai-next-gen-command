@@ -52,7 +52,14 @@ async function handleDispatch(req: NextRequest) {
       try {
         const host = req.headers.get("x-forwarded-host") || req.headers.get("host") || "localhost:3000";
         const proto = req.headers.get("x-forwarded-proto") || (host.includes("localhost") ? "http" : "https");
-        const origin = `${proto}://${host}`;
+        let origin = `${proto}://${host}`;
+        if (process.env.VERCEL_PROJECT_PRODUCTION_URL) {
+          origin = `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`;
+        } else if (process.env.VERCEL_URL) {
+          origin = `https://${process.env.VERCEL_URL}`;
+        } else if (process.env.NEXTAUTH_URL) {
+          origin = process.env.NEXTAUTH_URL;
+        }
 
         const nextUrl = new URL("/api/cron/dispatch-emails", origin);
         if (targetDate) nextUrl.searchParams.set("date", targetDate);
